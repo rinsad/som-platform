@@ -1,0 +1,29 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(PGPASSWORD=password psql -U postgres -h localhost -c \"CREATE DATABASE som_platform;\")",
+      "Bash(where psql:*)",
+      "Read(//c/Program Files/PostgreSQL/**)",
+      "Bash(PGPASSWORD=password \"/c/Program Files/PostgreSQL/18/bin/psql\" -U postgres -h localhost -c \"CREATE DATABASE som_platform;\" 2>&1)",
+      "Bash(npm run:*)",
+      "Bash(node -e \"const b=require\\(''bcryptjs''\\); b.hash\\(''Admin@SOM2024!'',12\\).then\\(h => console.log\\(h\\)\\)\")",
+      "Bash(PGPASSWORD=password \"/c/Program Files/PostgreSQL/18/bin/psql\" -U postgres -h localhost -d som_platform -c \"UPDATE som_users SET password_hash = '\\\\$2b\\\\$12\\\\$Ih/CGIzyImfXD6cvy/0MiuhqO8zEd4ByVQEHh6rgfllMIIdxkfE12' WHERE email = 'admin@shell.om' RETURNING id, full_name, email, role;\" 2>&1)",
+      "Bash(PGPASSWORD=password \"/c/Program Files/PostgreSQL/18/bin/psql\" -U postgres -h localhost -d som_platform -c \"\\\\dt som_*\" 2>&1)",
+      "Bash(node -e \"const b=require\\(''bcryptjs''\\); b.hash\\(''password'',12\\).then\\(h => console.log\\(h\\)\\)\")",
+      "Bash(PGPASSWORD=password \"/c/Program Files/PostgreSQL/18/bin/psql\" -U postgres -h localhost -d som_platform -c \"UPDATE som_users SET password_hash = '\\\\$2b\\\\$12\\\\$w7dvM6rZ/H/8CNy/cH8AFOGIJjvX5tHpUz9988JPKIsF.tjY5KbJi' WHERE email = 'admin@shell.om' RETURNING email, role;\" 2>&1)",
+      "Bash(npm test:*)",
+      "Bash(node -e \":*)",
+      "Bash(PGPASSWORD=password \"/c/Program Files/PostgreSQL/18/bin/psql\" -U postgres -h localhost -d som_platform -c \"SELECT email, left\\(password_hash,20\\) as hash_preview, is_active FROM som_users WHERE email='admin@shell.om';\" 2>&1)",
+      "Bash(PGPASSWORD=password \"/c/Program Files/PostgreSQL/18/bin/psql\" -U postgres -h localhost -d som_platform -c \"SELECT password_hash FROM som_users WHERE email='admin@shell.om';\" 2>&1)",
+      "Bash(PGPASSWORD=password \"/c/Program Files/PostgreSQL/18/bin/psql\" -U postgres -h localhost -d som_platform -c \"\nSELECT 'capex_departments' AS tbl, COUNT\\(*\\) FROM capex_departments\nUNION ALL SELECT 'capex_department_monthly', COUNT\\(*\\) FROM capex_department_monthly\nUNION ALL SELECT 'capex_initiations', COUNT\\(*\\) FROM capex_initiations\nUNION ALL SELECT 'capex_manual_entries', COUNT\\(*\\) FROM capex_manual_entries\nUNION ALL SELECT 'gsap_sync_status', COUNT\\(*\\) FROM gsap_sync_status\nUNION ALL SELECT 'gsap_approved_budgets', COUNT\\(*\\) FROM gsap_approved_budgets\nUNION ALL SELECT 'purchase_requests', COUNT\\(*\\) FROM purchase_requests\nUNION ALL SELECT 'pr_documents', COUNT\\(*\\) FROM pr_documents\nUNION ALL SELECT 'assets', COUNT\\(*\\) FROM assets\nUNION ALL SELECT 'compliance_alerts', COUNT\\(*\\) FROM asset_compliance_alerts\nUNION ALL SELECT 'work_orders', COUNT\\(*\\) FROM maintenance_work_orders\nUNION ALL SELECT 'utility_bills', COUNT\\(*\\) FROM utility_bills\nUNION ALL SELECT 'portal_apps', COUNT\\(*\\) FROM portal_apps\nUNION ALL SELECT 'knowledge_base', COUNT\\(*\\) FROM knowledge_base\nUNION ALL SELECT 'kb_versions', COUNT\\(*\\) FROM kb_versions\nORDER BY 1;\" 2>&1)",
+      "Bash(PGPASSWORD=password \"/c/Program Files/PostgreSQL/18/bin/psql\" -U postgres -h localhost -d som_platform -c \"\nALTER TABLE utility_bills ALTER COLUMN period TYPE VARCHAR\\(20\\);\nALTER TABLE capex_manual_entries ALTER COLUMN period TYPE VARCHAR\\(20\\);\" 2>&1)",
+      "Bash(PGPASSWORD=password \"/c/Program Files/PostgreSQL/18/bin/psql\" -U postgres -h localhost -d som_platform -c \"\nALTER TABLE user_favourites  DROP CONSTRAINT user_favourites_user_id_fkey;\nALTER TABLE user_favourites  ALTER COLUMN user_id TYPE TEXT;\nALTER TABLE user_pinned_docs DROP CONSTRAINT user_pinned_docs_user_id_fkey;\nALTER TABLE user_pinned_docs ALTER COLUMN user_id TYPE TEXT;\" 2>&1)",
+      "Bash(PGPASSWORD=password psql -U postgres -d som_platform -c \":*)",
+      "Bash(node:*)",
+      "Bash(npm install:*)",
+      "Bash(npm uninstall:*)",
+      "Bash(curl -s \"http://localhost:5000/api/portal/knowledge/search?q=procurement\")",
+      "Bash(curl:*)"
+    ]
+  }
+}
