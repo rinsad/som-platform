@@ -2,6 +2,11 @@ const pool     = require('../database/db');
 const multer   = require('multer');
 const pdfParse = require('pdf-parse');
 const mammoth  = require('mammoth');
+const fs       = require('fs');
+const path     = require('path');
+
+// Public kb-files folder (served by Vite / frontend static)
+const KB_FILES_DIR = path.join(__dirname, '../../../frontend/public/kb-files');
 const { OpenAI } = require('openai');
 
 // ── Multer: in-memory storage, 20 MB limit ────────────────────────────────────
@@ -332,6 +337,11 @@ exports.uploadDoc = async (req, res, next) => {
       }
 
       await client.query('COMMIT');
+
+      // Save file to frontend/public/kb-files so the static "View" link works
+      fs.mkdirSync(KB_FILES_DIR, { recursive: true });
+      fs.writeFileSync(path.join(KB_FILES_DIR, `${newId}.${sourceType}`), buffer);
+
       res.status(201).json({
         id: newId, title, sourceType,
         chunks: chunks.length,

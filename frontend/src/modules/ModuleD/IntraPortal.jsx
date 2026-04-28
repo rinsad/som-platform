@@ -198,7 +198,7 @@ function KnowledgeCard({ doc, isPinned, onTogglePin }) {
         {doc.lastUpdated && <span style={{ fontSize: 11.5, color: 'var(--gray-400)' }}>Updated {doc.lastUpdated}</span>}
         {doc.sourceType && doc.sourceType !== 'manual' && (
           <a
-            href={getDocFileUrl(doc.id)}
+            href={getDocFileUrl(doc.id, doc.sourceType)}
             target="_blank"
             rel="noopener noreferrer"
             style={{ fontSize: 11.5, color: '#DD1D21', fontWeight: 600, textDecoration: 'none' }}
@@ -314,7 +314,7 @@ function SearchResultCard({ result }) {
         )}
         {result.sourceType && result.sourceType !== 'manual' && (
           <a
-            href={getDocFileUrl(result.id)}
+            href={getDocFileUrl(result.id, result.sourceType)}
             target="_blank"
             rel="noopener noreferrer"
             style={{ marginLeft: 'auto', fontSize: 11.5, color: '#DD1D21', fontWeight: 600, textDecoration: 'none' }}

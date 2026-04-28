@@ -92,8 +92,8 @@ export async function uploadDocument(formData) {
 }
 
 /** Returns the URL to view a document's file from the public kb-files folder. */
-export function getDocFileUrl(docId) {
-  return `/kb-files/${docId}.pdf`;
+export function getDocFileUrl(docId, sourceType = 'pdf') {
+  return `/kb-files/${docId}.${sourceType}`;
 }
 
 /**
