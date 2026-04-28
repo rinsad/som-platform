@@ -61,7 +61,7 @@ export function getBudgetUploads() {
 }
 
 export async function uploadCapexBudget(formData) {
-  const API = import.meta.env.VITE_API_URL || '/api',;
+  const API = import.meta.env.VITE_API_URL || '/api';
   const r = await fetch(`${API}/api/capex/budget-upload`, {
     method: 'POST',
     headers: { Authorization: `Bearer ${localStorage.getItem('som_token')}` },
