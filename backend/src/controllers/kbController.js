@@ -313,12 +313,13 @@ exports.uploadDoc = async (req, res, next) => {
         `INSERT INTO knowledge_base
            (id, title, category, version, last_updated, source_type,
             original_filename, file_size, uploaded_by, extracted_at, content_text,
-            embedded_at)
-         VALUES ($1,$2,$3,'1.0',CURRENT_DATE,$4,$5,$6,$7,NOW(),$8,$9)`,
+            embedded_at, file_data, file_mimetype)
+         VALUES ($1,$2,$3,'1.0',CURRENT_DATE,$4,$5,$6,$7,NOW(),$8,$9,$10,$11)`,
         [newId, title, category, sourceType,
          originalname, buffer.length, uploader,
          text.slice(0, 50000),
-         embeddings ? new Date() : null]
+         embeddings ? new Date() : null,
+         buffer, mimetype]
       );
 
       for (let i = 0; i < chunks.length; i++) {
@@ -342,5 +343,23 @@ exports.uploadDoc = async (req, res, next) => {
     } finally {
       client.release();
     }
+  } catch (err) { next(err); }
+};
+
+// ── GET /api/portal/knowledge/:id/file ───────────────────────────────────────
+// Serves the original uploaded file (PDF, DOCX, etc.)
+exports.serveFile = async (req, res, next) => {
+  try {
+    const { rows } = await pool.query(
+      'SELECT file_data, file_mimetype, original_filename FROM knowledge_base WHERE id = $1',
+      [req.params.id]
+    );
+    if (!rows.length || !rows[0].file_data) {
+      return res.status(404).json({ error: 'File not found' });
+    }
+    const { file_data, file_mimetype, original_filename } = rows[0];
+    res.setHeader('Content-Type', file_mimetype || 'application/octet-stream');
+    res.setHeader('Content-Disposition', `inline; filename="${original_filename}"`);
+    res.send(file_data);
   } catch (err) { next(err); }
 };

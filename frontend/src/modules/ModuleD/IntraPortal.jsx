@@ -3,7 +3,7 @@ import {
   getApps, getKnowledge, searchKnowledge, getDocVersions,
   getFavourites, toggleFavourite,
   getPinnedDocs, togglePinnedDoc,
-  ssoLogin,
+  ssoLogin, getDocFileUrl,
 } from '../../services/portalService';
 
 const CATEGORY_COLORS = {
@@ -196,6 +196,16 @@ function KnowledgeCard({ doc, isPinned, onTogglePin }) {
       <div style={{ display: 'flex', gap: 14, alignItems: 'center', marginTop: 2 }}>
         {doc.version && <span style={{ fontSize: 11.5, color: 'var(--gray-400)', fontWeight: 600 }}>v{doc.version}</span>}
         {doc.lastUpdated && <span style={{ fontSize: 11.5, color: 'var(--gray-400)' }}>Updated {doc.lastUpdated}</span>}
+        {doc.sourceType && doc.sourceType !== 'manual' && (
+          <a
+            href={getDocFileUrl(doc.id)}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{ fontSize: 11.5, color: '#DD1D21', fontWeight: 600, textDecoration: 'none' }}
+          >
+            📄 View
+          </a>
+        )}
         <button
           data-testid={`history-btn-${doc.id}`}
           onClick={handleHistory}
@@ -298,9 +308,19 @@ function SearchResultCard({ result }) {
         {result.version && <span style={{ fontSize: 11.5, color: 'var(--gray-400)', fontWeight: 600 }}>v{result.version}</span>}
         {result.lastUpdated && <span style={{ fontSize: 11.5, color: 'var(--gray-400)' }}>Updated {result.lastUpdated}</span>}
         {result.originalFilename && (
-          <span style={{ fontSize: 11, color: 'var(--gray-300)', marginLeft: 'auto' }}>
+          <span style={{ fontSize: 11, color: 'var(--gray-300)' }}>
             📎 {result.originalFilename}
           </span>
+        )}
+        {result.sourceType && result.sourceType !== 'manual' && (
+          <a
+            href={getDocFileUrl(result.id)}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{ marginLeft: 'auto', fontSize: 11.5, color: '#DD1D21', fontWeight: 600, textDecoration: 'none' }}
+          >
+            📄 View
+          </a>
         )}
       </div>
     </div>

@@ -31,7 +31,8 @@ exports.getApps = async (req, res, next) => {
 exports.getKnowledge = async (req, res, next) => {
   try {
     const { search, category } = req.query;
-    let q = `SELECT id, title, category, version, last_updated, description, tags
+    let q = `SELECT id, title, category, version, last_updated, description, tags,
+                    source_type, original_filename
              FROM knowledge_base WHERE 1=1`;
     const vals = [];
 
@@ -50,13 +51,15 @@ exports.getKnowledge = async (req, res, next) => {
 
     const { rows } = await pool.query(q, vals);
     res.json(rows.map(r => ({
-      id:          r.id,
-      title:       r.title,
-      category:    r.category,
-      version:     r.version,
-      lastUpdated: r.last_updated,
-      description: r.description,
-      tags:        r.tags,
+      id:               r.id,
+      title:            r.title,
+      category:         r.category,
+      version:          r.version,
+      lastUpdated:      r.last_updated,
+      description:      r.description,
+      tags:             r.tags,
+      sourceType:       r.source_type,
+      originalFilename: r.original_filename,
     })));
   } catch (err) { next(err); }
 };

@@ -4,16 +4,7 @@ export default function Navbar({ user, onLogout }) {
       {/* Brand */}
       <div style={s.brand}>
         <div style={s.logoMark}>
-          {/* Shell pecten — red on yellow, matches favicon */}
-          <svg viewBox="0 0 20 20" fill="none" width="16" height="16">
-            <path fill="#DD1D21" d="M10 18 L1 11 L2 7 L5 3 Q10 0 15 3 L18 7 L19 11 Z"/>
-            <line x1="10" y1="18" x2="2"  y2="8"  stroke="#FFD500" strokeWidth="1.2" strokeLinecap="round"/>
-            <line x1="10" y1="18" x2="5"  y2="3"  stroke="#FFD500" strokeWidth="1.2" strokeLinecap="round"/>
-            <line x1="10" y1="18" x2="10" y2="1"  stroke="#FFD500" strokeWidth="1.5" strokeLinecap="round"/>
-            <line x1="10" y1="18" x2="15" y2="3"  stroke="#FFD500" strokeWidth="1.2" strokeLinecap="round"/>
-            <line x1="10" y1="18" x2="18" y2="8"  stroke="#FFD500" strokeWidth="1.2" strokeLinecap="round"/>
-            <path d="M6 19 Q10 21 14 19" fill="#DD1D21"/>
-          </svg>
+          <img src="/logo.png" alt="Shell Oman Marketing" style={s.logoImg} />
         </div>
         <div>
           <div style={s.brandName}>Shell Oman Marketing</div>
@@ -64,12 +55,14 @@ const s = {
     width: '32px',
     height: '32px',
     borderRadius: '10px',
-    background: '#FFD500',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    boxShadow: '0 1px 6px rgba(255,213,0,0.40), 0 1px 2px rgba(0,0,0,0.3)',
+    overflow: 'hidden',
     flexShrink: 0,
+  },
+  logoImg: {
+    width: '100%',
+    height: '100%',
+    objectFit: 'cover',
+    display: 'block',
   },
   brandName: {
     color: 'rgba(255,255,255,0.92)',

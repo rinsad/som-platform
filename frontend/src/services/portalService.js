@@ -91,6 +91,11 @@ export async function uploadDocument(formData) {
   return r.json();
 }
 
+/** Returns the URL to view a document's file from the public kb-files folder. */
+export function getDocFileUrl(docId) {
+  return `/kb-files/${docId}.pdf`;
+}
+
 /**
  * SSO Readiness stub.
  * In production this would initiate a SAML 2.0 / OAuth 2.0 redirect via the

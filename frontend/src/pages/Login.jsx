@@ -1,28 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
-// Shell pecten icon — red on Shell Yellow, matches favicon & navbar
-function ShellPecten() {
-  const RED = '#DD1D21';
-  return (
-    <svg viewBox="0 0 40 46" fill="none" xmlns="http://www.w3.org/2000/svg" width="30" height="34">
-      {/* Outer shell boundary */}
-      <path d="M1 28 L3 16 L10 6 Q20 0 30 6 L37 16 L39 28"
-            stroke={RED} strokeWidth="2.5" fill="none"
-            strokeLinecap="round" strokeLinejoin="round" opacity="0.55"/>
-      {/* Rib lines — radiating from apex */}
-      <line x1="20" y1="43" x2="20" y2="3"  stroke={RED} strokeWidth="3"   strokeLinecap="round" opacity="1"   />
-      <line x1="20" y1="43" x2="10" y2="6"  stroke={RED} strokeWidth="2.5" strokeLinecap="round" opacity="0.88"/>
-      <line x1="20" y1="43" x2="30" y2="6"  stroke={RED} strokeWidth="2.5" strokeLinecap="round" opacity="0.88"/>
-      <line x1="20" y1="43" x2="3"  y2="16" stroke={RED} strokeWidth="2"   strokeLinecap="round" opacity="0.72"/>
-      <line x1="20" y1="43" x2="37" y2="16" stroke={RED} strokeWidth="2"   strokeLinecap="round" opacity="0.72"/>
-      <line x1="20" y1="43" x2="1"  y2="28" stroke={RED} strokeWidth="1.5" strokeLinecap="round" opacity="0.55"/>
-      <line x1="20" y1="43" x2="39" y2="28" stroke={RED} strokeWidth="1.5" strokeLinecap="round" opacity="0.55"/>
-      {/* Base arc — shell hinge/foot */}
-      <path d="M3 43 Q20 50 37 43" stroke={RED} strokeWidth="2.5" strokeLinecap="round" fill="none"/>
-    </svg>
-  );
-}
 
 export default function Login() {
   const [email, setEmail]       = useState('');
@@ -77,7 +55,7 @@ export default function Login() {
         {/* App icon */}
         <div style={s.iconWrap}>
           <div style={s.icon}>
-            <ShellPecten />
+            <img src="/logo.png" alt="Shell Oman Marketing" style={s.logoImg} />
           </div>
           <div style={s.iconGlow} />
         </div>
@@ -254,20 +232,23 @@ const s = {
   icon: {
     width: '72px',
     height: '72px',
-    borderRadius: '17px',           /* Apple icon radius ≈ 23.6% of size */
-    background: '#FFD500',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    boxShadow: '0 12px 36px rgba(255,213,0,0.50), 0 4px 12px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.35)',
+    borderRadius: '17px',
+    overflow: 'hidden',
+    boxShadow: '0 12px 36px rgba(0,0,0,0.4), 0 4px 12px rgba(0,0,0,0.3)',
     position: 'relative',
     zIndex: 1,
+  },
+  logoImg: {
+    width: '100%',
+    height: '100%',
+    objectFit: 'cover',
+    display: 'block',
   },
   iconGlow: {
     position: 'absolute',
     width: '72px', height: '72px',
     borderRadius: '17px',
-    background: 'rgba(255,213,0,0.55)',
+    background: 'rgba(255,255,255,0.25)',
     filter: 'blur(22px)',
     top: '8px',
     zIndex: 0,

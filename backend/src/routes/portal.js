@@ -14,6 +14,7 @@ router.post('/knowledge/:id/embed',      verifyToken, kbCtrl.embedDoc);
 router.get('/knowledge/search',          kbCtrl.search);
 router.get('/knowledge',                 portalCtrl.getKnowledge);
 router.get('/knowledge/:id/versions',    portalCtrl.getDocVersions);
+router.get('/knowledge/:id/file',        kbCtrl.serveFile);
 
 // ── Auth-required KB upload ───────────────────────────────────────────────────
 router.post('/knowledge/upload',
