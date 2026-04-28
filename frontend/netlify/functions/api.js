@@ -1,9 +1,4 @@
-export async function handler(event) {
-  return {
-    statusCode: 200,
-    body: JSON.stringify({
-      message: "Function is working",
-      path: event.path
-    })
-  };
-}
+import serverless from "serverless-http";
+import app from "../../../backend/app.js";
+
+export const handler = serverless(app);
