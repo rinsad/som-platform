@@ -38,6 +38,19 @@ async function embedTexts(texts) {
   }
 }
 
+// Extract a short description from the first sentences of the document text.
+// Purely local — no external calls.
+function extractSummary(text, maxChars = 400) {
+  const cleaned = text.replace(/\s+/g, ' ').trim();
+  if (!cleaned) return null;
+  // Try to cut on a sentence boundary within maxChars
+  const slice = cleaned.slice(0, maxChars);
+  const lastStop = Math.max(slice.lastIndexOf('. '), slice.lastIndexOf('.\n'));
+  if (lastStop > 80) return cleaned.slice(0, lastStop + 1).trim();
+  // No good sentence boundary — hard cut with ellipsis
+  return cleaned.length > maxChars ? slice.trimEnd() + '…' : cleaned;
+}
+
 // Cosine similarity between two float arrays
 function cosine(a, b) {
   let dot = 0, na = 0, nb = 0;
@@ -181,9 +194,10 @@ exports.search = async (req, res, next) => {
         `SELECT
            c.id AS chunk_id, c.doc_id, c.content, c.embedding,
            k.id, k.title, k.category, k.version,
-           k.last_updated      AS "lastUpdated",
-           k.source_type       AS "sourceType",
-           k.original_filename AS "originalFilename"
+           k.last_updated           AS "lastUpdated",
+           k.source_type            AS "sourceType",
+           k.original_filename      AS "originalFilename",
+           (k.file_data IS NOT NULL) AS "hasStoredFile"
          FROM kb_chunks c
          JOIN knowledge_base k ON k.id = c.doc_id
          WHERE c.embedding IS NOT NULL
@@ -216,6 +230,7 @@ exports.search = async (req, res, next) => {
             lastUpdated:      r.lastUpdated,
             sourceType:       r.sourceType,
             originalFilename: r.originalFilename,
+            hasStoredFile:    r.hasStoredFile,
             score:            Math.round(r.score * 100),
             snippet:          buildSnippet(r.content, q.trim()),
             searchMode:       'semantic',
@@ -233,9 +248,10 @@ exports.search = async (req, res, next) => {
           k.title,
           k.category,
           k.version,
-          k.last_updated       AS "lastUpdated",
-          k.source_type        AS "sourceType",
-          k.original_filename  AS "originalFilename",
+          k.last_updated                AS "lastUpdated",
+          k.source_type                 AS "sourceType",
+          k.original_filename           AS "originalFilename",
+          (k.file_data IS NOT NULL)     AS "hasStoredFile",
           ts_rank(c.tsv, plainto_tsquery('english', $1)) AS rank,
           ts_headline(
             'english', c.content,
@@ -307,8 +323,8 @@ exports.uploadDoc = async (req, res, next) => {
 
     const uploader = req.user?.name || req.user?.email || 'Unknown';
 
-    // Generate embeddings for all chunks (if OpenAI key is set)
-    const embeddings = await embedTexts(chunks);
+    const description = extractSummary(text);
+    const embeddings  = await embedTexts(chunks);
 
     const client = await pool.connect();
     try {
@@ -316,11 +332,11 @@ exports.uploadDoc = async (req, res, next) => {
 
       await client.query(
         `INSERT INTO knowledge_base
-           (id, title, category, version, last_updated, source_type,
+           (id, title, category, description, version, last_updated, source_type,
             original_filename, file_size, uploaded_by, extracted_at, content_text,
             embedded_at, file_data, file_mimetype)
-         VALUES ($1,$2,$3,'1.0',CURRENT_DATE,$4,$5,$6,$7,NOW(),$8,$9,$10,$11)`,
-        [newId, title, category, sourceType,
+         VALUES ($1,$2,$3,$4,'1.0',CURRENT_DATE,$5,$6,$7,$8,NOW(),$9,$10,$11,$12)`,
+        [newId, title, category, description, sourceType,
          originalname, buffer.length, uploader,
          text.slice(0, 50000),
          embeddings ? new Date() : null,

@@ -23,8 +23,10 @@ router.post('/knowledge/upload',
   kbCtrl.uploadDoc
 );
 
-// ── Auth-required app & personalisation routes ────────────────────────────────
-router.get('/apps',         verifyToken, portalCtrl.getApps);
+// ── Public app listing ────────────────────────────────────────────────────────
+router.get('/apps',         portalCtrl.getApps);
+
+// ── Auth-required personalisation routes ──────────────────────────────────────
 router.get('/favourites',   verifyToken, portalCtrl.getFavourites);
 router.post('/favourites',  verifyToken, portalCtrl.toggleFavourite);
 router.get('/pinned-docs',  verifyToken, portalCtrl.getPinnedDocs);

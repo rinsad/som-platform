@@ -13,20 +13,25 @@ export default function Navbar({ user, onLogout }) {
       </div>
 
       {/* Right */}
-      {user && (
-        <div style={s.right}>
-          <div style={s.userPill}>
-            <div style={s.avatar}>
-              {(user.name || user.email || '?')[0].toUpperCase()}
+      <div style={s.right}>
+        {user ? (
+          <>
+            <a href="/dashboard" style={s.navLink}>Dashboard</a>
+            <div style={s.userPill}>
+              <div style={s.avatar}>
+                {(user.name || user.email || '?')[0].toUpperCase()}
+              </div>
+              <div style={s.userInfo}>
+                <span style={s.userName}>{user.name || user.email}</span>
+                <span style={s.userRole}>{user.role}</span>
+              </div>
             </div>
-            <div style={s.userInfo}>
-              <span style={s.userName}>{user.name || user.email}</span>
-              <span style={s.userRole}>{user.role}</span>
-            </div>
-          </div>
-          <button onClick={onLogout} style={s.logoutBtn}>Sign out</button>
-        </div>
-      )}
+            <button onClick={onLogout} style={s.logoutBtn}>Sign out</button>
+          </>
+        ) : (
+          <a href="/login" style={s.signInBtn}>Sign in</a>
+        )}
+      </div>
     </header>
   );
 }
@@ -81,6 +86,26 @@ const s = {
     display: 'flex',
     alignItems: 'center',
     gap: '10px',
+  },
+  navLink: {
+    color: 'rgba(255,255,255,0.60)',
+    fontSize: '13px',
+    fontWeight: '500',
+    textDecoration: 'none',
+    padding: '5px 13px',
+    borderRadius: '9999px',
+    border: '0.5px solid rgba(255,255,255,0.18)',
+    transition: 'color 0.15s',
+  },
+  signInBtn: {
+    color: '#fff',
+    fontSize: '13px',
+    fontWeight: '600',
+    textDecoration: 'none',
+    padding: '5px 16px',
+    borderRadius: '9999px',
+    background: '#DD1D21',
+    boxShadow: '0 2px 10px rgba(221,29,33,0.40)',
   },
   userPill: {
     display: 'flex',

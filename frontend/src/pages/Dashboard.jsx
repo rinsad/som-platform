@@ -54,10 +54,13 @@ export default function Dashboard() {
           <h1 style={s.heading}>{greeting}{user.name ? `, ${user.name.split(' ')[0]}` : ''} 👋</h1>
           <p style={s.subheading}>Here's what's happening across SOM Platform today.</p>
         </div>
-        <div style={s.dateBadge}>
-          <span style={s.dateText}>
-            {new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
-          </span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <a href="/" style={s.homeLink}>← Home</a>
+          <div style={s.dateBadge}>
+            <span style={s.dateText}>
+              {new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+            </span>
+          </div>
         </div>
       </div>
 
@@ -147,6 +150,7 @@ const s = {
   header: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '32px', flexWrap: 'wrap', gap: '12px' },
   heading: { fontSize: '26px', fontWeight: '700', color: 'var(--gray-900)', letterSpacing: '-0.5px', marginBottom: '4px' },
   subheading: { fontSize: '14px', color: 'var(--gray-500)' },
+  homeLink: { fontSize: '13px', fontWeight: '500', color: 'var(--gray-500)', textDecoration: 'none', padding: '7px 14px', border: '1px solid var(--gray-200)', borderRadius: 'var(--radius-full)', background: 'var(--surface)', boxShadow: 'var(--shadow-xs)' },
   dateBadge: { background: 'var(--surface)', border: '1px solid var(--gray-200)', borderRadius: 'var(--radius-full)', padding: '7px 16px', boxShadow: 'var(--shadow-xs)' },
   dateText: { fontSize: '13px', color: 'var(--gray-500)', fontWeight: '500' },
 

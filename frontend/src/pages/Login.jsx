@@ -139,6 +139,8 @@ export default function Login() {
         <p style={s.cardFooter}>Secure · Enterprise · Shell Oman</p>
       </div>
 
+      <a href="/" style={s.backLink}>← Back to home</a>
+
       <p style={s.pageFooter}>
         © {new Date().getFullYear()} Shell Oman Marketing. All rights reserved.
       </p>
@@ -367,6 +369,17 @@ const s = {
     letterSpacing: '0.6px',
     textTransform: 'uppercase',
     fontFamily: FONT,
+  },
+
+  backLink: {
+    position: 'relative',
+    zIndex: 1,
+    marginTop: '16px',
+    fontSize: '13px',
+    color: 'rgba(255,255,255,0.40)',
+    textDecoration: 'none',
+    fontFamily: FONT,
+    transition: 'color 0.15s',
   },
 
   /* Page footer */

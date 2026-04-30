@@ -6,13 +6,10 @@ const isUuid = (v) => typeof v === 'string' && UUID_RE.test(v);
 // ── GET /api/portal/apps ──────────────────────────────────────────────────────
 exports.getApps = async (req, res, next) => {
   try {
-    const { role } = req.user;
     const { rows } = await pool.query(
       `SELECT id, name, description, icon, category, url, sso_enabled, allowed_roles
        FROM portal_apps
-       WHERE $1 = ANY(allowed_roles)
-       ORDER BY sort_order`,
-      [role]
+       ORDER BY sort_order`
     );
     res.json(rows.map(r => ({
       id:          r.id,
@@ -32,7 +29,8 @@ exports.getKnowledge = async (req, res, next) => {
   try {
     const { search, category } = req.query;
     let q = `SELECT id, title, category, version, last_updated, description, tags,
-                    source_type, original_filename
+                    source_type, original_filename,
+                    (file_data IS NOT NULL) AS has_stored_file
              FROM knowledge_base WHERE 1=1`;
     const vals = [];
 
@@ -60,6 +58,7 @@ exports.getKnowledge = async (req, res, next) => {
       tags:             r.tags,
       sourceType:       r.source_type,
       originalFilename: r.original_filename,
+      hasStoredFile:    r.has_stored_file,
     })));
   } catch (err) { next(err); }
 };

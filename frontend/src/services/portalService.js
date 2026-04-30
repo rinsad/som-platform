@@ -20,7 +20,7 @@ async function publicRequest(path) {
 }
 
 export function getApps() {
-  return request('/api/portal/apps');
+  return publicRequest('/api/portal/apps');
 }
 
 export function getKnowledge(params = {}) {
@@ -91,8 +91,15 @@ export async function uploadDocument(formData) {
   return r.json();
 }
 
-/** Returns the URL to view a document's file from the public kb-files folder. */
-export function getDocFileUrl(docId, sourceType = 'pdf') {
+/**
+ * Returns the correct URL to view a document's file.
+ * - Uploaded docs (file stored in DB): served via API endpoint — works locally + AWS.
+ * - Pre-seeded dummy docs (no DB binary): served from /kb-files/ static folder.
+ */
+export function getDocFileUrl(docId, sourceType = 'pdf', hasStoredFile = false) {
+  if (hasStoredFile) {
+    return `/api/portal/knowledge/${docId}/file`;
+  }
   return `/kb-files/${docId}.${sourceType}`;
 }
 

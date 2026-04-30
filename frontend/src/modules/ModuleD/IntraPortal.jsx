@@ -198,7 +198,7 @@ function KnowledgeCard({ doc, isPinned, onTogglePin }) {
         {doc.lastUpdated && <span style={{ fontSize: 11.5, color: 'var(--gray-400)' }}>Updated {doc.lastUpdated}</span>}
         {doc.sourceType && doc.sourceType !== 'manual' && (
           <a
-            href={getDocFileUrl(doc.id, doc.sourceType)}
+            href={getDocFileUrl(doc.id, doc.sourceType, doc.hasStoredFile)}
             target="_blank"
             rel="noopener noreferrer"
             style={{ fontSize: 11.5, color: '#DD1D21', fontWeight: 600, textDecoration: 'none' }}
@@ -314,7 +314,7 @@ function SearchResultCard({ result }) {
         )}
         {result.sourceType && result.sourceType !== 'manual' && (
           <a
-            href={getDocFileUrl(result.id, result.sourceType)}
+            href={getDocFileUrl(result.id, result.sourceType, result.hasStoredFile)}
             target="_blank"
             rel="noopener noreferrer"
             style={{ marginLeft: 'auto', fontSize: 11.5, color: '#DD1D21', fontWeight: 600, textDecoration: 'none' }}
@@ -353,17 +353,17 @@ export default function IntraPortal() {
 
   const debounceRef = useRef(null);
 
-  // ── Load apps, favourites, and pinned docs on mount (auth-gated) ─────────────
+  // ── Load apps on mount; favourites and pinned docs only when authenticated ────
   useEffect(() => {
-    if (!isLoggedIn) return;
     async function load() {
       try {
-        const [appsData, favsData, pinsData] = await Promise.all([
-          getApps(), getFavourites(), getPinnedDocs(),
-        ]);
+        const appsData = await getApps();
         setApps(appsData);
-        setFavourites(favsData);
-        setPinnedDocs(pinsData);
+        if (isLoggedIn) {
+          const [favsData, pinsData] = await Promise.all([getFavourites(), getPinnedDocs()]);
+          setFavourites(favsData);
+          setPinnedDocs(pinsData);
+        }
       } catch {
         setAppsErr('Failed to load apps. Please refresh.');
       }
@@ -401,6 +401,7 @@ export default function IntraPortal() {
   // ── App click: SSO-aware navigation ──────────────────────────────────────────
   async function handleAppClick(app) {
     if (app.ssoEnabled) {
+      if (!isLoggedIn) { window.location.href = '/login'; return; }
       setSsoLaunching((prev) => new Set(prev).add(app.id));
       try {
         await ssoLogin(app);
@@ -496,8 +497,8 @@ export default function IntraPortal() {
         </section>
       )}
 
-      {/* ── SECTION 2: All Apps by Category (logged-in only) ────────────────── */}
-      {isLoggedIn && apps.length > 0 && (
+      {/* ── SECTION 2: All Apps by Category ──────────────────────────────────── */}
+      {apps.length > 0 && (
         <section style={{ marginBottom: 40 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
             <h2 style={{ fontSize: 15, fontWeight: 700, color: 'var(--gray-800)' }}>All Apps</h2>
@@ -525,7 +526,7 @@ export default function IntraPortal() {
                   <AppTile
                     key={app.id} app={app}
                     isFav={favourites.includes(app.id)}
-                    onToggleStar={handleToggleStar}
+                    onToggleStar={isLoggedIn ? handleToggleStar : null}
                     onAppClick={handleAppClick}
                     launching={ssoLaunching.has(app.id)}
                   />
@@ -536,28 +537,6 @@ export default function IntraPortal() {
         </section>
       )}
 
-      {/* Sign-in prompt when not logged in */}
-      {!isLoggedIn && (
-        <div style={{
-          background: 'var(--surface)', border: '1px solid var(--gray-200)',
-          borderRadius: 14, padding: '20px 24px', marginBottom: 32,
-          display: 'flex', alignItems: 'center', gap: 16,
-          boxShadow: 'var(--shadow-xs)',
-        }}>
-          <span style={{ fontSize: 24 }}>🔐</span>
-          <div>
-            <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--gray-900)', marginBottom: 3 }}>
-              Sign in to access corporate apps
-            </div>
-            <div style={{ fontSize: 13, color: 'var(--gray-500)' }}>
-              The knowledge base is available to everyone.{' '}
-              <a href="/login" style={{ color: '#DD1D21', fontWeight: 600, textDecoration: 'none' }}>
-                Sign in →
-              </a>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* ── SECTION 3: Knowledge Base ─────────────────────────────────────────── */}
       <section>
