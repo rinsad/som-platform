@@ -22,7 +22,7 @@ export default function PublicShell() {
       <div style={s.orb3} />
       <div style={s.orb4} />
 
-      <Navbar user={user} onLogout={handleLogout} />
+      <Navbar user={user} onLogout={handleLogout} showDashboardLink={!!user} />
 
       <main style={s.main}>
         <div style={s.content}>

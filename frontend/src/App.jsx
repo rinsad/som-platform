@@ -41,6 +41,12 @@ function App() {
       <Routes>
         <Route path="/login" element={<Login />} />
 
+        {/* Public portal — home page at /, no auth required. Must come first so
+            React Router resolves / here instead of the authenticated group. */}
+        <Route path="/" element={<PublicShell />}>
+          <Route index element={<IntraPortal />} />
+        </Route>
+
         {/* Authenticated app — /dashboard, /capex, etc. */}
         <Route
           path="/"
@@ -59,11 +65,6 @@ function App() {
           <Route path="admin/users"                      element={<RequireAdmin><UserManagement /></RequireAdmin>} />
           <Route path="admin/users/:id/permissions"   element={<RequireAdmin><PermissionsPage /></RequireAdmin>} />
           <Route path="admin/knowledge"               element={<RequireAdmin><KBManagement /></RequireAdmin>} />
-        </Route>
-
-        {/* Public portal — home page at /, no auth required */}
-        <Route path="/" element={<PublicShell />}>
-          <Route index element={<IntraPortal />} />
         </Route>
 
         <Route path="*" element={<Navigate to="/" replace />} />

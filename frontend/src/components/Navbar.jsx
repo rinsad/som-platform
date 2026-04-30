@@ -1,4 +1,4 @@
-export default function Navbar({ user, onLogout }) {
+export default function Navbar({ user, onLogout, showDashboardLink = false }) {
   return (
     <header style={s.navbar}>
       {/* Brand */}
@@ -16,7 +16,7 @@ export default function Navbar({ user, onLogout }) {
       <div style={s.right}>
         {user ? (
           <>
-            <a href="/dashboard" style={s.navLink}>Dashboard</a>
+            {showDashboardLink && <a href="/dashboard" style={s.navLink}>Dashboard</a>}
             <div style={s.userPill}>
               <div style={s.avatar}>
                 {(user.name || user.email || '?')[0].toUpperCase()}
