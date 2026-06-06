@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   getApps, getKnowledge, searchKnowledge, getDocVersions,
   getFavourites, toggleFavourite,
@@ -6,328 +6,300 @@ import {
   ssoLogin, getDocFileUrl,
 } from '../../services/portalService';
 
-const CATEGORY_COLORS = {
-  Enterprise:    { bg: 'rgba(107,159,255,0.15)', color: '#6b9fff', border: 'rgba(107,159,255,0.30)' },
-  HR:            { bg: 'rgba(52,211,153,0.12)',  color: '#34d399', border: 'rgba(52,211,153,0.30)' },
-  QHSE:          { bg: 'rgba(251,191,36,0.12)',  color: '#fbbf24', border: 'rgba(251,191,36,0.30)' },
-  IT:            { bg: 'rgba(56,189,248,0.12)',  color: '#38bdf8', border: 'rgba(56,189,248,0.30)' },
-  Finance:       { bg: 'rgba(251,191,36,0.10)',  color: '#fbbf24', border: 'rgba(251,191,36,0.25)' },
-  Procurement:   { bg: 'rgba(167,139,250,0.15)', color: '#a78bfa', border: 'rgba(167,139,250,0.30)' },
-  Operations:    { bg: 'rgba(192,132,252,0.12)', color: '#c084fc', border: 'rgba(192,132,252,0.28)' },
-  Administration:{ bg: 'rgba(255,255,255,0.07)', color: 'rgba(255,255,255,0.50)', border: 'rgba(255,255,255,0.15)' },
-  Policy:        { bg: 'rgba(220,38,38,0.12)',   color: '#ff6b6b', border: 'rgba(220,38,38,0.28)' },
-  Procedure:     { bg: 'rgba(52,211,153,0.12)',  color: '#34d399', border: 'rgba(52,211,153,0.30)' },
-};
-
-const SOURCE_BADGES = {
-  pdf:    { label: 'PDF',  bg: 'rgba(220,38,38,0.14)',   color: '#ff6b6b', border: 'rgba(220,38,38,0.28)' },
-  docx:   { label: 'DOCX', bg: 'rgba(56,189,248,0.12)',  color: '#38bdf8', border: 'rgba(56,189,248,0.28)' },
-  eml:    { label: 'EML',  bg: 'rgba(251,191,36,0.12)',  color: '#fbbf24', border: 'rgba(251,191,36,0.28)' },
-  txt:    { label: 'TXT',  bg: 'rgba(255,255,255,0.07)', color: 'rgba(255,255,255,0.50)', border: 'rgba(255,255,255,0.15)' },
-  manual: { label: 'KB',   bg: 'rgba(52,211,153,0.10)',  color: '#34d399', border: 'rgba(52,211,153,0.25)' },
-};
-
-function catStyle(cat) {
-  return CATEGORY_COLORS[cat] || { bg: 'rgba(255,255,255,0.07)', color: 'rgba(255,255,255,0.50)', border: 'rgba(255,255,255,0.15)' };
-}
+const SHELL_RED = '#DD1D21';
+const SHELL_YELLOW = '#FFD500';
+const INK = '#222';
 
 const KB_CATEGORIES = ['All', 'Policy', 'Procedure', 'QHSE', 'HR'];
 
-// ─── App Tile ─────────────────────────────────────────────────────────────────
-function AppTile({ app, isFav, onToggleStar, onAppClick, launching }) {
-  const [hovering, setHovering] = useState(false);
+const ABOUT_ITEMS = [
+  { title: 'This is Shell', text: 'Company story, values, people, operating principles and Shell Oman identity.' },
+  { title: 'Shell History in Oman', text: 'A dedicated area for Shell history in Oman, aligned to Shell Oman Marketing public content.' },
+  { title: 'CEO Corner', text: 'CEO reflections, yearly priorities, performance messages, targets and employee video updates.' },
+  { title: 'Performance and Results', text: 'Collective performance, highest achievements, business goals and progress dashboards.' },
+  { title: 'Goal Zero and HSSE', text: 'Goal Zero dashboard, corporate HSSE events, safety learning and worker welfare focus.' },
+  { title: 'Diversity, Equity and Inclusion', text: 'Creative DE&I storytelling, inclusion progress, worker welfare and recognition.' },
+];
 
+const PERFORMANCE_METRICS = [
+  { label: 'Goal Zero', value: 'HSSE dashboard', detail: 'Safety moments, corporate events and team actions.' },
+  { label: 'High performance', value: 'Achievements', detail: 'Internal and external value stories across SOM.' },
+  { label: 'Business goals', value: 'Targets', detail: 'Progress visibility by business and support function.' },
+  { label: 'DE&I', value: 'Worker welfare', detail: 'Employee wellbeing, inclusion themes and engagement.' },
+];
+
+const DEPARTMENTS = [
+  {
+    name: 'Mobility',
+    lead: 'Serving customers across Oman through the retail, network and B2B mobility business.',
+    photo: 'M',
+    units: ['Marketing', 'Network', 'Mobility Sales and Operations', 'B2B Fuels and Specialties', 'Corporate Mobility and HSSE'],
+    materials: ['Campaign calendar', 'Network performance pack', 'Mobility HSSE guide'],
+    updates: ['Retail excellence toolkit refreshed', 'B2B Fuels customer guide published'],
+  },
+  {
+    name: 'Trade and Supply',
+    lead: 'Moving product safely and reliably through terminals, transport and supply operations.',
+    photo: 'T',
+    units: ['Terminal Operation', 'Road Transport Operations and Order to Delivery', 'Trade and Supply HSSE', 'Supply Operations'],
+    materials: ['Terminal operations guide', 'Order to Delivery checklist', 'Transport safety references'],
+    updates: ['Road transport learning note added', 'Terminal weekly dashboard available'],
+  },
+  {
+    name: 'Low Carbon Solutions',
+    lead: 'Supporting transition opportunities through ITP operations, fuel farms and marine activities.',
+    photo: 'L',
+    units: ['Muscat ITP Operations', 'Salalah ITP Operations', 'Salalah ITP and Fuel Farm Operations', 'Marine and Home Base'],
+    materials: ['ITP operations guide', 'Fuel farm reference pack', 'Marine support data'],
+    updates: ['Salalah operations brief updated', 'Marine home base contact sheet added'],
+  },
+  {
+    name: 'Lubricants',
+    lead: 'Connecting customer operations, supply chain and commercial lubes teams with practical resources.',
+    photo: 'L',
+    units: ['Customer Operations', 'Fleet Cards', 'Retail/Home Base and GL', 'Logistics', 'Planning', 'Production', 'Quality', 'Maintenance', 'Commercial Lubes', 'Marketing', 'Sales', 'Technical'],
+    materials: ['Lube supply chain dashboard', 'Technical support library', 'Customer operations playbook'],
+    updates: ['Quality learning module published', 'Commercial lubes sales guide refreshed'],
+  },
+  {
+    name: 'Corporate Functions',
+    lead: 'Finance, procurement, legal, credit, business finance and corporate relations support for SOM.',
+    photo: 'C',
+    units: ['Corporate Finance', 'Contract and Procurement', 'Legal', 'Credit Management', 'Business Finance', 'Corporate Relations'],
+    materials: ['Procurement policy links', 'Legal request guide', 'Finance month-end calendar'],
+    updates: ['Credit management FAQ posted', 'Contract request templates updated'],
+  },
+  {
+    name: 'People and Digital',
+    lead: 'Human Resources, services, audit, information technology and real estate support in one area.',
+    photo: 'P',
+    units: ['Human Resources', 'Service', 'Internal Audit', 'Corporate IT', 'Retail IT', 'Real Estate'],
+    materials: ['HR services guide', 'IT support matrix', 'Real estate request form'],
+    updates: ['Employee search directory refreshed', 'Retail IT support hours added'],
+  },
+];
+
+const EVENTS = [
+  { day: '18', month: 'Jun', title: 'Long Service Award', text: 'Recognising 10, 20, 25, 30 and 35 year milestones.' },
+  { day: '24', month: 'Jun', title: 'Goal Zero Forum', text: 'Corporate HSSE learning session and safety highlights.' },
+  { day: '02', month: 'Jul', title: 'Employee Connect', text: 'Open discussion with HR, IT and Real Estate teams.' },
+  { day: '09', month: 'Jul', title: 'Country Event', text: 'Company and country calendar update for all employees.' },
+];
+
+const NEWS = [
+  'News central for high performance and value achievements across SOM, internal channels and external Oolom Shell.',
+  'Department focal points can publish updates, images, guides and learning materials.',
+  'Employees can personalise their feed by following departments, events and topics.',
+];
+
+const HR_MODES = [
+  { id: 'insight', label: 'HR Insight', title: 'Insight from HR', text: 'Policy notes, people stories, engagement updates and service announcements from HR.' },
+  { id: 'connect', label: 'HR GM Connect', title: 'Connect with HR GM', text: 'A dedicated space for questions, listening topics and HR leadership updates.' },
+  { id: 'topics', label: 'Employee Topics', title: 'Common employee topics', text: 'Frequently raised questions, support themes and practical answers for employees.' },
+  { id: 'media', label: 'Media Materials', title: 'Media materials', text: 'Photos, announcements, recognition posts and reusable HR communication material.' },
+  { id: 'services', label: 'HR, IT and Real Estate', title: 'Shared service support', text: 'HR team updates alongside IT and Real Estate service information.' },
+];
+
+const EMPLOYEES = [
+  { name: 'Sara Al Balushi', team: 'Operations', location: 'Muscat HQ', email: 'sara.albalushi@shelloman.com' },
+  { name: 'Ahmed Al Harthy', team: 'Mobility', location: 'Muscat HQ', email: 'ahmed.alharthy@shelloman.com' },
+  { name: 'Maha Al Rawahi', team: 'Human Resources', location: 'Muscat HQ', email: 'maha.alrawahi@shelloman.com' },
+  { name: 'Nasser Al Hinai', team: 'Trade and Supply', location: 'Sohar Terminal', email: 'nasser.alhinai@shelloman.com' },
+  { name: 'Laila Al Farsi', team: 'Low Carbon Solutions', location: 'Salalah', email: 'laila.alfarsi@shelloman.com' },
+];
+
+const SERVICE_LINKS = [
+  'Employee directory',
+  'HR service requests',
+  'IT support',
+  'Real Estate helpdesk',
+  'Business support materials',
+  'Company and country events',
+];
+
+const NETWORK_LOCATIONS = [
+  { name: 'Muscat HQ', detail: 'Corporate teams, HR, IT, Real Estate and business support.' },
+  { name: 'Sohar Terminal', detail: 'Terminal operation, supply operations and transport coordination.' },
+  { name: 'Salalah Operations', detail: 'ITP, fuel farm, marine and home base activity.' },
+];
+
+const LONG_SERVICE = [
+  { name: 'Aisha Al Kindi', years: 10, milestone: 'Customer Operations' },
+  { name: 'Khalid Al Siyabi', years: 20, milestone: 'Network' },
+  { name: 'Maryam Al Zadjali', years: 25, milestone: 'Finance' },
+  { name: 'Said Al Maqbali', years: 30, milestone: 'Terminal Operation' },
+  { name: 'Fatma Al Riyami', years: 35, milestone: 'Human Resources' },
+];
+
+const CATEGORY_COLORS = {
+  Enterprise: { bg: '#eef3ff', color: '#1d4ed8', border: '#c9d8ff' },
+  HR: { bg: '#ecfdf5', color: '#047857', border: '#bbf7d0' },
+  QHSE: { bg: '#fff7cc', color: '#8a5d00', border: '#ffe889' },
+  IT: { bg: '#eaf7ff', color: '#0369a1', border: '#bae6fd' },
+  Finance: { bg: '#fff7cc', color: '#8a5d00', border: '#ffe889' },
+  Procurement: { bg: '#f4efff', color: '#6d28d9', border: '#ddd6fe' },
+  Operations: { bg: '#f0fdf4', color: '#166534', border: '#bbf7d0' },
+  Administration: { bg: '#f4f4f4', color: '#525252', border: '#dedede' },
+  Policy: { bg: '#fff1f1', color: SHELL_RED, border: '#ffd3d3' },
+  Procedure: { bg: '#ecfdf5', color: '#047857', border: '#bbf7d0' },
+};
+
+const SOURCE_BADGES = {
+  pdf: { label: 'PDF', bg: '#fff1f1', color: SHELL_RED, border: '#ffd3d3' },
+  docx: { label: 'DOCX', bg: '#eaf7ff', color: '#0369a1', border: '#bae6fd' },
+  eml: { label: 'EML', bg: '#fff7cc', color: '#8a5d00', border: '#ffe889' },
+  txt: { label: 'TXT', bg: '#f4f4f4', color: '#525252', border: '#dedede' },
+  manual: { label: 'KB', bg: '#ecfdf5', color: '#047857', border: '#bbf7d0' },
+};
+
+function catStyle(cat) {
+  return CATEGORY_COLORS[cat] || { bg: '#f4f4f4', color: '#525252', border: '#dedede' };
+}
+
+function ArrowIcon() {
   return (
-    <div
-      data-testid="app-tile"
-      onMouseEnter={() => setHovering(true)}
-      onMouseLeave={() => setHovering(false)}
-      onClick={() => !launching && onAppClick(app)}
-      style={{
-        position: 'relative',
-        background: 'var(--surface)',
-        border: `1px solid ${hovering ? '#c7d2fe' : 'var(--gray-200)'}`,
-        borderRadius: 16,
-        padding: '20px 16px 16px',
-        cursor: launching ? 'default' : 'pointer',
-        transition: 'box-shadow 0.18s, border-color 0.18s, transform 0.18s',
-        boxShadow: hovering && !launching ? 'var(--shadow-md)' : 'var(--shadow-xs)',
-        transform: hovering && !launching ? 'translateY(-2px)' : 'none',
-        display: 'flex', flexDirection: 'column', gap: 8, userSelect: 'none',
-        overflow: 'hidden',
-      }}
-    >
-      {/* SSO launching overlay */}
-      {launching && (
-        <div style={{
-          position: 'absolute', inset: 0, background: 'rgba(255,255,255,0.92)',
-          borderRadius: 16, display: 'flex', flexDirection: 'column',
-          alignItems: 'center', justifyContent: 'center', gap: 8, zIndex: 2,
-        }}>
-          <div style={{ width: 24, height: 24, border: '3px solid rgba(255,213,0,0.30)', borderTopColor: '#FFD500', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
-          <span style={{ fontSize: 11, color: '#FFD500', fontWeight: 700, letterSpacing: '0.2px' }}>Connecting via SSO…</span>
-        </div>
-      )}
-
-      {/* SSO badge */}
-      {app.ssoEnabled && !launching && (
-        <div style={{
-          position: 'absolute', top: 10, left: 10,
-          background: 'rgba(167,139,250,0.15)', color: '#a78bfa',
-          fontSize: 9.5, fontWeight: 700,
-          padding: '2px 7px', borderRadius: 6,
-          border: '1px solid rgba(167,139,250,0.30)', letterSpacing: '0.3px',
-        }}>
-          🔐 SSO
-        </div>
-      )}
-
-      {/* Star button */}
-      <button
-        data-testid={`star-btn-${app.id}`}
-        onClick={(e) => { e.stopPropagation(); onToggleStar(app.id); }}
-        style={{
-          position: 'absolute', top: 10, right: 10,
-          background: 'none', border: 'none', cursor: 'pointer',
-          fontSize: 17, lineHeight: 1, padding: 4, borderRadius: 6,
-          color: isFav ? '#fbbf24' : 'rgba(255,255,255,0.25)',
-          transition: 'color 0.15s, transform 0.15s',
-          transform: isFav ? 'scale(1.15)' : 'scale(1)',
-        }}
-        title={isFav ? 'Remove from favourites' : 'Add to favourites'}
-      >
-        {isFav ? '★' : '☆'}
-      </button>
-
-      <div style={{ fontSize: 30, lineHeight: 1, marginBottom: 4, marginTop: app.ssoEnabled ? 10 : 0 }}>{app.icon}</div>
-      <div style={{ fontSize: 13.5, fontWeight: 700, color: 'var(--gray-900)', lineHeight: 1.3 }}>{app.name}</div>
-      <div style={{ fontSize: 12, color: 'var(--gray-500)', lineHeight: 1.5, flexGrow: 1 }}>{app.description}</div>
-
-      <div style={{ marginTop: 4 }}>
-        <span style={{
-          ...catStyle(app.category),
-          display: 'inline-flex', alignItems: 'center',
-          padding: '2px 9px', borderRadius: 9999,
-          fontSize: 11, fontWeight: 600,
-          border: `1px solid ${catStyle(app.category).border}`,
-        }}>
-          {app.category}
-        </span>
-      </div>
-    </div>
+    <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+      <path d="M5 12h12M13 6l6 6-6 6" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
   );
 }
 
-// ─── Knowledge Card (browse mode) ─────────────────────────────────────────────
+function StarButton({ active, onClick, appId }) {
+  if (!onClick) return null;
+  return (
+    <button
+      data-testid={`star-btn-${appId}`}
+      onClick={(event) => { event.stopPropagation(); onClick(appId); }}
+      style={active ? s.starActive : s.star}
+      title={active ? 'Remove from favourites' : 'Add to favourites'}
+    >
+      {active ? 'Starred' : 'Star'}
+    </button>
+  );
+}
+
+function AppTile({ app, isFav, onToggleStar, onAppClick, launching }) {
+  return (
+    <button
+      data-testid="app-tile"
+      onClick={() => !launching && onAppClick(app)}
+      style={s.appTile}
+    >
+      {launching && (
+        <span style={s.launching}>
+          <span style={s.spinner} />
+          Connecting via SSO
+        </span>
+      )}
+      <StarButton active={isFav} onClick={onToggleStar} appId={app.id} />
+      {app.ssoEnabled && <span style={s.ssoBadge}>SSO</span>}
+      <span style={s.appIcon}>{app.icon || 'APP'}</span>
+      <span style={s.appTitle}>{app.name}</span>
+      <span style={s.appText}>{app.description}</span>
+      <span style={{ ...s.tag, ...catStyle(app.category) }}>{app.category}</span>
+    </button>
+  );
+}
+
 function KnowledgeCard({ doc, isPinned, onTogglePin }) {
   const [showHistory, setShowHistory] = useState(false);
-  const [versions, setVersions]       = useState(null);
-  const [loadingV, setLoadingV]       = useState(false);
-  const cs = catStyle(doc.category);
+  const [versions, setVersions] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const srcBadge = SOURCE_BADGES[doc.sourceType] || SOURCE_BADGES.manual;
 
   const handleHistory = async () => {
     if (!showHistory && versions === null) {
-      setLoadingV(true);
+      setLoading(true);
       try {
-        const v = await getDocVersions(doc.id);
-        setVersions(v);
-      } catch { setVersions([]); }
-      finally { setLoadingV(false); }
+        setVersions(await getDocVersions(doc.id));
+      } catch {
+        setVersions([]);
+      } finally {
+        setLoading(false);
+      }
     }
-    setShowHistory((v) => !v);
+    setShowHistory((value) => !value);
   };
 
-  const srcBadge = SOURCE_BADGES[doc.sourceType] || SOURCE_BADGES.manual;
-
   return (
-    <div style={{
-      background: 'var(--surface)', border: '1px solid var(--gray-200)',
-      borderRadius: 14, padding: '18px 20px', boxShadow: 'var(--shadow-xs)',
-      display: 'flex', flexDirection: 'column', gap: 8,
-    }}>
-      {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10 }}>
-        <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--gray-900)', lineHeight: 1.35, flex: 1 }}>
-          {doc.title}
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
-          {/* Source type badge */}
-          {doc.sourceType && doc.sourceType !== 'manual' && (
-            <span style={{
-              ...srcBadge, display: 'inline-flex', alignItems: 'center',
-              padding: '2px 7px', borderRadius: 6,
-              fontSize: 10.5, fontWeight: 700, letterSpacing: '0.2px',
-              border: `1px solid ${srcBadge.border}`,
-            }}>
-              {srcBadge.label}
-            </span>
-          )}
-          {/* Pin button */}
+    <article style={s.kbCard}>
+      <div style={s.kbHeader}>
+        <h3 style={s.kbTitle}>{doc.title}</h3>
+        <div style={s.badgeRow}>
+          {doc.sourceType && doc.sourceType !== 'manual' && <span style={{ ...s.fileBadge, ...srcBadge }}>{srcBadge.label}</span>}
           {onTogglePin && (
             <button
               data-testid={`pin-btn-${doc.id}`}
               onClick={() => onTogglePin(doc.id)}
+              style={isPinned ? s.pinActive : s.pin}
               title={isPinned ? 'Unpin document' : 'Pin document'}
-              style={{
-                background: isPinned ? 'rgba(251,191,36,0.15)' : 'none', border: 'none', cursor: 'pointer',
-                fontSize: 15, padding: '2px 5px', borderRadius: 6,
-                color: isPinned ? '#fbbf24' : 'rgba(255,255,255,0.25)',
-                transition: 'color 0.15s', lineHeight: 1,
-              }}
             >
-              {isPinned ? '📌' : '📍'}
+              {isPinned ? 'Pinned' : 'Pin'}
             </button>
           )}
-          <span style={{
-            ...cs, flexShrink: 0, display: 'inline-flex', alignItems: 'center',
-            padding: '2px 10px', borderRadius: 9999,
-            fontSize: 11, fontWeight: 600, border: `1px solid ${cs.border}`,
-          }}>
-            {doc.category}
-          </span>
         </div>
       </div>
-
-      <div style={{ fontSize: 12.5, color: 'var(--gray-500)', lineHeight: 1.55 }}>
-        {doc.description}
-      </div>
-
-      {/* Footer */}
-      <div style={{ display: 'flex', gap: 14, alignItems: 'center', marginTop: 2 }}>
-        {doc.version && <span style={{ fontSize: 11.5, color: 'var(--gray-400)', fontWeight: 600 }}>v{doc.version}</span>}
-        {doc.lastUpdated && <span style={{ fontSize: 11.5, color: 'var(--gray-400)' }}>Updated {doc.lastUpdated}</span>}
+      <p style={s.kbText}>{doc.description}</p>
+      <div style={s.kbMeta}>
+        <span style={{ ...s.tag, ...catStyle(doc.category) }}>{doc.category}</span>
+        {doc.version && <span>v{doc.version}</span>}
+        {doc.lastUpdated && <span>Updated {doc.lastUpdated}</span>}
         {doc.sourceType && doc.sourceType !== 'manual' && (
-          <a
-            href={getDocFileUrl(doc.id, doc.sourceType, doc.hasStoredFile)}
-            target="_blank"
-            rel="noopener noreferrer"
-            style={{ fontSize: 11.5, color: '#DD1D21', fontWeight: 600, textDecoration: 'none' }}
-          >
-            📄 View
+          <a href={getDocFileUrl(doc.id, doc.sourceType, doc.hasStoredFile)} target="_blank" rel="noopener noreferrer" style={s.redLink}>
+            View
           </a>
         )}
-        <button
-          data-testid={`history-btn-${doc.id}`}
-          onClick={handleHistory}
-          style={{
-            marginLeft: 'auto', fontSize: 11.5, color: '#1d4ed8',
-            background: 'none', border: 'none', cursor: 'pointer',
-            fontFamily: 'inherit', padding: '2px 6px', borderRadius: 5,
-            fontWeight: 500,
-          }}
-        >
-          {showHistory ? '▲ Hide' : '📋 History'}
+        <button data-testid={`history-btn-${doc.id}`} onClick={handleHistory} style={s.textButton}>
+          {showHistory ? 'Hide history' : 'History'}
         </button>
       </div>
-
-      {/* Version history */}
       {showHistory && (
-        <div style={{ borderTop: '1px solid var(--gray-100)', paddingTop: 12, marginTop: 4 }}>
-          {loadingV ? (
-            <div style={{ textAlign: 'center', padding: 8 }}>
-              <div style={{ width: 20, height: 20, border: '2px solid rgba(255,255,255,0.12)', borderTopColor: '#DD1D21', borderRadius: '50%', animation: 'spin 0.8s linear infinite', display: 'inline-block' }} />
-            </div>
+        <div style={s.history}>
+          {loading ? (
+            <span>Loading history...</span>
           ) : versions?.length > 0 ? (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
-              {versions.map((v) => (
-                <div key={v.version} style={{ display: 'flex', gap: 10, alignItems: 'flex-start', fontSize: 12 }}>
-                  <span style={{ fontWeight: 700, color: '#FFD500', minWidth: 32, flexShrink: 0 }}>v{v.version}</span>
-                  <span style={{ color: 'var(--gray-400)', minWidth: 86, flexShrink: 0 }}>{v.updatedAt}</span>
-                  <span style={{ color: 'var(--gray-600)', flex: 1, lineHeight: 1.45 }}>{v.changelog}</span>
-                </div>
-              ))}
-            </div>
+            versions.map((item) => (
+              <div key={item.version} style={s.historyItem}>
+                <strong>v{item.version}</strong>
+                <span>{item.updatedAt}</span>
+                <span>{item.changelog}</span>
+              </div>
+            ))
           ) : (
-            <div style={{ fontSize: 12, color: 'var(--gray-400)', textAlign: 'center' }}>No version history available.</div>
+            <span>No version history available.</span>
           )}
         </div>
       )}
-    </div>
+    </article>
   );
 }
 
-// ─── Search Result Card ────────────────────────────────────────────────────────
 function SearchResultCard({ result }) {
-  const cs       = catStyle(result.category);
   const srcBadge = SOURCE_BADGES[result.sourceType] || SOURCE_BADGES.manual;
-  const isSemantic = result.searchMode === 'semantic';
-
   return (
-    <div style={{
-      background: 'var(--surface)', border: '1px solid var(--gray-200)',
-      borderRadius: 14, padding: '18px 20px', boxShadow: 'var(--shadow-xs)',
-      display: 'flex', flexDirection: 'column', gap: 10,
-    }}>
-      {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10 }}>
-        <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--gray-900)', lineHeight: 1.35, flex: 1 }}>
-          {result.title}
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
-          {isSemantic && result.score != null && (
-            <span style={{
-              display: 'inline-flex', alignItems: 'center', gap: 4,
-              padding: '2px 8px', borderRadius: 6, fontSize: 10.5, fontWeight: 700,
-              background: 'rgba(99,102,241,0.10)', color: '#818cf8',
-              border: '1px solid rgba(99,102,241,0.25)',
-            }}>
-              ✦ {result.score}% match
-            </span>
-          )}
-          {result.sourceType && result.sourceType !== 'manual' && (
-            <span style={{
-              ...srcBadge, display: 'inline-flex', alignItems: 'center',
-              padding: '2px 7px', borderRadius: 6,
-              fontSize: 10.5, fontWeight: 700,
-              border: `1px solid ${srcBadge.border}`,
-            }}>
-              {srcBadge.label}
-            </span>
-          )}
-          <span style={{
-            ...cs, flexShrink: 0, display: 'inline-flex', alignItems: 'center',
-            padding: '2px 10px', borderRadius: 9999,
-            fontSize: 11, fontWeight: 600, border: `1px solid ${cs.border}`,
-          }}>
-            {result.category}
-          </span>
+    <article style={s.kbCard}>
+      <div style={s.kbHeader}>
+        <h3 style={s.kbTitle}>{result.title}</h3>
+        <div style={s.badgeRow}>
+          {result.searchMode === 'semantic' && result.score != null && <span style={s.matchBadge}>{result.score}% match</span>}
+          {result.sourceType && result.sourceType !== 'manual' && <span style={{ ...s.fileBadge, ...srcBadge }}>{srcBadge.label}</span>}
+          <span style={{ ...s.tag, ...catStyle(result.category) }}>{result.category}</span>
         </div>
       </div>
-
-      {/* Snippet — may contain <mark> highlights from either backend */}
-      {result.snippet && (
-        <div
-          style={{ fontSize: 12.5, color: 'var(--gray-500)', lineHeight: 1.65 }}
-          // eslint-disable-next-line react/no-danger
-          dangerouslySetInnerHTML={{ __html: result.snippet }}
-        />
-      )}
-
-      {/* Footer */}
-      <div style={{ display: 'flex', gap: 14, alignItems: 'center' }}>
-        {result.version && <span style={{ fontSize: 11.5, color: 'var(--gray-400)', fontWeight: 600 }}>v{result.version}</span>}
-        {result.lastUpdated && <span style={{ fontSize: 11.5, color: 'var(--gray-400)' }}>Updated {result.lastUpdated}</span>}
-        {result.originalFilename && (
-          <span style={{ fontSize: 11, color: 'var(--gray-300)' }}>
-            📎 {result.originalFilename}
-          </span>
-        )}
+      {result.snippet && <p style={s.kbText} dangerouslySetInnerHTML={{ __html: result.snippet }} />}
+      <div style={s.kbMeta}>
+        {result.version && <span>v{result.version}</span>}
+        {result.lastUpdated && <span>Updated {result.lastUpdated}</span>}
         {result.sourceType && result.sourceType !== 'manual' && (
-          <a
-            href={getDocFileUrl(result.id, result.sourceType, result.hasStoredFile)}
-            target="_blank"
-            rel="noopener noreferrer"
-            style={{ marginLeft: 'auto', fontSize: 11.5, color: '#DD1D21', fontWeight: 600, textDecoration: 'none' }}
-          >
-            📄 View
+          <a href={getDocFileUrl(result.id, result.sourceType, result.hasStoredFile)} target="_blank" rel="noopener noreferrer" style={s.redLink}>
+            View
           </a>
         )}
       </div>
-    </div>
+    </article>
   );
 }
 
-// ─── Main Component ───────────────────────────────────────────────────────────
 export default function IntraPortal() {
   const isLoggedIn = !!localStorage.getItem('som_token');
   const storedUser = (() => {
@@ -335,25 +307,28 @@ export default function IntraPortal() {
   })();
   const firstName = storedUser.name ? storedUser.name.split(' ')[0] : '';
 
-  // Apps (only when logged in)
-  const [apps, setApps]               = useState([]);
-  const [appsErr, setAppsErr]         = useState('');
-  const [favourites, setFavourites]   = useState([]);
+  const [apps, setApps] = useState([]);
+  const [appsErr, setAppsErr] = useState('');
+  const [favourites, setFavourites] = useState([]);
   const [ssoLaunching, setSsoLaunching] = useState(new Set());
-
-  // Knowledge
-  const [kbDocs, setKbDocs]           = useState([]);
-  const [kbLoading, setKbLoading]     = useState(false);
-  const [kbErr, setKbErr]             = useState('');
-  const [searchTerm, setSearchTerm]   = useState('');
-  const [kbCategory, setKbCategory]   = useState('All');
-  const [pinnedDocs, setPinnedDocs]   = useState([]);
-  const [isFtsMode, setIsFtsMode]     = useState(false);
-
-
+  const [kbDocs, setKbDocs] = useState([]);
+  const [kbLoading, setKbLoading] = useState(false);
+  const [kbErr, setKbErr] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [kbCategory, setKbCategory] = useState('All');
+  const [pinnedDocs, setPinnedDocs] = useState([]);
+  const [isFtsMode, setIsFtsMode] = useState(false);
+  const [selectedDepartment, setSelectedDepartment] = useState(DEPARTMENTS[0].name);
+  const [followedDepartments, setFollowedDepartments] = useState([DEPARTMENTS[0].name]);
+  const [employeeQuery, setEmployeeQuery] = useState('');
+  const [hrMode, setHrMode] = useState(HR_MODES[0].id);
+  const [hrPosts, setHrPosts] = useState([
+    'How can employees access long-service award nomination details?',
+    'Please share the updated HR service turnaround times.',
+  ]);
+  const [hrDraft, setHrDraft] = useState('');
   const debounceRef = useRef(null);
 
-  // ── Load apps on mount; favourites and pinned docs only when authenticated ────
   useEffect(() => {
     async function load() {
       try {
@@ -365,32 +340,30 @@ export default function IntraPortal() {
           setPinnedDocs(pinsData);
         }
       } catch {
-        setAppsErr('Failed to load apps. Please refresh.');
+        setAppsErr('Failed to load employee applications. Please refresh.');
       }
     }
     load();
   }, [isLoggedIn]);
 
-  // ── Knowledge base search (debounced 300 ms) ──────────────────────────────────
   useEffect(() => {
     clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(async () => {
-      setKbLoading(true); setKbErr('');
+      setKbLoading(true);
+      setKbErr('');
       try {
         if (searchTerm.trim()) {
-          // Full-text search with highlighted snippets
           const results = await searchKnowledge(searchTerm.trim(), kbCategory);
           setKbDocs(results);
           setIsFtsMode(true);
         } else {
-          // Browse mode
           const params = {};
           if (kbCategory !== 'All') params.category = kbCategory;
           setKbDocs(await getKnowledge(params));
           setIsFtsMode(false);
         }
       } catch {
-        setKbErr('Failed to load documents.');
+        setKbErr('Failed to load knowledge documents.');
       } finally {
         setKbLoading(false);
       }
@@ -398,133 +371,389 @@ export default function IntraPortal() {
     return () => clearTimeout(debounceRef.current);
   }, [searchTerm, kbCategory]);
 
-  // ── App click: SSO-aware navigation ──────────────────────────────────────────
   async function handleAppClick(app) {
     if (app.ssoEnabled) {
-      if (!isLoggedIn) { window.location.href = '/login'; return; }
+      if (!isLoggedIn) {
+        window.location.href = '/login';
+        return;
+      }
       setSsoLaunching((prev) => new Set(prev).add(app.id));
       try {
         await ssoLogin(app);
         if (app.url && app.url !== '#') window.open(app.url, '_blank', 'noopener,noreferrer');
       } finally {
-        setSsoLaunching((prev) => { const n = new Set(prev); n.delete(app.id); return n; });
+        setSsoLaunching((prev) => {
+          const next = new Set(prev);
+          next.delete(app.id);
+          return next;
+        });
       }
-    } else {
-      if (app.url && app.url !== '#') window.open(app.url, '_blank', 'noopener,noreferrer');
+    } else if (app.url && app.url !== '#') {
+      window.open(app.url, '_blank', 'noopener,noreferrer');
     }
   }
 
-  // ── Star toggle ────────────────────────────────────────────────────────────────
   async function handleToggleStar(appId) {
-    setFavourites((prev) =>
-      prev.includes(appId) ? prev.filter((id) => id !== appId) : [...prev, appId]
-    );
+    setFavourites((prev) => (prev.includes(appId) ? prev.filter((id) => id !== appId) : [...prev, appId]));
     try {
       const data = await toggleFavourite(appId);
       setFavourites(data.favourites);
     } catch {
-      setFavourites((prev) =>
-        prev.includes(appId) ? prev.filter((id) => id !== appId) : [...prev, appId]
-      );
+      setFavourites((prev) => (prev.includes(appId) ? prev.filter((id) => id !== appId) : [...prev, appId]));
     }
   }
 
-  // ── Pin toggle ─────────────────────────────────────────────────────────────────
   async function handleTogglePin(docId) {
-    setPinnedDocs((prev) =>
-      prev.includes(docId) ? prev.filter((id) => id !== docId) : [...prev, docId]
-    );
+    setPinnedDocs((prev) => (prev.includes(docId) ? prev.filter((id) => id !== docId) : [...prev, docId]));
     try {
       const data = await togglePinnedDoc(docId);
       setPinnedDocs(data.pinnedDocs);
     } catch {
-      setPinnedDocs((prev) =>
-        prev.includes(docId) ? prev.filter((id) => id !== docId) : [...prev, docId]
-      );
+      setPinnedDocs((prev) => (prev.includes(docId) ? prev.filter((id) => id !== docId) : [...prev, docId]));
     }
   }
 
-  // ── Derived values ─────────────────────────────────────────────────────────────
-  const groupedApps    = apps.reduce((acc, app) => {
+  function toggleFollow(departmentName) {
+    setFollowedDepartments((prev) => (
+      prev.includes(departmentName)
+        ? prev.filter((name) => name !== departmentName)
+        : [...prev, departmentName]
+    ));
+  }
+
+  function submitHrPost(event) {
+    event.preventDefault();
+    const next = hrDraft.trim();
+    if (!next) return;
+    setHrPosts((prev) => [next, ...prev]);
+    setHrDraft('');
+  }
+
+  const groupedApps = apps.reduce((acc, app) => {
     if (!acc[app.category]) acc[app.category] = [];
     acc[app.category].push(app);
     return acc;
   }, {});
-  const favouritedApps = apps.filter((a) => favourites.includes(a.id));
-  const pinnedKbDocs   = !isFtsMode ? kbDocs.filter((d) => pinnedDocs.includes(d.id)) : [];
+  const favouritedApps = apps.filter((app) => favourites.includes(app.id));
+  const pinnedKbDocs = !isFtsMode ? kbDocs.filter((doc) => pinnedDocs.includes(doc.id)) : [];
+  const selectedDepartmentData = DEPARTMENTS.find((dept) => dept.name === selectedDepartment) || DEPARTMENTS[0];
+  const selectedHrMode = HR_MODES.find((mode) => mode.id === hrMode) || HR_MODES[0];
+  const filteredEmployees = useMemo(() => {
+    const q = employeeQuery.trim().toLowerCase();
+    if (!q) return EMPLOYEES;
+    return EMPLOYEES.filter((employee) => (
+      employee.name.toLowerCase().includes(q)
+      || employee.team.toLowerCase().includes(q)
+      || employee.location.toLowerCase().includes(q)
+    ));
+  }, [employeeQuery]);
 
   return (
-    <div style={{ animation: 'fadeIn 0.25s ease' }}>
-      {/* Page header */}
-      <div style={{ marginBottom: 28 }}>
-        <h1
-          data-testid="welcome-header"
-          style={{ fontSize: 24, fontWeight: 700, color: 'var(--gray-900)', letterSpacing: '-0.4px', marginBottom: 4 }}
-        >
-          {firstName ? `Welcome back, ${firstName}` : 'Intra Portal'}
-        </h1>
-        <p style={{ fontSize: 14, color: 'var(--gray-500)' }}>
-          Shell Oman Marketing — corporate apps and knowledge base
-        </p>
-      </div>
-
-      {appsErr && (
-        <div style={{ background: 'rgba(220,38,38,0.12)', border: '1px solid rgba(220,38,38,0.30)', color: '#ff6b6b', borderRadius: 10, padding: '12px 16px', fontSize: 14, marginBottom: 20 }}>
-          {appsErr}
-        </div>
-      )}
-
-      {/* ── SECTION 1: Favourites (logged-in only) ──────────────────────────── */}
-      {isLoggedIn && favouritedApps.length > 0 && (
-        <section style={{ marginBottom: 36 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
-            <span style={{ fontSize: 16 }}>★</span>
-            <h2 style={{ fontSize: 15, fontWeight: 700, color: 'var(--gray-800)' }}>Favourites</h2>
-            <span style={{ fontSize: 12, color: 'var(--gray-400)', fontWeight: 500 }}>
-              {favouritedApps.length} app{favouritedApps.length > 1 ? 's' : ''}
-            </span>
-          </div>
-          <div style={gridStyle}>
-            {favouritedApps.map((app) => (
-              <AppTile
-                key={app.id} app={app} isFav={true}
-                onToggleStar={handleToggleStar}
-                onAppClick={handleAppClick}
-                launching={ssoLaunching.has(app.id)}
-              />
-            ))}
-          </div>
-        </section>
-      )}
-
-      {/* ── SECTION 2: All Apps by Category ──────────────────────────────────── */}
-      {apps.length > 0 && (
-        <section style={{ marginBottom: 40 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
-            <h2 style={{ fontSize: 15, fontWeight: 700, color: 'var(--gray-800)' }}>All Apps</h2>
-            <div style={{ background: 'rgba(167,139,250,0.15)', color: '#a78bfa', fontSize: 11, fontWeight: 700, padding: '2px 10px', borderRadius: 9999, border: '1px solid rgba(167,139,250,0.30)' }}>
-              🔐 SSO-enabled apps launch securely via single sign-on
+    <div style={s.page}>
+      <section style={s.hero}>
+        <div style={s.heroImage} />
+        <div style={s.heroOverlay}>
+          <div style={s.heroContent}>
+            <span style={s.eyebrow}>Shell Oman Marketing Company</span>
+            <h1 data-testid="welcome-header" style={s.heroTitle}>
+              {firstName ? `Welcome back, ${firstName}` : 'Employee Intraportal'}
+            </h1>
+            <p style={s.heroText}>
+              One home for SOM news, CEO updates, performance, Goal Zero, DE&I,
+              HR Online, business divisions, employee services and knowledge resources.
+            </p>
+            <div style={s.heroActions}>
+              <a href="#employee-tools" style={s.primaryCta}>Open employee tools</a>
+              <a href="#departments" style={s.secondaryCta}>Explore departments</a>
+              <a href="#hr-online" style={s.ghostCta}>HR Online</a>
             </div>
           </div>
+        </div>
+      </section>
+
+      <section id="about" style={s.band}>
+        <div style={s.container}>
+          <div style={s.sectionIntro}>
+            <span style={s.kicker}>Main home page content</span>
+            <h2 style={s.sectionTitle}>A central place for Shell Oman employees</h2>
+            <p style={s.sectionText}>
+              The home page now maps to the full intraportal content brief: company story,
+              Shell history, CEO corner, performance, Goal Zero, DE&I, departments and employee services.
+            </p>
+          </div>
+          <div style={s.pillarGrid}>
+            {ABOUT_ITEMS.map((item) => (
+              <article key={item.title} style={s.pillarCard}>
+                <span style={s.cardAccent} />
+                <h3 style={s.cardTitle}>{item.title}</h3>
+                <p style={s.cardText}>{item.text}</p>
+              </article>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section id="performance" style={s.performance}>
+        <div style={s.container}>
+          <div className="som-two-column" style={s.featureGrid}>
+            <div style={s.yellowPanel}>
+              <span style={s.kickerDark}>Performance and results</span>
+              <h2 style={s.featureTitle}>Collective progress, visible to everyone</h2>
+              <p style={s.featureText}>
+                A dashboard-style area for achievements, business goals, targets,
+                Goal Zero, HSSE events, DE&I and worker welfare.
+              </p>
+              <div style={s.metricGrid}>
+                {PERFORMANCE_METRICS.map((metric) => (
+                  <article key={metric.label} style={s.metricCard}>
+                    <strong>{metric.label}</strong>
+                    <span>{metric.value}</span>
+                    <small>{metric.detail}</small>
+                  </article>
+                ))}
+              </div>
+            </div>
+            <div style={s.eventPanel}>
+              <h3 style={s.panelTitle}>Upcoming company and country events</h3>
+              {EVENTS.map((event) => (
+                <article key={event.title} style={s.eventItem}>
+                  <span style={s.eventDate}><strong>{event.day}</strong>{event.month}</span>
+                  <span>
+                    <strong>{event.title}</strong>
+                    <small>{event.text}</small>
+                  </span>
+                </article>
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="departments" style={s.band}>
+        <div style={s.container}>
+          <div style={s.sectionIntro}>
+            <span style={s.kicker}>Business and division areas</span>
+            <h2 style={s.sectionTitle}>Department tiles, division detail and focal ownership</h2>
+            <p style={s.sectionText}>
+              Each department has division tiles, a lead area, business support materials,
+              collaboration updates and a follow button for personalised news.
+            </p>
+          </div>
+          <div style={s.departmentGrid}>
+            {DEPARTMENTS.map((department) => {
+              const active = selectedDepartment === department.name;
+              const followed = followedDepartments.includes(department.name);
+              return (
+                <article key={department.name} style={active ? s.departmentCardActive : s.departmentCard}>
+                  <button onClick={() => setSelectedDepartment(department.name)} style={s.departmentReadMore}>
+                    Read more <ArrowIcon />
+                  </button>
+                  <div style={s.departmentPhoto}>{department.photo}</div>
+                  <h3 style={s.departmentTitle}>{department.name}</h3>
+                  <p style={s.smallText}>{department.lead}</p>
+                  <div style={s.unitList}>
+                    {department.units.slice(0, 5).map((unit) => <span key={unit} style={s.unitChip}>{unit}</span>)}
+                  </div>
+                  <button onClick={() => toggleFollow(department.name)} style={followed ? s.followingBtn : s.followBtn}>
+                    {followed ? 'Following' : 'Follow'}
+                  </button>
+                </article>
+              );
+            })}
+          </div>
+
+          <section style={s.detailPanel}>
+            <div>
+              <span style={s.kicker}>Selected division page</span>
+              <h3 style={s.detailTitle}>{selectedDepartmentData.name}</h3>
+              <p style={s.sectionText}>{selectedDepartmentData.lead}</p>
+            </div>
+            <div style={s.detailColumns}>
+              <div>
+                <h4 style={s.listTitle}>Division information</h4>
+                <div style={s.unitList}>
+                  {selectedDepartmentData.units.map((unit) => <span key={unit} style={s.unitChip}>{unit}</span>)}
+                </div>
+              </div>
+              <div>
+                <h4 style={s.listTitle}>Business support materials and data</h4>
+                {selectedDepartmentData.materials.map((item) => <p key={item} style={s.newsItem}>{item}</p>)}
+              </div>
+              <div>
+                <h4 style={s.listTitle}>Collaboration and learning updates</h4>
+                {selectedDepartmentData.updates.map((item) => <p key={item} style={s.newsItem}>{item}</p>)}
+              </div>
+            </div>
+          </section>
+        </div>
+      </section>
+
+      <section id="news" style={s.toolsBand}>
+        <div style={s.container}>
+          <div className="som-two-column" style={s.hrGrid}>
+            <div>
+              <span style={s.kicker}>News central and personalisation</span>
+              <h2 style={s.sectionTitle}>Follow the updates that matter to you</h2>
+              <p style={s.sectionText}>
+                Employees can follow departments to shape their update stream for events,
+                news, business guides and learning material.
+              </p>
+              <div style={s.followSummary}>
+                {followedDepartments.length ? followedDepartments.map((name) => <span key={name} style={s.unitChip}>{name}</span>) : 'No departments followed yet.'}
+              </div>
+            </div>
+            <div style={s.newsPanel}>
+              {NEWS.map((item) => <p key={item} style={s.newsItem}>{item}</p>)}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="hr-online" style={s.hrBand}>
+        <div style={s.container}>
+          <div className="som-two-column" style={s.hrGrid}>
+            <div>
+              <span style={s.kickerDark}>HR Online</span>
+              <h2 style={s.featureTitle}>Employee services, people stories and support topics</h2>
+              <p style={s.featureText}>
+                A dedicated area for HR insight, employee search, HR GM connect,
+                common employee topics, media material, IT, Real Estate and recognition.
+              </p>
+              <div style={s.modeTabs}>
+                {HR_MODES.map((mode) => (
+                  <button key={mode.id} onClick={() => setHrMode(mode.id)} style={hrMode === mode.id ? s.modeActive : s.modeBtn}>
+                    {mode.label}
+                  </button>
+                ))}
+              </div>
+              <article style={s.hrModePanel}>
+                <h3>{selectedHrMode.title}</h3>
+                <p>{selectedHrMode.text}</p>
+              </article>
+            </div>
+            <div style={s.hrPostPanel}>
+              <h3 style={s.panelTitle}>HR GM connect posts</h3>
+              <form onSubmit={submitHrPost} style={s.postForm}>
+                <textarea
+                  value={hrDraft}
+                  onChange={(event) => setHrDraft(event.target.value)}
+                  placeholder="Post a question or HR update..."
+                  style={s.textArea}
+                />
+                <button style={s.primarySmall}>Post update</button>
+              </form>
+              {hrPosts.map((post) => <p key={post} style={s.newsItem}>{post}</p>)}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="employee-services" style={s.band}>
+        <div style={s.container}>
+          <div className="som-two-column" style={s.featureGrid}>
+            <div>
+              <div style={s.sectionIntro}>
+                <span style={s.kicker}>Employee search and services</span>
+                <h2 style={s.sectionTitle}>Find people, links and Shell network locations</h2>
+                <p style={s.sectionText}>
+                  A searchable employee area sits beside practical links for all employees and business teams.
+                </p>
+              </div>
+              <input
+                type="text"
+                placeholder="Search employees by name, team or location..."
+                value={employeeQuery}
+                onChange={(event) => setEmployeeQuery(event.target.value)}
+                style={s.searchInput}
+              />
+              <div style={s.employeeGrid}>
+                {filteredEmployees.map((employee) => (
+                  <article key={employee.email} style={s.employeeCard}>
+                    <span style={s.employeeAvatar}>{employee.name[0]}</span>
+                    <strong>{employee.name}</strong>
+                    <small>{employee.team} - {employee.location}</small>
+                    <a href={`mailto:${employee.email}`} style={s.redLink}>{employee.email}</a>
+                  </article>
+                ))}
+              </div>
+            </div>
+            <div style={s.eventPanel}>
+              <h3 style={s.panelTitle}>Main links for employees and business</h3>
+              {SERVICE_LINKS.map((link) => <p key={link} style={s.newsItem}>{link}</p>)}
+              <h3 style={s.panelTitle}>Shell network location</h3>
+              {NETWORK_LOCATIONS.map((location) => (
+                <article key={location.name} style={s.locationItem}>
+                  <strong>{location.name}</strong>
+                  <small>{location.detail}</small>
+                </article>
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="recognition" style={s.performance}>
+        <div style={s.container}>
+          <div style={s.sectionIntro}>
+            <span style={s.kicker}>Long service award</span>
+            <h2 style={s.sectionTitle}>Recognising 10, 20, 25, 30 and 35 years of service</h2>
+            <p style={s.sectionText}>
+              Employee recognition can include photos, years of service, milestone stories
+              and the upcoming 18 June celebration.
+            </p>
+          </div>
+          <div style={s.awardGrid}>
+            {LONG_SERVICE.map((person) => (
+              <article key={person.name} style={s.awardCard}>
+                <span style={s.awardPhoto}>{person.name.split(' ').map((part) => part[0]).slice(0, 2).join('')}</span>
+                <strong>{person.name}</strong>
+                <span style={s.awardYears}>{person.years} years</span>
+                <small>{person.milestone}</small>
+              </article>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section id="employee-tools" style={s.toolsBand}>
+        <div style={s.container}>
+          <div style={s.sectionIntro}>
+            <span style={s.kicker}>Employee tools</span>
+            <h2 style={s.sectionTitle}>Apps and SSO shortcuts</h2>
+            <p style={s.sectionText}>
+              Secure access to business applications sits below the editorial home page,
+              so employees can move from news and updates into daily work.
+            </p>
+          </div>
+
+          {appsErr && <div style={s.error}>{appsErr}</div>}
+
+          {isLoggedIn && favouritedApps.length > 0 && (
+            <section style={s.toolSection}>
+              <h3 style={s.toolHeading}>Favourites <span>{favouritedApps.length}</span></h3>
+              <div style={s.appGrid}>
+                {favouritedApps.map((app) => (
+                  <AppTile
+                    key={app.id}
+                    app={app}
+                    isFav
+                    onToggleStar={handleToggleStar}
+                    onAppClick={handleAppClick}
+                    launching={ssoLaunching.has(app.id)}
+                  />
+                ))}
+              </div>
+            </section>
+          )}
 
           {Object.entries(groupedApps).map(([category, catApps]) => (
-            <div key={category} style={{ marginBottom: 28 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
-                <span style={{
-                  ...catStyle(category),
-                  display: 'inline-flex', alignItems: 'center',
-                  padding: '3px 12px', borderRadius: 9999,
-                  fontSize: 11.5, fontWeight: 700, letterSpacing: '0.3px',
-                  border: `1px solid ${catStyle(category).border}`,
-                }}>
-                  {category}
-                </span>
-                <div style={{ flex: 1, height: 1, background: 'var(--gray-100)' }} />
-              </div>
-              <div style={gridStyle}>
+            <section key={category} style={s.toolSection}>
+              <h3 style={s.toolHeading}>{category} <span>{catApps.length}</span></h3>
+              <div style={s.appGrid}>
                 {catApps.map((app) => (
                   <AppTile
-                    key={app.id} app={app}
+                    key={app.id}
+                    app={app}
                     isFav={favourites.includes(app.id)}
                     onToggleStar={isLoggedIn ? handleToggleStar : null}
                     onAppClick={handleAppClick}
@@ -532,69 +761,38 @@ export default function IntraPortal() {
                   />
                 ))}
               </div>
-            </div>
+            </section>
           ))}
-        </section>
-      )}
+        </div>
+      </section>
 
+      <section id="knowledge" style={s.band}>
+        <div style={s.container}>
+          <div style={s.sectionIntro}>
+            <span style={s.kicker}>Knowledge base</span>
+            <h2 style={s.sectionTitle}>Policies, procedures and learning materials</h2>
+            <p style={s.sectionText}>
+              Search SOM documents, browse by category, pin key references and view version history.
+            </p>
+          </div>
 
-      {/* ── SECTION 3: Knowledge Base ─────────────────────────────────────────── */}
-      <section>
-        <div style={{ marginBottom: 18 }}>
-          <h2 style={{ fontSize: 15, fontWeight: 700, color: 'var(--gray-800)', marginBottom: 14, display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-            Knowledge Base
-            {isFtsMode && kbDocs.length > 0 && (() => {
-              const mode = kbDocs[0]?.searchMode;
-              return (
-                <>
-                  {mode === 'semantic' && (
-                    <span style={{ fontSize: 11, fontWeight: 700, color: '#818cf8', background: 'rgba(99,102,241,0.12)', border: '1px solid rgba(99,102,241,0.25)', borderRadius: 6, padding: '2px 8px', letterSpacing: '0.2px' }}>
-                      ✦ AI Semantic Search
-                    </span>
-                  )}
-                  {mode === 'fts' && (
-                    <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--gray-400)', background: 'var(--gray-100)', borderRadius: 6, padding: '2px 8px' }}>
-                      Full-text search
-                    </span>
-                  )}
-                  <span style={{ fontSize: 12, fontWeight: 500, color: 'var(--gray-400)' }}>
-                    {kbDocs.length} result{kbDocs.length !== 1 ? 's' : ''}
-                  </span>
-                </>
-              );
-            })()}
-          </h2>
-
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <div style={s.searchBar}>
             <input
               data-testid="knowledge-search"
               type="text"
-              placeholder="Search documents, policies, procedures…"
+              placeholder="Search documents, policies, procedures..."
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              style={{
-                width: '100%', maxWidth: 460, padding: '10px 14px',
-                border: '1px solid var(--gray-200)', borderRadius: 10, fontSize: 14,
-                fontFamily: 'inherit', background: 'var(--gray-50)',
-                color: 'var(--gray-900)', outline: 'none', boxShadow: 'var(--shadow-xs)',
-              }}
+              onChange={(event) => setSearchTerm(event.target.value)}
+              style={s.searchInput}
             />
-
-            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            <div style={s.categoryFilter}>
               {KB_CATEGORIES.map((cat) => {
                 const active = kbCategory === cat;
-                const cs = catStyle(cat);
                 return (
                   <button
                     key={cat}
                     onClick={() => setKbCategory(cat)}
-                    style={{
-                      padding: '5px 16px', borderRadius: 9999, fontSize: 12.5,
-                      fontWeight: active ? 700 : 500, cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.15s',
-                      border: active ? `1.5px solid ${cs.border}` : '1px solid var(--gray-200)',
-                      background: active ? cs.bg : 'var(--surface)',
-                      color: active ? cs.color : 'var(--gray-500)',
-                    }}
+                    style={active ? s.filterActive : s.filter}
                   >
                     {cat}
                   </button>
@@ -602,94 +800,212 @@ export default function IntraPortal() {
               })}
             </div>
           </div>
-        </div>
 
-        {kbErr && (
-          <div style={{ color: '#ff6b6b', background: 'rgba(220,38,38,0.12)', border: '1px solid rgba(220,38,38,0.30)', borderRadius: 10, padding: '10px 14px', fontSize: 13, marginBottom: 14 }}>
-            {kbErr}
-          </div>
-        )}
+          {kbErr && <div style={s.error}>{kbErr}</div>}
 
-        {/* Pinned Documents (browse mode only, logged-in only) */}
-        {!isFtsMode && isLoggedIn && pinnedKbDocs.length > 0 && (
-          <div style={{ marginBottom: 24 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-              <span style={{ fontSize: 15 }}>📌</span>
-              <h3 style={{ fontSize: 13.5, fontWeight: 700, color: 'var(--gray-700)' }}>Pinned Documents</h3>
-              <span style={{ fontSize: 12, color: 'var(--gray-400)' }}>{pinnedKbDocs.length}</span>
-              <div style={{ flex: 1, height: 1, background: 'var(--gray-100)' }} />
-            </div>
-            <div style={kbGridStyle}>
-              {pinnedKbDocs.map((doc) => (
-                <KnowledgeCard
-                  key={doc.id} doc={doc} isPinned={true} onTogglePin={handleTogglePin}
-                />
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Results */}
-        <div data-testid="knowledge-results">
-          {kbLoading ? (
-            <div style={{ display: 'flex', justifyContent: 'center', padding: 40 }}>
-              <div style={{ width: 28, height: 28, border: '3px solid rgba(255,255,255,0.12)', borderTopColor: '#DD1D21', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
-            </div>
-          ) : isFtsMode && searchTerm.trim() && kbDocs.length === 0 ? (
-            <div
-              data-testid="empty-state"
-              style={{ textAlign: 'center', padding: '48px 24px', color: 'var(--gray-400)', fontSize: 14 }}
-            >
-              <div style={{ fontSize: 32, marginBottom: 10 }}>🔍</div>
-              No results for "{searchTerm}"
-            </div>
-          ) : !isFtsMode && kbDocs.length === 0 ? (
-            <div
-              data-testid="empty-state"
-              style={{ textAlign: 'center', padding: '48px 24px', color: 'var(--gray-400)', fontSize: 14 }}
-            >
-              <div style={{ fontSize: 32, marginBottom: 10 }}>📄</div>
-              No documents found
-            </div>
-          ) : isFtsMode ? (
-            /* FTS results with highlighted snippets */
-            <div style={kbGridStyle}>
-              {kbDocs.map((result) => (
-                <SearchResultCard key={result.id} result={result} />
-              ))}
-            </div>
-          ) : (
-            /* Browse results with pin/version history */
-            <div style={kbGridStyle}>
-              {kbDocs.map((doc) => (
-                <KnowledgeCard
-                  key={doc.id} doc={doc}
-                  isPinned={isLoggedIn && pinnedDocs.includes(doc.id)}
-                  onTogglePin={isLoggedIn ? handleTogglePin : null}
-                />
-              ))}
-            </div>
+          {!isFtsMode && isLoggedIn && pinnedKbDocs.length > 0 && (
+            <section style={s.toolSection}>
+              <h3 style={s.toolHeading}>Pinned Documents <span>{pinnedKbDocs.length}</span></h3>
+              <div style={s.kbGrid}>
+                {pinnedKbDocs.map((doc) => (
+                  <KnowledgeCard key={doc.id} doc={doc} isPinned onTogglePin={handleTogglePin} />
+                ))}
+              </div>
+            </section>
           )}
+
+          <div data-testid="knowledge-results">
+            {kbLoading ? (
+              <div style={s.loading}>Loading documents...</div>
+            ) : isFtsMode && searchTerm.trim() && kbDocs.length === 0 ? (
+              <div data-testid="empty-state" style={s.empty}>No results for "{searchTerm}"</div>
+            ) : !isFtsMode && kbDocs.length === 0 ? (
+              <div data-testid="empty-state" style={s.empty}>No documents found</div>
+            ) : (
+              <div style={s.kbGrid}>
+                {kbDocs.map((doc) => (
+                  isFtsMode
+                    ? <SearchResultCard key={doc.id} result={doc} />
+                    : (
+                      <KnowledgeCard
+                        key={doc.id}
+                        doc={doc}
+                        isPinned={isLoggedIn && pinnedDocs.includes(doc.id)}
+                        onTogglePin={isLoggedIn ? handleTogglePin : null}
+                      />
+                    )
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       </section>
 
-      {/* Inject mark highlight styles once */}
+      <footer style={s.footer}>
+        <div style={s.container}>
+          <div className="som-footer-grid" style={s.footerGrid}>
+            <div>
+              <strong>Shell Oman Marketing Company</strong>
+              <p>Employee Intraportal for news, services, departments, HR Online and knowledge.</p>
+            </div>
+            <div>
+              <strong>More in home</strong>
+              <a href="#departments">Business divisions</a>
+              <a href="#hr-online">HR Online</a>
+              <a href="#employee-services">Employee search</a>
+              <a href="#knowledge">Knowledge base</a>
+            </div>
+            <div>
+              <strong>Can we help?</strong>
+              <a href="#employee-tools">Employee tools</a>
+              <a href="/login">Sign in</a>
+              {isLoggedIn && <a href="/dashboard">Dashboard</a>}
+            </div>
+          </div>
+        </div>
+      </footer>
+
       <style>{`
-        mark { background: rgba(255,213,0,0.35); color: inherit; border-radius: 2px; padding: 0 2px; }
+        mark { background: rgba(255, 213, 0, 0.55); color: inherit; border-radius: 2px; padding: 0 2px; }
+        #root footer a {
+          color: rgba(255,255,255,0.74);
+          display: block;
+          margin-top: 8px;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        @media (max-width: 760px) {
+          .som-two-column,
+          .som-footer-grid {
+            grid-template-columns: 1fr !important;
+          }
+        }
       `}</style>
     </div>
   );
 }
 
-// ─── Responsive grid styles ───────────────────────────────────────────────────
-const gridStyle = {
-  display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))',
-  gap: 14,
-};
-
-const kbGridStyle = {
-  display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
-  gap: 14,
+const s = {
+  page: { background: '#fff', color: INK, animation: 'fadeIn 0.25s ease' },
+  hero: { position: 'relative', minHeight: 520, overflow: 'hidden', background: '#1f1f1f' },
+  heroImage: {
+    position: 'absolute',
+    inset: 0,
+    backgroundImage: 'linear-gradient(90deg, rgba(0,0,0,0.78) 0%, rgba(0,0,0,0.52) 42%, rgba(0,0,0,0.12) 100%), url(/logo.jpeg)',
+    backgroundSize: 'cover',
+    backgroundPosition: 'center',
+    transform: 'scale(1.02)',
+  },
+  heroOverlay: { position: 'relative', minHeight: 520, display: 'flex', alignItems: 'center', borderBottom: `14px solid ${SHELL_YELLOW}` },
+  heroContent: { width: 'min(1180px, calc(100% - 48px))', margin: '0 auto', padding: '72px 0', color: '#fff' },
+  eyebrow: { display: 'inline-flex', background: SHELL_YELLOW, color: '#222', fontSize: 13, fontWeight: 800, padding: '8px 12px', borderRadius: 2, marginBottom: 18 },
+  heroTitle: { fontSize: 'clamp(40px, 7vw, 72px)', lineHeight: 0.95, maxWidth: 820, fontWeight: 800, marginBottom: 22 },
+  heroText: { maxWidth: 710, fontSize: 20, lineHeight: 1.55, color: 'rgba(255,255,255,0.92)', marginBottom: 28 },
+  heroActions: { display: 'flex', gap: 12, flexWrap: 'wrap' },
+  primaryCta: { display: 'inline-flex', color: '#fff', background: SHELL_RED, padding: '13px 20px', borderRadius: 4, fontWeight: 800 },
+  secondaryCta: { display: 'inline-flex', color: '#222', background: SHELL_YELLOW, padding: '13px 20px', borderRadius: 4, fontWeight: 800 },
+  ghostCta: { display: 'inline-flex', color: '#fff', background: 'rgba(255,255,255,0.16)', border: '1px solid rgba(255,255,255,0.42)', padding: '13px 20px', borderRadius: 4, fontWeight: 800 },
+  band: { padding: '64px 24px', background: '#fff' },
+  toolsBand: { padding: '64px 24px', background: '#f7f7f7' },
+  performance: { padding: '64px 24px', background: '#f7f7f7' },
+  hrBand: {
+    padding: '64px 24px',
+    background: '#fff',
+    color: '#222',
+    borderTop: `10px solid ${SHELL_RED}`,
+    borderBottom: '1px solid #e5e5e5',
+  },
+  container: { maxWidth: 1180, margin: '0 auto' },
+  sectionIntro: { maxWidth: 780, marginBottom: 28 },
+  kicker: { display: 'inline-block', color: SHELL_RED, fontSize: 13, fontWeight: 800, textTransform: 'uppercase', marginBottom: 8 },
+  kickerDark: { display: 'inline-block', color: '#222', fontSize: 13, fontWeight: 800, textTransform: 'uppercase', marginBottom: 8 },
+  sectionTitle: { color: '#222', fontSize: 34, lineHeight: 1.15, fontWeight: 800, marginBottom: 10 },
+  sectionText: { color: '#595959', fontSize: 17, lineHeight: 1.65 },
+  smallText: { color: '#666', fontSize: 13, lineHeight: 1.5 },
+  pillarGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(245px, 1fr))', gap: 18 },
+  pillarCard: { position: 'relative', minHeight: 190, border: '1px solid #dfdfdf', borderRadius: 4, padding: 22, color: '#222', background: '#fff', display: 'flex', flexDirection: 'column', gap: 10 },
+  cardAccent: { width: 48, height: 6, background: SHELL_YELLOW, display: 'block', marginBottom: 6 },
+  cardTitle: { fontSize: 21, fontWeight: 800 },
+  cardText: { color: '#5d5d5d', lineHeight: 1.55, flex: 1 },
+  featureGrid: { display: 'grid', gridTemplateColumns: 'minmax(0, 1.45fr) minmax(280px, 0.55fr)', gap: 20 },
+  yellowPanel: { background: SHELL_YELLOW, borderRadius: 4, padding: 34, color: '#222' },
+  featureTitle: { fontSize: 34, lineHeight: 1.12, fontWeight: 800, marginBottom: 12 },
+  featureText: { fontSize: 17, lineHeight: 1.65, maxWidth: 720 },
+  metricGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12, marginTop: 24 },
+  metricCard: { background: 'rgba(255,255,255,0.72)', border: '1px solid rgba(0,0,0,0.08)', borderRadius: 4, padding: 16, display: 'grid', gap: 5 },
+  eventPanel: { background: '#fff', border: '1px solid #dfdfdf', borderRadius: 4, padding: 24, color: '#222' },
+  panelTitle: { fontSize: 20, fontWeight: 800, marginBottom: 16 },
+  eventItem: { display: 'flex', gap: 14, padding: '14px 0', borderTop: '1px solid #eee' },
+  eventDate: { width: 54, minWidth: 54, height: 54, background: SHELL_RED, color: '#fff', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', borderRadius: 4, fontSize: 12, lineHeight: 1 },
+  departmentGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 18 },
+  departmentCard: { position: 'relative', border: '1px solid #dfdfdf', borderRadius: 4, background: '#fff', padding: 22, borderTop: `7px solid ${SHELL_RED}`, display: 'grid', gap: 12 },
+  departmentCardActive: { position: 'relative', border: `2px solid ${SHELL_RED}`, borderRadius: 4, background: '#fff', padding: 21, borderTop: `7px solid ${SHELL_RED}`, display: 'grid', gap: 12 },
+  departmentReadMore: { justifySelf: 'end', color: SHELL_RED, background: 'transparent', border: 0, fontWeight: 800, display: 'inline-flex', alignItems: 'center', gap: 4 },
+  departmentPhoto: { width: '100%', height: 120, background: '#fff8cc', color: SHELL_RED, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 44, fontWeight: 900, borderRadius: 4 },
+  departmentTitle: { fontSize: 22, fontWeight: 800 },
+  unitList: { display: 'flex', gap: 8, flexWrap: 'wrap' },
+  unitChip: { display: 'inline-flex', background: '#f4f4f4', border: '1px solid #e1e1e1', color: '#444', padding: '6px 9px', borderRadius: 4, fontSize: 12, fontWeight: 700 },
+  followBtn: { width: 'fit-content', background: '#fff', color: SHELL_RED, border: `1px solid ${SHELL_RED}`, borderRadius: 4, padding: '8px 12px', fontWeight: 800 },
+  followingBtn: { width: 'fit-content', background: SHELL_YELLOW, color: '#222', border: '1px solid #f0c800', borderRadius: 4, padding: '8px 12px', fontWeight: 800 },
+  detailPanel: { marginTop: 24, border: '1px solid #dfdfdf', borderRadius: 4, padding: 24, background: '#fff' },
+  detailTitle: { fontSize: 28, fontWeight: 800, marginBottom: 8 },
+  detailColumns: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 18, marginTop: 20 },
+  listTitle: { fontSize: 16, fontWeight: 800, marginBottom: 10 },
+  hrGrid: { display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(280px, 0.75fr)', gap: 28, alignItems: 'start' },
+  newsPanel: { background: '#fff', color: '#222', borderRadius: 4, padding: 22, border: '1px solid #dfdfdf' },
+  newsItem: { padding: '12px 0', borderTop: '1px solid #eee', lineHeight: 1.55 },
+  followSummary: { marginTop: 18, display: 'flex', gap: 8, flexWrap: 'wrap', color: '#666' },
+  modeTabs: { display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 20 },
+  modeBtn: { background: '#fff', color: '#333', border: '1px solid #d8d8d8', borderRadius: 4, padding: '8px 12px', fontWeight: 800 },
+  modeActive: { background: SHELL_YELLOW, color: '#222', border: '1px solid #f0c800', borderRadius: 4, padding: '8px 12px', fontWeight: 800 },
+  hrModePanel: { marginTop: 16, background: '#fff', color: '#222', borderRadius: 4, padding: 20, borderLeft: `6px solid ${SHELL_RED}`, boxShadow: 'var(--shadow-sm)' },
+  hrPostPanel: { background: '#fff', color: '#222', borderRadius: 4, padding: 22, borderTop: `6px solid ${SHELL_RED}`, boxShadow: 'var(--shadow-sm)' },
+  postForm: { display: 'grid', gap: 10, marginBottom: 12 },
+  textArea: { minHeight: 92, resize: 'vertical', border: '1px solid #d8d8d8', borderRadius: 4, padding: 12, fontFamily: 'inherit' },
+  primarySmall: { width: 'fit-content', background: SHELL_RED, color: '#fff', border: 0, borderRadius: 4, padding: '9px 14px', fontWeight: 800 },
+  employeeGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12, marginTop: 18 },
+  employeeCard: { border: '1px solid #dfdfdf', borderRadius: 4, padding: 16, display: 'grid', gap: 6, background: '#fff' },
+  employeeAvatar: { width: 38, height: 38, borderRadius: '50%', background: SHELL_YELLOW, color: SHELL_RED, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 900 },
+  locationItem: { display: 'grid', gap: 4, padding: '12px 0', borderTop: '1px solid #eee' },
+  awardGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: 14 },
+  awardCard: { background: '#fff', border: '1px solid #dfdfdf', borderRadius: 4, padding: 18, display: 'grid', gap: 8, textAlign: 'center', justifyItems: 'center' },
+  awardPhoto: { width: 84, height: 84, borderRadius: '50%', background: SHELL_RED, color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 24, fontWeight: 900 },
+  awardYears: { background: '#fff8cc', border: '1px solid #ffe889', borderRadius: 4, padding: '5px 9px', fontWeight: 800 },
+  toolSection: { marginTop: 28 },
+  toolHeading: { display: 'flex', alignItems: 'center', gap: 10, fontSize: 20, fontWeight: 800, marginBottom: 14 },
+  appGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(210px, 1fr))', gap: 14 },
+  appTile: { position: 'relative', minHeight: 190, textAlign: 'left', background: '#fff', border: '1px solid #dfdfdf', borderRadius: 4, padding: 18, display: 'flex', flexDirection: 'column', gap: 9, color: '#222', boxShadow: '0 1px 2px rgba(0,0,0,0.04)' },
+  appIcon: { width: 44, height: 44, display: 'flex', alignItems: 'center', justifyContent: 'center', background: SHELL_YELLOW, color: SHELL_RED, borderRadius: 4, fontSize: 13, fontWeight: 900, marginTop: 12 },
+  appTitle: { fontSize: 16, fontWeight: 800 },
+  appText: { color: '#666', fontSize: 13, lineHeight: 1.5, flex: 1 },
+  star: { position: 'absolute', top: 10, right: 10, border: '1px solid #ddd', background: '#fff', color: '#777', borderRadius: 4, minWidth: 46, height: 30, fontSize: 11 },
+  starActive: { position: 'absolute', top: 10, right: 10, border: '1px solid #f0c800', background: SHELL_YELLOW, color: '#222', borderRadius: 4, minWidth: 58, height: 30, fontSize: 11, fontWeight: 800 },
+  ssoBadge: { position: 'absolute', top: 12, left: 12, background: '#eef3ff', color: '#1d4ed8', border: '1px solid #c9d8ff', borderRadius: 4, fontSize: 11, fontWeight: 800, padding: '3px 7px' },
+  launching: { position: 'absolute', inset: 0, zIndex: 2, background: 'rgba(255,255,255,0.94)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, fontWeight: 800, color: SHELL_RED },
+  spinner: { width: 18, height: 18, border: '3px solid #ffd3d3', borderTopColor: SHELL_RED, borderRadius: '50%', animation: 'spin 0.8s linear infinite' },
+  tag: { display: 'inline-flex', alignItems: 'center', width: 'fit-content', padding: '4px 9px', borderRadius: 4, border: '1px solid', fontSize: 12, fontWeight: 800 },
+  searchBar: { display: 'grid', gap: 14, marginBottom: 24 },
+  searchInput: { width: 'min(100%, 560px)', padding: '13px 15px', border: '1px solid #cfcfcf', borderRadius: 4, fontSize: 15, color: '#222', outlineColor: SHELL_RED },
+  categoryFilter: { display: 'flex', gap: 8, flexWrap: 'wrap' },
+  filter: { background: '#fff', color: '#333', border: '1px solid #d8d8d8', borderRadius: 4, padding: '8px 14px', fontWeight: 800 },
+  filterActive: { background: SHELL_RED, color: '#fff', border: `1px solid ${SHELL_RED}`, borderRadius: 4, padding: '8px 14px', fontWeight: 800 },
+  kbGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 14 },
+  kbCard: { background: '#fff', border: '1px solid #dfdfdf', borderRadius: 4, padding: 20, display: 'grid', gap: 12 },
+  kbHeader: { display: 'flex', justifyContent: 'space-between', gap: 12 },
+  kbTitle: { fontSize: 17, lineHeight: 1.35, fontWeight: 800 },
+  kbText: { color: '#666', lineHeight: 1.6 },
+  kbMeta: { display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center', color: '#777', fontSize: 12 },
+  badgeRow: { display: 'flex', gap: 6, flexWrap: 'wrap', justifyContent: 'flex-end' },
+  fileBadge: { display: 'inline-flex', height: 25, alignItems: 'center', padding: '3px 7px', border: '1px solid', borderRadius: 4, fontSize: 11, fontWeight: 800 },
+  matchBadge: { display: 'inline-flex', height: 25, alignItems: 'center', padding: '3px 7px', border: '1px solid #c9d8ff', borderRadius: 4, background: '#eef3ff', color: '#1d4ed8', fontSize: 11, fontWeight: 800 },
+  pin: { border: '1px solid #ddd', background: '#fff', color: '#555', borderRadius: 4, padding: '4px 7px', fontWeight: 800, fontSize: 11 },
+  pinActive: { border: '1px solid #f0c800', background: SHELL_YELLOW, color: '#222', borderRadius: 4, padding: '4px 7px', fontWeight: 800, fontSize: 11 },
+  redLink: { color: SHELL_RED, fontWeight: 800 },
+  textButton: { color: SHELL_RED, background: 'transparent', border: 0, fontWeight: 800, padding: 0 },
+  history: { borderTop: '1px solid #eee', paddingTop: 12, color: '#666', fontSize: 13, display: 'grid', gap: 8 },
+  historyItem: { display: 'grid', gridTemplateColumns: '50px 95px 1fr', gap: 8 },
+  error: { background: '#fff1f1', border: '1px solid #ffd3d3', color: SHELL_RED, borderRadius: 4, padding: '12px 14px', fontWeight: 700 },
+  loading: { padding: 36, textAlign: 'center', color: '#777' },
+  empty: { padding: 36, textAlign: 'center', color: '#777', border: '1px solid #dfdfdf', borderRadius: 4, background: '#fff' },
+  footer: { background: '#262626', color: '#fff', padding: '36px 24px' },
+  footerGrid: { display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: 28 },
 };

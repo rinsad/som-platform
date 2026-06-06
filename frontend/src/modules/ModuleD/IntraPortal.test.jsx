@@ -1,3 +1,4 @@
+/* global vi, beforeEach, afterEach, test, expect, jest, global */
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import IntraPortal from './IntraPortal';
 
@@ -66,7 +67,7 @@ test('SSO-enabled app tile shows SSO badge', async () => {
   render(<IntraPortal />);
   await act(async () => { jest.advanceTimersByTime(300); });
   await waitFor(() => screen.getAllByTestId('app-tile'));
-  expect(screen.getByText('🔐 SSO', { selector: 'div' })).toBeInTheDocument();
+  expect(screen.getByText('SSO')).toBeInTheDocument();
 });
 
 test('search does NOT fire immediately on typing', async () => {

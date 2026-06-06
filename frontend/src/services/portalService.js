@@ -1,4 +1,10 @@
-const API = import.meta.env.VITE_API_URL || '/api';
+const API = (import.meta.env.VITE_API_URL || '/api').replace(/\/$/, '');
+
+function apiUrl(path) {
+  const apiPath = path.startsWith('/api/') ? path : `/api${path}`;
+  if (!API || API === '/api') return apiPath;
+  return API.endsWith('/api') ? `${API}${apiPath.slice(4)}` : `${API}${apiPath}`;
+}
 
 function authHeaders() {
   return {
@@ -8,24 +14,24 @@ function authHeaders() {
 }
 
 async function request(path, options = {}) {
-  const r = await fetch(`${API}${path}`, { headers: authHeaders(), ...options });
+  const r = await fetch(apiUrl(path), { headers: authHeaders(), ...options });
   if (!r.ok) throw new Error(`API error ${r.status}`);
   return r.json();
 }
 
 async function publicRequest(path) {
-  const r = await fetch(`${API}${path}`);
+  const r = await fetch(apiUrl(path));
   if (!r.ok) throw new Error(`API error ${r.status}`);
   return r.json();
 }
 
 export function getApps() {
-  return publicRequest('/api/portal/apps');
+  return publicRequest('/portal/apps');
 }
 
 export function getKnowledge(params = {}) {
   const qs = new URLSearchParams(params).toString();
-  return publicRequest(`/api/portal/knowledge${qs ? `?${qs}` : ''}`);
+  return publicRequest(`/portal/knowledge${qs ? `?${qs}` : ''}`);
 }
 
 /** Full-text search — returns results with highlighted <mark> snippets */
@@ -33,30 +39,30 @@ export function searchKnowledge(q, category) {
   const params = { q };
   if (category && category !== 'All') params.category = category;
   const qs = new URLSearchParams(params).toString();
-  return publicRequest(`/api/portal/knowledge/search?${qs}`);
+  return publicRequest(`/portal/knowledge/search?${qs}`);
 }
 
 export function getDocVersions(docId) {
-  return publicRequest(`/api/portal/knowledge/${docId}/versions`);
+  return publicRequest(`/portal/knowledge/${docId}/versions`);
 }
 
 export function getFavourites() {
-  return request('/api/portal/favourites');
+  return request('/portal/favourites');
 }
 
 export function toggleFavourite(appId) {
-  return request('/api/portal/favourites', {
+  return request('/portal/favourites', {
     method: 'POST',
     body: JSON.stringify({ appId }),
   });
 }
 
 export function getPinnedDocs() {
-  return request('/api/portal/pinned-docs');
+  return request('/portal/pinned-docs');
 }
 
 export function togglePinnedDoc(docId) {
-  return request('/api/portal/pinned-docs', {
+  return request('/portal/pinned-docs', {
     method: 'POST',
     body: JSON.stringify({ docId }),
   });
@@ -64,22 +70,22 @@ export function togglePinnedDoc(docId) {
 
 /** Admin: fetch all KB documents with full metadata. */
 export function getKnowledgeAdmin() {
-  return request('/api/portal/knowledge/admin');
+  return request('/portal/knowledge/admin');
 }
 
 /** Admin: permanently delete a KB document and all its chunks. */
 export function deleteKBDocument(id) {
-  return request(`/api/portal/knowledge/${id}`, { method: 'DELETE' });
+  return request(`/portal/knowledge/${id}`, { method: 'DELETE' });
 }
 
 /** Admin: generate / refresh semantic embeddings for a document's chunks. */
 export function embedDocument(id) {
-  return request(`/api/portal/knowledge/${id}/embed`, { method: 'POST' });
+  return request(`/portal/knowledge/${id}/embed`, { method: 'POST' });
 }
 
 /** Upload a document (PDF / DOCX / EML / TXT) for KB indexing. */
 export async function uploadDocument(formData) {
-  const r = await fetch(`${API}/api/portal/knowledge/upload`, {
+  const r = await fetch(apiUrl('/portal/knowledge/upload'), {
     method: 'POST',
     headers: { Authorization: `Bearer ${localStorage.getItem('som_token')}` },
     body: formData,   // browser sets multipart Content-Type + boundary
@@ -98,7 +104,7 @@ export async function uploadDocument(formData) {
  */
 export function getDocFileUrl(docId, sourceType = 'pdf', hasStoredFile = false) {
   if (hasStoredFile) {
-    return `/api/portal/knowledge/${docId}/file`;
+    return apiUrl(`/portal/knowledge/${docId}/file`);
   }
   return `/kb-files/${docId}.${sourceType}`;
 }
