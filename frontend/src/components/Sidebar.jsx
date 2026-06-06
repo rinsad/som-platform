@@ -5,23 +5,23 @@ const NAV_SECTIONS = [
   {
     label: 'Overview',
     items: [
-      { label: 'Dashboard',  path: '/dashboard', icon: '⊞' },
+      { label: 'Dashboard', path: '/dashboard', icon: 'D' },
     ],
   },
   {
     label: 'Modules',
     items: [
-      { label: 'Capex Planning',    path: '/capex',             icon: '◈', permKey: 'capex' },
-      { label: 'Purchase Requests', path: '/purchase-requests', icon: '◎', permKey: 'purchase-requests' },
-      { label: 'Assets (RADP)',     path: '/assets',            icon: '◉', permKey: 'assets' },
+      { label: 'Capex Planning', path: '/capex', icon: 'C', permKey: 'capex' },
+      { label: 'Purchase Requests', path: '/purchase-requests', icon: 'P', permKey: 'purchase-requests' },
+      { label: 'Assets (RADP)', path: '/assets', icon: 'A', permKey: 'assets' },
     ],
   },
   {
     label: 'Administration',
     adminOnly: true,
     items: [
-      { label: 'User Management',   path: '/admin/users',      icon: '⊛' },
-      { label: 'Knowledge Base',    path: '/admin/knowledge',  icon: '◈' },
+      { label: 'User Management', path: '/admin/users', icon: 'U' },
+      { label: 'Knowledge Base', path: '/admin/knowledge', icon: 'K' },
     ],
   },
 ];
@@ -32,6 +32,14 @@ export default function Sidebar() {
 
   return (
     <aside style={s.sidebar}>
+      <div style={s.titleBlock}>
+        <span style={s.titleAccent} />
+        <div>
+          <strong style={s.title}>Workspace</strong>
+          <span style={s.subtitle}>Internal modules</span>
+        </div>
+      </div>
+
       <nav style={s.nav}>
         {NAV_SECTIONS
           .filter(section => !section.adminOnly || role === 'Admin')
@@ -46,14 +54,10 @@ export default function Sidebar() {
                 {visibleItems.map((item) => {
                   const active = location.pathname === item.path;
                   return (
-                    <NavLink
-                      key={item.path}
-                      to={item.path}
-                      style={{ textDecoration: 'none' }}
-                    >
+                    <NavLink key={item.path} to={item.path} style={{ textDecoration: 'none' }}>
                       <div style={{ ...s.navItem, ...(active ? s.navItemActive : {}) }}>
                         <div style={{ ...s.iconWrap, ...(active ? s.iconWrapActive : {}) }}>
-                          <span style={s.icon}>{item.icon}</span>
+                          <span style={{ ...s.icon, ...(active ? s.iconActive : {}) }}>{item.icon}</span>
                         </div>
                         <span style={{ ...s.label, ...(active ? s.labelActive : {}) }}>
                           {item.label}
@@ -67,7 +71,6 @@ export default function Sidebar() {
           })}
       </nav>
 
-      {/* Bottom badge */}
       <div style={s.footer}>
         <div style={s.versionBadge}>
           <span style={s.versionDot} />
@@ -80,97 +83,126 @@ export default function Sidebar() {
 
 const s = {
   sidebar: {
-    width: '224px',
+    width: 244,
     minHeight: '100%',
-    background: 'rgba(13,13,24,0.72)',
-    backdropFilter: 'blur(24px)',
-    WebkitBackdropFilter: 'blur(24px)',
-    borderRight: '0.5px solid rgba(255,255,255,0.07)',
+    background: '#fff',
+    borderRight: '1px solid #e5e5e5',
     display: 'flex',
     flexDirection: 'column',
     flexShrink: 0,
+    boxShadow: '1px 0 0 rgba(0,0,0,0.02)',
+  },
+  titleBlock: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 10,
+    padding: '18px 18px 12px',
+    borderBottom: '1px solid #f0f0f0',
+  },
+  titleAccent: {
+    width: 7,
+    height: 34,
+    background: '#FFD500',
+    borderRadius: 2,
+    display: 'block',
+  },
+  title: {
+    display: 'block',
+    color: '#222',
+    fontSize: 15,
+    lineHeight: 1.2,
+  },
+  subtitle: {
+    display: 'block',
+    color: '#777',
+    fontSize: 12,
+    marginTop: 2,
   },
   nav: {
     flex: 1,
-    padding: '12px 8px',
+    padding: '14px 10px',
     display: 'flex',
     flexDirection: 'column',
-    gap: '2px',
+    gap: 6,
   },
   section: {
-    marginBottom: '6px',
+    marginBottom: 8,
   },
   sectionLabel: {
-    fontSize: '10px',
-    fontWeight: '600',
-    color: 'rgba(255,255,255,0.28)',
+    fontSize: 11,
+    fontWeight: 800,
+    color: '#8a8a8a',
     textTransform: 'uppercase',
-    letterSpacing: '0.7px',
-    padding: '10px 10px 5px',
+    letterSpacing: '0.6px',
+    padding: '10px 10px 6px',
   },
   navItem: {
     display: 'flex',
     alignItems: 'center',
-    gap: '10px',
-    padding: '7px 8px',
-    borderRadius: '10px',
+    gap: 10,
+    padding: '9px 10px',
+    borderRadius: 4,
     cursor: 'pointer',
-    transition: 'background 0.12s ease',
+    border: '1px solid transparent',
+    transition: 'background 0.12s ease, border-color 0.12s ease',
   },
   navItemActive: {
-    background: 'rgba(255,255,255,0.10)',
-    boxShadow: '0 1px 3px rgba(0,0,0,0.30)',
+    background: '#fff1f1',
+    borderColor: '#ffd3d3',
   },
   iconWrap: {
-    width: '28px',
-    height: '28px',
-    borderRadius: '7px',
-    background: 'rgba(255,255,255,0.06)',
+    width: 30,
+    height: 30,
+    borderRadius: 4,
+    background: '#f4f4f4',
+    border: '1px solid #e1e1e1',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
     flexShrink: 0,
-    transition: 'background 0.12s ease',
   },
   iconWrapActive: {
-    background: 'linear-gradient(135deg, #DD1D21 0%, #9b0000 100%)',
-    boxShadow: '0 1px 4px rgba(221,29,33,0.40)',
+    background: '#DD1D21',
+    borderColor: '#DD1D21',
   },
   icon: {
-    fontSize: '14px',
-    color: 'rgba(255,255,255,0.50)',
+    fontSize: 12,
+    color: '#666',
     lineHeight: 1,
+    fontWeight: 900,
+  },
+  iconActive: {
+    color: '#fff',
   },
   label: {
-    fontSize: '13px',
-    fontWeight: '500',
-    color: 'rgba(255,255,255,0.55)',
+    fontSize: 13,
+    fontWeight: 700,
+    color: '#4f4f4f',
     flex: 1,
-    transition: 'color 0.12s ease',
   },
   labelActive: {
-    color: 'rgba(255,255,255,0.92)',
-    fontWeight: '600',
+    color: '#DD1D21',
+    fontWeight: 800,
   },
   footer: {
     padding: '14px 16px',
-    borderTop: '0.5px solid rgba(255,255,255,0.07)',
+    borderTop: '1px solid #f0f0f0',
   },
   versionBadge: {
     display: 'flex',
     alignItems: 'center',
-    gap: '6px',
+    gap: 7,
   },
   versionDot: {
-    width: '6px',
-    height: '6px',
+    width: 7,
+    height: 7,
     borderRadius: '50%',
-    background: '#34C759',
-    boxShadow: '0 0 0 2px rgba(52,199,89,0.20)',
+    background: '#16a34a',
+    boxShadow: '0 0 0 3px rgba(22,163,74,0.12)',
   },
   versionText: {
-    fontSize: '11px',
-    color: '#AEAEB2',
-    fontWeight: '500',
+    fontSize: 12,
+    color: '#666',
+    fontWeight: 700,
   },
 };

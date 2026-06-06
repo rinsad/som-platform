@@ -1,13 +1,11 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
-
 export default function Login() {
-  const [email, setEmail]       = useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [loading, setLoading]   = useState(false);
-  const [error, setError]       = useState('');
-  const [focused, setFocused]   = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
   const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
@@ -25,7 +23,7 @@ export default function Login() {
       const data = await res.json();
 
       if (!res.ok) {
-        setError('Your email or password is incorrect.');
+        setError('Invalid email or password.');
         return;
       }
 
@@ -41,375 +39,335 @@ export default function Login() {
   };
 
   return (
-    <div style={s.page}>
-      {/* ── Background: layered radial orbs — Apple Photos "Memories" feel ── */}
-      <div style={s.orb1} />
-      <div style={s.orb2} />
-      <div style={s.orb3} />
-      <div style={s.orb4} />
-      <div style={s.orbCenter} />
+    <div className="som-login-page" style={s.page}>
+      <section className="som-login-brand" style={s.brandPanel}>
+        <div style={s.brandShapePrimary} />
+        <div style={s.brandShapeSecondary} />
+        <div style={s.brandShapeLine} />
 
-      {/* ── Frosted glass card ──────────────────────────────────────────────── */}
-      <div style={s.card}>
+        <a href="/" style={s.logoRow}>
+          <img src="/logo.png" alt="Shell Oman Marketing" style={s.logo} />
+          <span>
+            <strong style={s.brandName}>Shell Oman Marketing</strong>
+            <span style={s.brandSub}>Employee Intraportal</span>
+          </span>
+        </a>
 
-        {/* App icon */}
-        <div style={s.iconWrap}>
-          <div style={s.icon}>
-            <img src="/logo.png" alt="Shell Oman Marketing" style={s.logoImg} />
-          </div>
-          <div style={s.iconGlow} />
+        <div style={s.brandCopy}>
+          <span style={s.eyebrow}>Secure enterprise access</span>
+          <h1 style={s.heroTitle}>Welcome to the SOM internal workspace</h1>
+          <p style={s.heroText}>
+            Sign in to access dashboards, approvals, department tools, HR Online,
+            assets, knowledge resources and Shell Oman business services.
+          </p>
         </div>
 
-        {/* Heading */}
-        <h1 style={s.heading}>Shell Oman Marketing</h1>
-        <p style={s.subheading}>Enterprise Platform</p>
+        <div style={s.brandFooter}>
+          <span>Goal Zero</span>
+          <span>Performance</span>
+          <span>People</span>
+        </div>
+      </section>
 
-        {/* Form */}
-        <form onSubmit={handleSubmit} style={s.form}>
+      <section className="som-login-form" style={s.formPanel}>
+        <div style={s.card}>
+          <div style={s.cardAccent} />
+          <h2 style={s.heading}>Sign in</h2>
+          <p style={s.subheading}>Use your Shell Oman platform credentials.</p>
 
-          {/* Grouped inputs — Apple's stacked field style */}
-          <div style={s.fieldGroup}>
+          <form onSubmit={handleSubmit} style={s.form}>
+            <label style={s.label} htmlFor="email">Email</label>
             <input
               id="email"
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              onFocus={() => setFocused('email')}
-              onBlur={() => setFocused('')}
-              placeholder="Email"
+              placeholder="you@shell.om"
               autoComplete="username"
-              style={{
-                ...s.input,
-                borderRadius: '13px 13px 0 0',
-                borderBottom: '0.5px solid rgba(255,255,255,0.1)',
-                background: focused === 'email'
-                  ? 'rgba(255,255,255,0.14)'
-                  : 'rgba(255,255,255,0.09)',
-              }}
+              style={s.input}
+              required
             />
+
+            <label style={s.label} htmlFor="password">Password</label>
             <input
               id="password"
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              onFocus={() => setFocused('password')}
-              onBlur={() => setFocused('')}
-              placeholder="Password"
+              placeholder="••••••••"
               autoComplete="current-password"
-              style={{
-                ...s.input,
-                borderRadius: '0 0 13px 13px',
-                background: focused === 'password'
-                  ? 'rgba(255,255,255,0.14)'
-                  : 'rgba(255,255,255,0.09)',
-              }}
+              style={s.input}
+              required
             />
+
+            {error && <div style={s.errorRow}>{error}</div>}
+
+            <button type="submit" disabled={loading} style={{ ...s.btn, ...(loading ? s.btnLoading : {}) }}>
+              {loading ? <span style={s.spinner} /> : 'Sign In'}
+            </button>
+          </form>
+
+          <div style={s.cardFooter}>
+            <span>Secure</span>
+            <span>Enterprise</span>
+            <span>Shell Oman</span>
           </div>
+        </div>
 
-          {/* Error message */}
-          {error && (
-            <div style={s.errorRow}>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" style={{ flexShrink: 0 }}>
-                <circle cx="12" cy="12" r="10" fill="rgba(255,69,58,0.3)" stroke="rgba(255,69,58,0.8)" strokeWidth="1.5" />
-                <line x1="12" y1="8" x2="12" y2="13" stroke="rgba(255,120,100,1)" strokeWidth="2" strokeLinecap="round"/>
-                <circle cx="12" cy="16" r="1" fill="rgba(255,120,100,1)"/>
-              </svg>
-              {error}
-            </div>
-          )}
-
-          {/* Sign In button */}
-          <button
-            type="submit"
-            disabled={loading}
-            style={{ ...s.btn, ...(loading ? s.btnLoading : {}) }}
-          >
-            {loading
-              ? <span style={s.spinner} />
-              : 'Sign In'
+        <a href="/" style={s.backLink}>Back to home</a>
+        <p style={s.pageFooter}>
+          © {new Date().getFullYear()} Shell Oman Marketing. All rights reserved.
+        </p>
+        <style>{`
+          @media (max-width: 860px) {
+            .som-login-page {
+              grid-template-columns: 1fr !important;
             }
-          </button>
-
-        </form>
-
-        {/* Divider */}
-        <div style={s.divider} />
-
-        {/* Footer tagline */}
-        <p style={s.cardFooter}>Secure · Enterprise · Shell Oman</p>
-      </div>
-
-      <a href="/" style={s.backLink}>← Back to home</a>
-
-      <p style={s.pageFooter}>
-        © {new Date().getFullYear()} Shell Oman Marketing. All rights reserved.
-      </p>
+            .som-login-brand {
+              min-height: 390px !important;
+              border-right: 0 !important;
+              border-bottom: 10px solid #FFD500 !important;
+            }
+            .som-login-form {
+              min-height: auto !important;
+            }
+          }
+        `}</style>
+      </section>
     </div>
   );
 }
 
-/* ─── Styles ──────────────────────────────────────────────────────────────── */
-const FONT = "-apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Helvetica Neue', Arial, sans-serif";
-
 const s = {
-  /* Page: dark canvas */
   page: {
+    minHeight: '100vh',
+    display: 'grid',
+    gridTemplateColumns: 'minmax(360px, 0.92fr) minmax(420px, 1.08fr)',
+    background: '#fff',
+    color: '#222',
+  },
+  brandPanel: {
+    position: 'relative',
+    display: 'flex',
+    flexDirection: 'column',
+    justifyContent: 'space-between',
+    minHeight: '100vh',
+    padding: '38px 44px',
+    background: 'linear-gradient(135deg, #3b3b3b 0%, #242424 42%, #DD1D21 100%)',
+    borderRight: '14px solid #FFD500',
+    color: '#fff',
+    overflow: 'hidden',
+  },
+  brandShapePrimary: {
+    position: 'absolute',
+    right: '-18%',
+    bottom: '-16%',
+    width: '62%',
+    aspectRatio: '1',
+    borderRadius: '50%',
+    background: 'rgba(255,213,0,0.20)',
+    pointerEvents: 'none',
+  },
+  brandShapeSecondary: {
+    position: 'absolute',
+    right: '-8%',
+    top: '14%',
+    width: '34%',
+    aspectRatio: '1',
+    borderRadius: '50%',
+    border: '42px solid rgba(255,213,0,0.16)',
+    pointerEvents: 'none',
+  },
+  brandShapeLine: {
+    position: 'absolute',
+    left: 0,
+    bottom: 0,
+    width: '100%',
+    height: 18,
+    background: '#DD1D21',
+    borderTop: '8px solid #FFD500',
+    pointerEvents: 'none',
+  },
+  logoRow: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 12,
+    width: 'fit-content',
+    position: 'relative',
+    zIndex: 1,
+  },
+  logo: {
+    width: 48,
+    height: 48,
+    objectFit: 'contain',
+    background: '#fff',
+    borderRadius: 4,
+    padding: 4,
+  },
+  brandName: {
+    display: 'block',
+    fontSize: 17,
+    lineHeight: 1.15,
+  },
+  brandSub: {
+    display: 'block',
+    color: 'rgba(255,255,255,0.75)',
+    fontSize: 13,
+  },
+  brandCopy: {
+    maxWidth: 560,
+    position: 'relative',
+    zIndex: 1,
+  },
+  eyebrow: {
+    display: 'inline-flex',
+    background: '#FFD500',
+    color: '#222',
+    fontSize: 12,
+    fontWeight: 900,
+    textTransform: 'uppercase',
+    padding: '8px 11px',
+    borderRadius: 2,
+    marginBottom: 18,
+  },
+  heroTitle: {
+    fontSize: 'clamp(42px, 5vw, 68px)',
+    lineHeight: 0.98,
+    fontWeight: 900,
+    marginBottom: 20,
+  },
+  heroText: {
+    fontSize: 18,
+    lineHeight: 1.6,
+    color: 'rgba(255,255,255,0.88)',
+  },
+  brandFooter: {
+    display: 'flex',
+    gap: 10,
+    flexWrap: 'wrap',
+    position: 'relative',
+    zIndex: 1,
+  },
+  formPanel: {
     minHeight: '100vh',
     display: 'flex',
     flexDirection: 'column',
     alignItems: 'center',
     justifyContent: 'center',
-    background: '#0d0d18',
-    padding: '24px',
-    position: 'relative',
-    overflow: 'hidden',
-    fontFamily: FONT,
+    padding: 32,
+    background: 'linear-gradient(180deg, #fff8cc 0, #fff 220px)',
   },
-
-  /* Layered glowing orbs — Shell brand palette, Apple wallpaper feel */
-  orb1: {
-    position: 'absolute', borderRadius: '50%', pointerEvents: 'none',
-    width: '75vw', height: '75vw', maxWidth: 900, maxHeight: 900,
-    top: '-20%', left: '-15%',
-    background: 'radial-gradient(circle, rgba(221,29,33,0.55) 0%, transparent 65%)',
-    filter: 'blur(2px)',
-  },
-  orb2: {
-    position: 'absolute', borderRadius: '50%', pointerEvents: 'none',
-    width: '60vw', height: '60vw', maxWidth: 760, maxHeight: 760,
-    top: '-10%', right: '-10%',
-    background: 'radial-gradient(circle, rgba(255,213,0,0.35) 0%, transparent 60%)',
-    filter: 'blur(2px)',
-  },
-  orb3: {
-    position: 'absolute', borderRadius: '50%', pointerEvents: 'none',
-    width: '80vw', height: '80vw', maxWidth: 960, maxHeight: 960,
-    bottom: '-25%', right: '-10%',
-    background: 'radial-gradient(circle, rgba(255,213,0,0.28) 0%, transparent 60%)',
-    filter: 'blur(2px)',
-  },
-  orb4: {
-    position: 'absolute', borderRadius: '50%', pointerEvents: 'none',
-    width: '50vw', height: '50vw', maxWidth: 640, maxHeight: 640,
-    bottom: '-10%', left: '-8%',
-    background: 'radial-gradient(circle, rgba(221,29,33,0.3) 0%, transparent 58%)',
-    filter: 'blur(2px)',
-  },
-  orbCenter: {
-    position: 'absolute', borderRadius: '50%', pointerEvents: 'none',
-    width: '40vw', height: '40vw', maxWidth: 520, maxHeight: 520,
-    top: '50%', left: '50%',
-    transform: 'translate(-50%,-50%)',
-    background: 'radial-gradient(circle, rgba(255,255,255,0.015) 0%, transparent 70%)',
-  },
-
-  /* Frosted glass card */
   card: {
     position: 'relative',
-    zIndex: 1,
     width: '100%',
-    maxWidth: '380px',
-    background: 'rgba(255,255,255,0.10)',
-    backdropFilter: 'blur(64px) saturate(180%)',
-    WebkitBackdropFilter: 'blur(64px) saturate(180%)',
-    border: '0.5px solid rgba(255,255,255,0.20)',
-    borderRadius: '28px',
-    padding: '44px 36px 36px',
-    boxShadow: `
-      0 0 0 0.5px rgba(0,0,0,0.4),
-      0 50px 100px rgba(0,0,0,0.55),
-      0 20px 40px rgba(0,0,0,0.3),
-      inset 0 1px 0 rgba(255,255,255,0.15)
-    `,
-    animation: 'fadeIn 0.45s ease',
-  },
-
-  /* Icon */
-  iconWrap: {
-    display: 'flex',
-    justifyContent: 'center',
-    marginBottom: '22px',
-    position: 'relative',
-  },
-  icon: {
-    width: '72px',
-    height: '72px',
-    borderRadius: '17px',
+    maxWidth: 430,
+    background: '#fff',
+    border: '1px solid #e1e1e1',
+    borderRadius: 4,
+    padding: '34px 32px 28px',
+    boxShadow: 'var(--shadow-lg)',
     overflow: 'hidden',
-    boxShadow: '0 12px 36px rgba(0,0,0,0.4), 0 4px 12px rgba(0,0,0,0.3)',
-    position: 'relative',
-    zIndex: 1,
+    animation: 'fadeIn 0.3s ease',
   },
-  logoImg: {
-    width: '100%',
-    height: '100%',
-    objectFit: 'cover',
-    display: 'block',
-  },
-  iconGlow: {
+  cardAccent: {
     position: 'absolute',
-    width: '72px', height: '72px',
-    borderRadius: '17px',
-    background: 'rgba(255,255,255,0.25)',
-    filter: 'blur(22px)',
-    top: '8px',
-    zIndex: 0,
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 7,
+    background: '#DD1D21',
   },
-
-  /* Typography */
   heading: {
-    textAlign: 'center',
-    fontSize: '22px',
-    fontWeight: '600',
-    color: 'rgba(255,255,255,0.95)',
-    letterSpacing: '-0.4px',
-    marginBottom: '5px',
-    fontFamily: FONT,
+    fontSize: 32,
+    fontWeight: 900,
+    color: '#222',
+    marginBottom: 6,
   },
   subheading: {
-    textAlign: 'center',
-    fontSize: '13.5px',
-    color: 'rgba(255,255,255,0.45)',
-    marginBottom: '28px',
-    letterSpacing: '0.1px',
-    fontFamily: FONT,
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 24,
   },
-
-  /* Form */
   form: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '12px',
+    display: 'grid',
+    gap: 10,
   },
-
-  /* Apple grouped input container */
-  fieldGroup: {
-    display: 'flex',
-    flexDirection: 'column',
-    borderRadius: '13px',
-    overflow: 'hidden',
-    boxShadow: 'inset 0 0 0 0.5px rgba(255,255,255,0.12)',
+  label: {
+    fontSize: 12,
+    fontWeight: 900,
+    color: '#4f4f4f',
+    textTransform: 'uppercase',
+    marginTop: 4,
   },
-
-  /* Individual input — no border, fills colored by focus */
   input: {
-    padding: '14px 16px',
-    fontSize: '16px',
-    fontFamily: FONT,
-    color: 'rgba(255,255,255,0.92)',
-    border: 'none',
-    outline: 'none',
-    transition: 'background 0.18s',
     width: '100%',
-    boxSizing: 'border-box',
-    caretColor: '#DD1D21',
-    /* placeholder colour via CSS class injected below */
+    padding: '13px 14px',
+    border: '1px solid #d8d8d8',
+    borderRadius: 4,
+    background: '#fafafa',
+    color: '#222',
+    fontSize: 15,
+    outlineColor: '#DD1D21',
   },
-
-  /* Error */
   errorRow: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '7px',
-    fontSize: '13px',
-    color: 'rgba(255,100,85,0.95)',
-    fontWeight: '500',
-    padding: '0 2px',
-    fontFamily: FONT,
+    background: '#fff1f1',
+    border: '1px solid #ffd3d3',
+    color: '#DD1D21',
+    borderRadius: 4,
+    padding: '10px 12px',
+    fontSize: 13,
+    fontWeight: 800,
+    marginTop: 4,
   },
-
-  /* Sign In button */
   btn: {
-    padding: '14px',
-    fontSize: '16px',
-    fontWeight: '600',
-    color: '#fff',
-    background: '#DD1D21',
+    marginTop: 8,
+    padding: '13px 16px',
+    minHeight: 48,
     border: 'none',
-    borderRadius: '13px',
-    cursor: 'pointer',
-    transition: 'opacity 0.15s, transform 0.12s',
+    borderRadius: 4,
+    background: '#DD1D21',
+    color: '#fff',
+    fontSize: 15,
+    fontWeight: 900,
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    minHeight: '50px',
-    letterSpacing: '-0.1px',
-    fontFamily: FONT,
-    boxShadow: '0 4px 18px rgba(221,29,33,0.45), inset 0 1px 0 rgba(255,255,255,0.18)',
-    marginTop: '4px',
   },
   btnLoading: {
-    opacity: 0.65,
+    opacity: 0.7,
     cursor: 'not-allowed',
   },
-
-  /* Spinner */
   spinner: {
-    width: '19px',
-    height: '19px',
-    border: '2.5px solid rgba(255,255,255,0.25)',
+    width: 19,
+    height: 19,
+    border: '3px solid rgba(255,255,255,0.32)',
     borderTopColor: '#fff',
     borderRadius: '50%',
     animation: 'spin 0.75s linear infinite',
     display: 'inline-block',
   },
-
-  /* Card divider */
-  divider: {
-    height: '0.5px',
-    background: 'rgba(255,255,255,0.1)',
-    margin: '22px 0 16px',
-  },
-
-  /* Card bottom tagline */
   cardFooter: {
-    textAlign: 'center',
-    fontSize: '12px',
-    color: 'rgba(255,255,255,0.28)',
-    letterSpacing: '0.6px',
+    display: 'flex',
+    gap: 8,
+    justifyContent: 'center',
+    color: '#777',
+    fontSize: 12,
+    fontWeight: 800,
     textTransform: 'uppercase',
-    fontFamily: FONT,
+    marginTop: 22,
+    paddingTop: 18,
+    borderTop: '1px solid #f0f0f0',
   },
-
   backLink: {
-    position: 'relative',
-    zIndex: 1,
-    marginTop: '16px',
-    fontSize: '13px',
-    color: 'rgba(255,255,255,0.40)',
-    textDecoration: 'none',
-    fontFamily: FONT,
-    transition: 'color 0.15s',
+    marginTop: 18,
+    color: '#DD1D21',
+    fontSize: 13,
+    fontWeight: 900,
   },
-
-  /* Page footer */
   pageFooter: {
-    position: 'relative',
-    zIndex: 1,
-    marginTop: '28px',
-    fontSize: '11.5px',
-    color: 'rgba(255,255,255,0.22)',
+    marginTop: 22,
+    fontSize: 12,
+    color: '#777',
     textAlign: 'center',
-    fontFamily: FONT,
   },
 };
-
-/* ── Placeholder colour injection (once) ──────────────────────────────────── */
-if (typeof document !== 'undefined') {
-  const id = 'som-login-styles';
-  if (!document.getElementById(id)) {
-    const el = document.createElement('style');
-    el.id = id;
-    el.textContent = `
-      #email::placeholder,
-      #password::placeholder {
-        color: rgba(255,255,255,0.32);
-      }
-      #email::-webkit-input-placeholder,
-      #password::-webkit-input-placeholder {
-        color: rgba(255,255,255,0.32);
-      }
-    `;
-    document.head.appendChild(el);
-  }
-}

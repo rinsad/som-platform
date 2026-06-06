@@ -180,23 +180,24 @@ export default function PermissionsPanel({ permissions, onChange }) {
 
 const s = {
   root: {
-    border: '1px solid rgba(255,255,255,0.08)',
-    borderRadius: '12px',
+    border: '1px solid #e1e1e1',
+    borderRadius: '4px',
     overflow: 'hidden',
-    background: 'rgba(255,255,255,0.02)',
+    background: '#fff',
+    boxShadow: 'var(--shadow-sm)',
   },
   header: {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'space-between',
     padding: '10px 14px',
-    background: 'rgba(221,29,33,0.18)',
-    borderBottom: '1px solid rgba(255,255,255,0.08)',
+    background: '#fff8cc',
+    borderBottom: '1px solid #ffe889',
   },
   headerTitle: {
     fontSize: '12px',
     fontWeight: '700',
-    color: 'rgba(255,255,255,0.70)',
+    color: '#8a5d00',
     textTransform: 'uppercase',
     letterSpacing: '0.6px',
   },
@@ -209,19 +210,19 @@ const s = {
     textAlign: 'center',
     fontSize: '11px',
     fontWeight: '600',
-    color: 'rgba(255,255,255,0.45)',
+    color: '#777',
     textTransform: 'uppercase',
     letterSpacing: '0.4px',
   },
   appBlock: {
-    borderBottom: '1px solid rgba(255,255,255,0.05)',
+    borderBottom: '1px solid #f0f0f0',
   },
   appRow: {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'space-between',
     padding: '8px 14px',
-    background: 'rgba(255,255,255,0.04)',
+    background: '#fafafa',
     cursor: 'default',
   },
   modRow: {
@@ -229,22 +230,22 @@ const s = {
     alignItems: 'center',
     justifyContent: 'space-between',
     padding: '7px 14px 7px 32px',
-    background: 'rgba(255,255,255,0.02)',
-    borderTop: '1px solid rgba(255,255,255,0.03)',
+    background: '#fff',
+    borderTop: '1px solid #f0f0f0',
   },
   pageRow: {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'space-between',
     padding: '6px 14px 6px 52px',
-    borderTop: '1px solid rgba(255,255,255,0.03)',
+    borderTop: '1px solid #f0f0f0',
   },
   fieldRow: {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'space-between',
     padding: '5px 14px 5px 72px',
-    borderTop: '1px solid rgba(255,255,255,0.02)',
+    borderTop: '1px solid #f0f0f0',
   },
   toggleBtn: {
     display: 'flex',
@@ -258,29 +259,29 @@ const s = {
   },
   chevron: {
     fontSize: '9px',
-    color: 'rgba(255,255,255,0.30)',
+    color: '#777',
     display: 'inline-block',
     transition: 'transform 0.15s ease',
     flexShrink: 0,
   },
   appIcon: {
     fontSize: '14px',
-    color: 'rgba(255,213,0,0.80)',
+    color: '#DD1D21',
   },
   appLabel: {
     fontSize: '13px',
     fontWeight: '600',
-    color: 'rgba(255,255,255,0.85)',
+    color: '#222',
   },
   modLabel: {
     fontSize: '13px',
     fontWeight: '500',
-    color: 'rgba(255,255,255,0.70)',
+    color: '#333',
   },
   pageLabel: {
     fontSize: '12px',
     fontWeight: '400',
-    color: 'rgba(255,255,255,0.60)',
+    color: '#4f4f4f',
   },
   fieldLabelWrap: {
     display: 'flex',
@@ -290,13 +291,13 @@ const s = {
   },
   fieldDot: {
     fontSize: '16px',
-    color: 'rgba(255,255,255,0.20)',
+    color: '#a3a3a3',
     lineHeight: 1,
     marginTop: '-2px',
   },
   fieldLabel: {
     fontSize: '12px',
-    color: 'rgba(255,255,255,0.50)',
+    color: '#666',
   },
   levelBadge: (level) => ({
     fontSize: '9px',
@@ -305,14 +306,14 @@ const s = {
     borderRadius: '4px',
     textTransform: 'uppercase',
     letterSpacing: '0.4px',
-    background: level === 'application' ? 'rgba(221,29,33,0.30)'
-              : level === 'module'      ? 'rgba(255,213,0,0.20)'
-              : level === 'page'        ? 'rgba(255,255,255,0.08)'
-              : 'rgba(255,255,255,0.05)',
-    color: level === 'application' ? '#FF9494'
-         : level === 'module'      ? '#FFD500'
-         : level === 'page'        ? 'rgba(255,255,255,0.55)'
-         : 'rgba(255,255,255,0.35)',
+    background: level === 'application' ? '#fff1f1'
+              : level === 'module'      ? '#fff8cc'
+              : level === 'page'        ? '#f4f4f4'
+              : '#fafafa',
+    color: level === 'application' ? '#DD1D21'
+         : level === 'module'      ? '#8a5d00'
+         : level === 'page'        ? '#525252'
+         : '#777',
   }),
   checkboxRow: {
     display: 'flex',

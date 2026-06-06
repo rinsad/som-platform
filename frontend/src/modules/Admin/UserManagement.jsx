@@ -3,10 +3,10 @@ import { usersService } from '../../services/usersService';
 import UserFormModal from './UserFormModal';
 
 const ROLE_COLOURS = {
-  Admin:    { bg: 'rgba(221,29,33,0.25)',   text: '#FF9494' },
-  Manager:  { bg: 'rgba(255,213,0,0.15)',   text: '#FFD500' },
-  Finance:  { bg: 'rgba(52,199,89,0.15)',   text: '#34C759' },
-  Employee: { bg: 'rgba(255,255,255,0.08)', text: 'rgba(255,255,255,0.55)' },
+  Admin:    { bg: '#fff1f1', text: '#DD1D21' },
+  Manager:  { bg: '#fff8cc', text: '#8a5d00' },
+  Finance:  { bg: '#ecfdf5', text: '#047857' },
+  Employee: { bg: '#f4f4f4', text: '#525252' },
 };
 
 export default function UserManagement() {
@@ -156,7 +156,7 @@ export default function UserManagement() {
               {filtered.map((user, i) => {
                 const rc = ROLE_COLOURS[user.role] ?? ROLE_COLOURS.Employee;
                 return (
-                  <tr key={user.id} style={{ ...s.tr, background: i % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.015)' }}>
+                  <tr key={user.id} style={{ ...s.tr, background: i % 2 === 0 ? 'transparent' : '#fafafa' }}>
                     <td style={s.td}>
                       <span style={s.empId}>{user.employee_id ?? '—'}</span>
                     </td>
@@ -185,13 +185,13 @@ export default function UserManagement() {
                         <button style={s.actionBtn} onClick={() => openEdit(user)} title="Edit">✎</button>
                         {user.is_active && (
                           <button
-                            style={{ ...s.actionBtn, color: '#FFD500' }}
+                            style={{ ...s.actionBtn, color: '#8a5d00' }}
                             onClick={() => setConfirm({ type: 'deactivate', user })}
                             title="Deactivate"
                           >⊘</button>
                         )}
                         <button
-                          style={{ ...s.actionBtn, color: '#FF8A8A' }}
+                          style={{ ...s.actionBtn, color: '#DD1D21' }}
                           onClick={() => setConfirm({ type: 'delete', user })}
                           title="Delete"
                         >✕</button>
@@ -229,7 +229,7 @@ export default function UserManagement() {
             <div style={s.confirmActions}>
               <button style={s.cancelBtn} onClick={() => setConfirm(null)}>Cancel</button>
               <button
-                style={{ ...s.dangerBtn, background: confirm.type === 'delete' ? 'rgba(221,29,33,0.80)' : 'rgba(255,149,0,0.80)' }}
+                style={{ ...s.dangerBtn, background: confirm.type === 'delete' ? '#DD1D21' : '#f59e0b' }}
                 onClick={() => confirm.type === 'delete' ? handleDelete(confirm.user) : handleDeactivate(confirm.user)}
               >
                 {confirm.type === 'delete' ? 'Delete' : 'Deactivate'}
@@ -252,19 +252,18 @@ const s = {
     gap: '12px',
   },
   pageTitle: {
-    fontSize: '24px', fontWeight: '700', color: '#fff', margin: 0,
+    fontSize: '24px', fontWeight: '800', color: '#222', margin: 0,
   },
   pageSubtitle: {
-    fontSize: '13px', color: 'rgba(255,255,255,0.40)', margin: '4px 0 0',
+    fontSize: '13px', color: '#666', margin: '4px 0 0',
   },
   newBtn: {
     display: 'flex', alignItems: 'center', gap: '6px',
     padding: '10px 20px',
-    background: 'linear-gradient(135deg, #DD1D21 0%, #9b0000 100%)',
-    border: 'none', borderRadius: '10px',
-    color: '#fff', fontSize: '14px', fontWeight: '600',
+    background: '#DD1D21',
+    border: 'none', borderRadius: '4px',
+    color: '#fff', fontSize: '14px', fontWeight: '800',
     cursor: 'pointer',
-    boxShadow: '0 2px 10px rgba(221,29,33,0.40)',
   },
   plusIcon: { fontSize: '18px', lineHeight: 1 },
   statsRow: {
@@ -273,9 +272,9 @@ const s = {
     gap: '12px',
   },
   statCard: {
-    background: 'rgba(255,255,255,0.04)',
-    border: '1px solid rgba(255,255,255,0.07)',
-    borderRadius: '12px',
+    background: '#fff',
+    border: '1px solid #e1e1e1',
+    borderRadius: '4px',
     padding: '16px 18px',
     display: 'flex',
     flexDirection: 'column',
@@ -285,36 +284,37 @@ const s = {
     fontSize: '28px', fontWeight: '700', lineHeight: 1,
   },
   statLabel: {
-    fontSize: '12px', color: 'rgba(255,255,255,0.40)', fontWeight: '500',
+    fontSize: '12px', color: '#666', fontWeight: '700',
   },
   toolbar: {
     display: 'flex', alignItems: 'center', gap: '12px',
   },
   searchWrap: {
     flex: 1, display: 'flex', alignItems: 'center',
-    background: 'rgba(255,255,255,0.05)',
-    border: '1px solid rgba(255,255,255,0.09)',
-    borderRadius: '10px', overflow: 'hidden',
+    background: '#fff',
+    border: '1px solid #e1e1e1',
+    borderRadius: '4px', overflow: 'hidden',
   },
   searchIcon: {
-    padding: '0 10px 0 14px', fontSize: '16px', color: 'rgba(255,255,255,0.25)',
+    padding: '0 10px 0 14px', fontSize: '16px', color: '#8a8a8a',
   },
   searchInput: {
     flex: 1, background: 'none', border: 'none', outline: 'none',
-    color: '#fff', fontSize: '13px', padding: '10px 12px 10px 0',
+    color: '#222', fontSize: '13px', padding: '10px 12px 10px 0',
   },
   errorBanner: {
     padding: '12px 16px',
-    background: 'rgba(221,29,33,0.15)',
-    border: '1px solid rgba(221,29,33,0.30)',
-    borderRadius: '10px',
-    color: '#FF8A8A', fontSize: '13px',
+    background: '#fff1f1',
+    border: '1px solid #ffd3d3',
+    borderRadius: '4px',
+    color: '#DD1D21', fontSize: '13px', fontWeight: 700,
   },
   tableWrap: {
     overflowX: 'auto',
-    border: '1px solid rgba(255,255,255,0.07)',
-    borderRadius: '12px',
-    background: 'rgba(255,255,255,0.02)',
+    border: '1px solid #e1e1e1',
+    borderRadius: '4px',
+    background: '#fff',
+    boxShadow: 'var(--shadow-sm)',
   },
   table: {
     width: '100%', borderCollapse: 'collapse',
@@ -322,10 +322,10 @@ const s = {
   th: {
     padding: '12px 14px',
     fontSize: '11px', fontWeight: '600',
-    color: 'rgba(255,255,255,0.35)',
+    color: '#777',
     textTransform: 'uppercase', letterSpacing: '0.5px',
     textAlign: 'left',
-    borderBottom: '1px solid rgba(255,255,255,0.07)',
+    borderBottom: '1px solid #e1e1e1',
     whiteSpace: 'nowrap',
   },
   tr: {
@@ -333,45 +333,45 @@ const s = {
   },
   td: {
     padding: '12px 14px',
-    fontSize: '13px', color: 'rgba(255,255,255,0.75)',
-    borderBottom: '1px solid rgba(255,255,255,0.04)',
+    fontSize: '13px', color: '#333',
+    borderBottom: '1px solid #f0f0f0',
     verticalAlign: 'middle',
   },
   empId: {
     fontFamily: 'monospace', fontSize: '12px',
-    color: 'rgba(255,255,255,0.40)',
+    color: '#777',
   },
   avatar: { display: 'flex', alignItems: 'center', gap: '10px' },
   avatarCircle: {
     width: '30px', height: '30px', borderRadius: '50%',
-    background: 'linear-gradient(135deg, #FFD500 0%, #DD1D21 100%)',
+    background: '#FFD500',
     display: 'flex', alignItems: 'center', justifyContent: 'center',
-    fontSize: '12px', fontWeight: '700', color: '#fff', flexShrink: 0,
+    fontSize: '12px', fontWeight: '800', color: '#DD1D21', flexShrink: 0,
   },
-  name: { fontWeight: '500', color: '#fff' },
-  email: { color: 'rgba(255,255,255,0.50)', fontSize: '12px' },
+  name: { fontWeight: '700', color: '#222' },
+  email: { color: '#666', fontSize: '12px' },
   roleBadge: {
     display: 'inline-block',
     padding: '3px 10px', borderRadius: '20px',
     fontSize: '11px', fontWeight: '600',
   },
-  dept: { color: 'rgba(255,255,255,0.50)' },
+  dept: { color: '#666' },
   activeChip: {
     display: 'inline-block', padding: '3px 10px', borderRadius: '20px',
-    background: 'rgba(52,199,89,0.15)', color: '#34C759',
+    background: '#ecfdf5', color: '#047857',
     fontSize: '11px', fontWeight: '600',
   },
   inactiveChip: {
     display: 'inline-block', padding: '3px 10px', borderRadius: '20px',
-    background: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.35)',
+    background: '#f4f4f4', color: '#777',
     fontSize: '11px', fontWeight: '600',
   },
   actions: { display: 'flex', gap: '4px', alignItems: 'center' },
   actionBtn: {
-    background: 'rgba(255,255,255,0.06)',
-    border: '1px solid rgba(255,255,255,0.08)',
-    borderRadius: '6px',
-    color: 'rgba(255,255,255,0.50)',
+    background: '#fff',
+    border: '1px solid #e1e1e1',
+    borderRadius: '4px',
+    color: '#555',
     fontSize: '14px', cursor: 'pointer',
     width: '30px', height: '30px',
     display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -379,43 +379,43 @@ const s = {
   center: { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px', padding: '60px 0' },
   spinner: {
     width: '32px', height: '32px', borderRadius: '50%',
-    border: '3px solid rgba(255,255,255,0.10)',
+    border: '3px solid #e1e1e1',
     borderTopColor: '#DD1D21',
     animation: 'spin 0.8s linear infinite',
   },
-  loadingText: { fontSize: '13px', color: 'rgba(255,255,255,0.35)' },
+  loadingText: { fontSize: '13px', color: '#777' },
   empty: {
     textAlign: 'center', padding: '60px 0',
-    color: 'rgba(255,255,255,0.30)', fontSize: '14px',
+    color: '#777', fontSize: '14px',
   },
   overlay: {
     position: 'fixed', inset: 0, zIndex: 900,
-    background: 'rgba(0,0,0,0.60)', backdropFilter: 'blur(4px)',
+    background: 'rgba(0,0,0,0.45)', backdropFilter: 'blur(4px)',
     display: 'flex', alignItems: 'center', justifyContent: 'center',
   },
   confirmBox: {
-    background: '#13131f',
-    border: '1px solid rgba(255,255,255,0.10)',
-    borderRadius: '14px', padding: '28px 28px 20px',
+    background: '#fff',
+    border: '1px solid #e1e1e1',
+    borderRadius: '4px', padding: '28px 28px 20px',
     maxWidth: '380px', width: '100%',
-    boxShadow: '0 20px 60px rgba(0,0,0,0.60)',
+    boxShadow: 'var(--shadow-xl)',
   },
   confirmTitle: {
-    fontSize: '17px', fontWeight: '700', color: '#fff', margin: '0 0 10px',
+    fontSize: '17px', fontWeight: '800', color: '#222', margin: '0 0 10px',
   },
   confirmBody: {
-    fontSize: '13px', color: 'rgba(255,255,255,0.50)', margin: '0 0 20px', lineHeight: 1.5,
+    fontSize: '13px', color: '#666', margin: '0 0 20px', lineHeight: 1.5,
   },
   confirmActions: { display: 'flex', justifyContent: 'flex-end', gap: '10px' },
   cancelBtn: {
-    padding: '8px 18px', borderRadius: '8px',
-    border: '1px solid rgba(255,255,255,0.12)',
-    background: 'transparent', color: 'rgba(255,255,255,0.55)',
-    fontSize: '13px', fontWeight: '500', cursor: 'pointer',
+    padding: '8px 18px', borderRadius: '4px',
+    border: '1px solid #d6d6d6',
+    background: '#fff', color: '#333',
+    fontSize: '13px', fontWeight: '800', cursor: 'pointer',
   },
   dangerBtn: {
-    padding: '8px 18px', borderRadius: '8px',
+    padding: '8px 18px', borderRadius: '4px',
     border: 'none', color: '#fff',
-    fontSize: '13px', fontWeight: '600', cursor: 'pointer',
+    fontSize: '13px', fontWeight: '800', cursor: 'pointer',
   },
 };
