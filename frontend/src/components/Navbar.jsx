@@ -61,10 +61,10 @@ export default function Navbar({ user, onLogout, showDashboardLink = false, vari
             <span style={styles.utilitySpacer} />
             <nav className="som-public-utility-links" style={styles.utilityLinks} aria-label="Utility">
               <a href="#employee-services" style={styles.utilityLink}>Help and Support</a>
-              <a href="#about" style={styles.utilityLink}>شل في سلطنة عمان</a>
+              <a className="som-utility-secondary" href="#about" style={styles.utilityLink}>شل في سلطنة عمان</a>
               <a href="#news" style={styles.utilityLink}>Media</a>
-              <span style={styles.globe} aria-hidden="true">◎</span>
-              <a href="/" style={styles.utilityCompany}>Oman Marketing Company</a>
+              <span className="som-utility-secondary" style={styles.globe} aria-hidden="true">◎</span>
+              <a className="som-utility-company" href="/" style={styles.utilityCompany}>Oman Marketing Company</a>
               {user ? (
                 <>
                   {showDashboardLink && <a href="/dashboard" style={styles.utilityLink}>Dashboard</a>}
@@ -136,7 +136,7 @@ export default function Navbar({ user, onLogout, showDashboardLink = false, vari
           }
           @media (max-width: 760px) {
             .som-public-utility {
-              height: 42px !important;
+              height: 38px !important;
               overflow: hidden;
             }
             .som-public-utility-inner {
@@ -149,13 +149,9 @@ export default function Navbar({ user, onLogout, showDashboardLink = false, vari
             .som-public-utility-links {
               width: 100%;
               gap: 18px !important;
-              overflow-x: auto;
-              overflow-y: hidden;
+              justify-content: space-between;
+              overflow: hidden;
               white-space: nowrap;
-              scrollbar-width: none;
-            }
-            .som-public-utility-links::-webkit-scrollbar {
-              display: none;
             }
             .som-public-utility-links a,
             .som-public-utility-links button,
@@ -163,8 +159,12 @@ export default function Navbar({ user, onLogout, showDashboardLink = false, vari
               flex: 0 0 auto;
               white-space: nowrap;
             }
+            .som-utility-secondary,
+            .som-utility-company {
+              display: none !important;
+            }
             .som-public-main-row {
-              min-height: 88px !important;
+              min-height: 78px !important;
               padding: 0 18px !important;
             }
             .som-public-inner {
@@ -364,7 +364,7 @@ const publicStyles = {
     boxShadow: '0 1px 0 rgba(0,0,0,0.02)',
   },
   utility: {
-    height: 38,
+    height: 34,
     background: '#fff',
   },
   utilityInner: {
@@ -383,21 +383,21 @@ const publicStyles = {
   utilityLinks: {
     display: 'flex',
     alignItems: 'center',
-    gap: 26,
+    gap: 22,
   },
   utilityLink: {
-    color: '#1f2933',
-    fontSize: 14,
+    color: '#30343b',
+    fontSize: 13,
     fontWeight: 500,
   },
   utilityCompany: {
     color: '#1f2933',
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: 600,
   },
   utilityButton: {
     color: '#1f2933',
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: 700,
     background: 'transparent',
     border: 0,
@@ -405,11 +405,11 @@ const publicStyles = {
   },
   globe: {
     color: '#3b3b3b',
-    fontSize: 25,
+    fontSize: 20,
     lineHeight: 1,
   },
   mainRow: {
-    minHeight: 100,
+    minHeight: 92,
     borderTop: '1px solid transparent',
     borderBottom: '1px solid #d9d9d9',
     display: 'flex',
