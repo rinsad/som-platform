@@ -56,10 +56,10 @@ export default function Navbar({ user, onLogout, showDashboardLink = false, vari
   if (isPublic) {
     return (
       <header style={styles.navbar}>
-        <div style={styles.utility}>
-          <div style={styles.utilityInner}>
+        <div className="som-public-utility" style={styles.utility}>
+          <div className="som-public-utility-inner" style={styles.utilityInner}>
             <span style={styles.utilitySpacer} />
-            <nav style={styles.utilityLinks} aria-label="Utility">
+            <nav className="som-public-utility-links" style={styles.utilityLinks} aria-label="Utility">
               <a href="#employee-services" style={styles.utilityLink}>Help and Support</a>
               <a href="#about" style={styles.utilityLink}>شل في سلطنة عمان</a>
               <a href="#news" style={styles.utilityLink}>Media</a>
@@ -77,8 +77,8 @@ export default function Navbar({ user, onLogout, showDashboardLink = false, vari
           </div>
         </div>
 
-        <div style={styles.mainRow}>
-          <div style={styles.inner}>
+        <div className="som-public-main-row" style={styles.mainRow}>
+          <div className="som-public-inner" style={styles.inner}>
             <a href="/" style={styles.publicLogo} aria-label="Shell Oman Marketing home">
               <img src="/logo.png" alt="Shell Oman Marketing" style={styles.publicLogoImg} />
             </a>
@@ -133,6 +133,44 @@ export default function Navbar({ user, onLogout, showDashboardLink = false, vari
           }
           @media (max-width: 980px) {
             .som-public-nav { display: none !important; }
+          }
+          @media (max-width: 760px) {
+            .som-public-utility {
+              height: 42px !important;
+              overflow: hidden;
+            }
+            .som-public-utility-inner {
+              padding: 0 12px !important;
+              justify-content: flex-start !important;
+            }
+            .som-public-utility-inner > span {
+              display: none !important;
+            }
+            .som-public-utility-links {
+              width: 100%;
+              gap: 18px !important;
+              overflow-x: auto;
+              overflow-y: hidden;
+              white-space: nowrap;
+              scrollbar-width: none;
+            }
+            .som-public-utility-links::-webkit-scrollbar {
+              display: none;
+            }
+            .som-public-utility-links a,
+            .som-public-utility-links button,
+            .som-public-utility-links span {
+              flex: 0 0 auto;
+              white-space: nowrap;
+            }
+            .som-public-main-row {
+              min-height: 88px !important;
+              padding: 0 18px !important;
+            }
+            .som-public-inner {
+              justify-content: space-between !important;
+              gap: 14px !important;
+            }
           }
         `}</style>
       </header>

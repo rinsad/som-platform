@@ -896,14 +896,15 @@ export default function IntraPortal() {
             grid-template-columns: 1fr !important;
           }
           .som-app-dock {
-            position: static !important;
-            margin: 20px 16px 0 auto;
-            width: min(100%, 360px);
+            position: fixed !important;
+            top: 154px !important;
+            right: 0 !important;
+            z-index: 120 !important;
           }
           .som-app-panel {
-            opacity: 1 !important;
-            pointer-events: auto !important;
-            transform: none !important;
+            width: calc(100vw - 58px) !important;
+            max-height: min(520px, 68vh) !important;
+            border-radius: 8px 0 0 8px !important;
           }
         }
       `}</style>
