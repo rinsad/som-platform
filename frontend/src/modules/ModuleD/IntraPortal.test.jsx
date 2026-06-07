@@ -117,14 +117,14 @@ test('shows empty state when no documents match search', async () => {
   );
 });
 
-test('starring an app adds it to Favourites section', async () => {
+test('starring an app marks it as favourited', async () => {
   render(<IntraPortal />);
   await act(async () => { jest.advanceTimersByTime(300); });
   await waitFor(() => screen.getAllByTestId('app-tile'));
 
   fireEvent.click(screen.getByTestId('star-btn-APP-001'));
   await waitFor(() =>
-    expect(screen.getByText('Favourites')).toBeInTheDocument()
+    expect(screen.getByTestId('star-btn-APP-001')).toHaveTextContent('★')
   );
 });
 

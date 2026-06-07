@@ -173,12 +173,13 @@ function StarButton({ active, onClick, appId }) {
       style={active ? s.starActive : s.star}
       title={active ? 'Remove from favourites' : 'Add to favourites'}
     >
-      {active ? 'Starred' : 'Star'}
+      {active ? '★' : '☆'}
     </button>
   );
 }
 
 function AppTile({ app, isFav, onToggleStar, onAppClick, launching }) {
+  const iconText = (app.icon && app.icon !== 'APP') ? app.icon : app.name.split(/\s+/).map((part) => part[0]).join('').slice(0, 2);
   return (
     <button
       data-testid="app-tile"
@@ -193,10 +194,9 @@ function AppTile({ app, isFav, onToggleStar, onAppClick, launching }) {
       )}
       <StarButton active={isFav} onClick={onToggleStar} appId={app.id} />
       {app.ssoEnabled && <span style={s.ssoBadge}>SSO</span>}
-      <span style={s.appIcon}>{app.icon || 'APP'}</span>
+      <span style={{ ...s.appIcon, ...catStyle(app.category) }}>{iconText}</span>
       <span style={s.appTitle}>{app.name}</span>
       <span style={s.appText}>{app.description}</span>
-      <span style={{ ...s.tag, ...catStyle(app.category) }}>{app.category}</span>
     </button>
   );
 }
@@ -429,12 +429,11 @@ export default function IntraPortal() {
     setHrDraft('');
   }
 
-  const groupedApps = apps.reduce((acc, app) => {
-    if (!acc[app.category]) acc[app.category] = [];
-    acc[app.category].push(app);
-    return acc;
-  }, {});
   const favouritedApps = apps.filter((app) => favourites.includes(app.id));
+  const launcherApps = [
+    ...favouritedApps,
+    ...apps.filter((app) => !favourites.includes(app.id)),
+  ];
   const pinnedKbDocs = !isFtsMode ? kbDocs.filter((doc) => pinnedDocs.includes(doc.id)) : [];
   const selectedDepartmentData = DEPARTMENTS.find((dept) => dept.name === selectedDepartment) || DEPARTMENTS[0];
   const selectedHrMode = HR_MODES.find((mode) => mode.id === hrMode) || HR_MODES[0];
@@ -483,8 +482,8 @@ export default function IntraPortal() {
           </div>
           <div style={s.pillarGrid}>
             {ABOUT_ITEMS.map((item) => (
-              <article key={item.title} style={s.pillarCard}>
-                <span style={s.cardAccent} />
+              <article key={item.title} className="som-lift-card" style={s.pillarCard}>
+                <span className="som-lift-accent" style={s.cardAccent} />
                 <h3 style={s.cardTitle}>{item.title}</h3>
                 <p style={s.cardText}>{item.text}</p>
               </article>
@@ -505,7 +504,7 @@ export default function IntraPortal() {
               </p>
               <div style={s.metricGrid}>
                 {PERFORMANCE_METRICS.map((metric) => (
-                  <article key={metric.label} style={s.metricCard}>
+                <article key={metric.label} className="som-lift-card" style={s.metricCard}>
                     <strong>{metric.label}</strong>
                     <span>{metric.value}</span>
                     <small>{metric.detail}</small>
@@ -544,7 +543,7 @@ export default function IntraPortal() {
               const active = selectedDepartment === department.name;
               const followed = followedDepartments.includes(department.name);
               return (
-                <article key={department.name} style={active ? s.departmentCardActive : s.departmentCard}>
+                  <article key={department.name} className="som-lift-card" style={active ? s.departmentCardActive : s.departmentCard}>
                   <button onClick={() => setSelectedDepartment(department.name)} style={s.departmentReadMore}>
                     Read more <ArrowIcon />
                   </button>
@@ -588,7 +587,7 @@ export default function IntraPortal() {
         </div>
       </section>
 
-      <section id="news" style={s.toolsBand}>
+      <section id="news" style={s.band}>
         <div style={s.container}>
           <div className="som-two-column" style={s.hrGrid}>
             <div>
@@ -668,8 +667,8 @@ export default function IntraPortal() {
               />
               <div style={s.employeeGrid}>
                 {filteredEmployees.map((employee) => (
-                  <article key={employee.email} style={s.employeeCard}>
-                    <span style={s.employeeAvatar}>{employee.name[0]}</span>
+                  <article key={employee.email} className="som-lift-card" style={s.employeeCard}>
+                    <span className="som-letter-badge" style={s.employeeAvatar}>{employee.name[0]}</span>
                     <strong>{employee.name}</strong>
                     <small>{employee.team} - {employee.location}</small>
                     <a href={`mailto:${employee.email}`} style={s.redLink}>{employee.email}</a>
@@ -704,8 +703,8 @@ export default function IntraPortal() {
           </div>
           <div style={s.awardGrid}>
             {LONG_SERVICE.map((person) => (
-              <article key={person.name} style={s.awardCard}>
-                <span style={s.awardPhoto}>{person.name.split(' ').map((part) => part[0]).slice(0, 2).join('')}</span>
+              <article key={person.name} className="som-lift-card" style={s.awardCard}>
+                <span className="som-letter-badge" style={s.awardPhoto}>{person.name.split(' ').map((part) => part[0]).slice(0, 2).join('')}</span>
                 <strong>{person.name}</strong>
                 <span style={s.awardYears}>{person.years} years</span>
                 <small>{person.milestone}</small>
@@ -716,41 +715,28 @@ export default function IntraPortal() {
       </section>
 
       <section id="employee-tools" style={s.toolsBand}>
-        <div style={s.container}>
-          <div style={s.sectionIntro}>
-            <span style={s.kicker}>Employee tools</span>
-            <h2 style={s.sectionTitle}>Apps and SSO shortcuts</h2>
-            <p style={s.sectionText}>
-              Secure access to business applications sits below the editorial home page,
-              so employees can move from news and updates into daily work.
-            </p>
-          </div>
+        <aside className="som-app-dock" style={s.appDock} aria-label="Employee app launcher">
+          <button style={s.appDockTab} aria-label="Open employee apps">
+            <span style={s.appDockDots}>•••</span>
+            <span style={s.appDockText}>Apps</span>
+          </button>
 
-          {appsErr && <div style={s.error}>{appsErr}</div>}
-
-          {isLoggedIn && favouritedApps.length > 0 && (
-            <section style={s.toolSection}>
-              <h3 style={s.toolHeading}>Favourites <span>{favouritedApps.length}</span></h3>
-              <div style={s.appGrid}>
-                {favouritedApps.map((app) => (
-                  <AppTile
-                    key={app.id}
-                    app={app}
-                    isFav
-                    onToggleStar={handleToggleStar}
-                    onAppClick={handleAppClick}
-                    launching={ssoLaunching.has(app.id)}
-                  />
-                ))}
+          <div className="som-app-panel" style={s.appPanel}>
+            <div style={s.launcherHeader}>
+              <span style={s.launcherIcon}>SOM</span>
+              <div style={s.launcherTitle}>
+                <strong>Employee apps</strong>
+                <small>{apps.length} shortcuts</small>
               </div>
-            </section>
-          )}
+            </div>
 
-          {Object.entries(groupedApps).map(([category, catApps]) => (
-            <section key={category} style={s.toolSection}>
-              <h3 style={s.toolHeading}>{category} <span>{catApps.length}</span></h3>
+            <div style={s.launcherDots} />
+
+            <div style={s.launcherScroll}>
+              {appsErr && <div style={s.error}>{appsErr}</div>}
+
               <div style={s.appGrid}>
-                {catApps.map((app) => (
+                {launcherApps.map((app) => (
                   <AppTile
                     key={app.id}
                     app={app}
@@ -761,9 +747,9 @@ export default function IntraPortal() {
                   />
                 ))}
               </div>
-            </section>
-          ))}
-        </div>
+            </div>
+          </div>
+        </aside>
       </section>
 
       <section id="knowledge" style={s.band}>
@@ -873,10 +859,51 @@ export default function IntraPortal() {
           margin-top: 8px;
         }
         @keyframes spin { to { transform: rotate(360deg); } }
+        .som-lift-card {
+          transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+        }
+        .som-lift-card:hover,
+        .som-lift-card:focus-within {
+          transform: translateY(-6px);
+          box-shadow: 0 14px 30px rgba(0,0,0,0.12) !important;
+          border-color: #c9c9c9 !important;
+        }
+        .som-lift-card:hover .som-lift-accent,
+        .som-lift-card:focus-within .som-lift-accent,
+        .som-lift-card:hover .som-letter-badge,
+        .som-lift-card:focus-within .som-letter-badge {
+          background: #DD1D21 !important;
+        }
+        .som-lift-card:hover .som-letter-badge,
+        .som-lift-card:focus-within .som-letter-badge {
+          color: #FFD500 !important;
+        }
+        .som-app-panel {
+          opacity: 0;
+          pointer-events: none;
+          transform: translateX(calc(100% + 48px));
+          transition: opacity 0.18s ease, transform 0.2s ease;
+        }
+        .som-app-dock:hover .som-app-panel,
+        .som-app-dock:focus-within .som-app-panel {
+          opacity: 1;
+          pointer-events: auto;
+          transform: translateX(0);
+        }
         @media (max-width: 760px) {
           .som-two-column,
           .som-footer-grid {
             grid-template-columns: 1fr !important;
+          }
+          .som-app-dock {
+            position: static !important;
+            margin: 20px 16px 0 auto;
+            width: min(100%, 360px);
+          }
+          .som-app-panel {
+            opacity: 1 !important;
+            pointer-events: auto !important;
+            transform: none !important;
           }
         }
       `}</style>
@@ -905,7 +932,7 @@ const s = {
   secondaryCta: { display: 'inline-flex', color: '#222', background: SHELL_YELLOW, padding: '13px 20px', borderRadius: 4, fontWeight: 800 },
   ghostCta: { display: 'inline-flex', color: '#fff', background: 'rgba(255,255,255,0.16)', border: '1px solid rgba(255,255,255,0.42)', padding: '13px 20px', borderRadius: 4, fontWeight: 800 },
   band: { padding: '64px 24px', background: '#fff' },
-  toolsBand: { padding: '64px 24px', background: '#f7f7f7' },
+  toolsBand: { padding: 0, background: 'transparent', height: 0 },
   performance: { padding: '64px 24px', background: '#f7f7f7' },
   hrBand: {
     padding: '64px 24px',
@@ -970,16 +997,26 @@ const s = {
   awardCard: { background: '#fff', border: '1px solid #dfdfdf', borderRadius: 4, padding: 18, display: 'grid', gap: 8, textAlign: 'center', justifyItems: 'center' },
   awardPhoto: { width: 84, height: 84, borderRadius: '50%', background: SHELL_RED, color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 24, fontWeight: 900 },
   awardYears: { background: '#fff8cc', border: '1px solid #ffe889', borderRadius: 4, padding: '5px 9px', fontWeight: 800 },
-  toolSection: { marginTop: 28 },
-  toolHeading: { display: 'flex', alignItems: 'center', gap: 10, fontSize: 20, fontWeight: 800, marginBottom: 14 },
-  appGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(210px, 1fr))', gap: 14 },
-  appTile: { position: 'relative', minHeight: 190, textAlign: 'left', background: '#fff', border: '1px solid #dfdfdf', borderRadius: 4, padding: 18, display: 'flex', flexDirection: 'column', gap: 9, color: '#222', boxShadow: '0 1px 2px rgba(0,0,0,0.04)' },
-  appIcon: { width: 44, height: 44, display: 'flex', alignItems: 'center', justifyContent: 'center', background: SHELL_YELLOW, color: SHELL_RED, borderRadius: 4, fontSize: 13, fontWeight: 900, marginTop: 12 },
-  appTitle: { fontSize: 16, fontWeight: 800 },
-  appText: { color: '#666', fontSize: 13, lineHeight: 1.5, flex: 1 },
-  star: { position: 'absolute', top: 10, right: 10, border: '1px solid #ddd', background: '#fff', color: '#777', borderRadius: 4, minWidth: 46, height: 30, fontSize: 11 },
-  starActive: { position: 'absolute', top: 10, right: 10, border: '1px solid #f0c800', background: SHELL_YELLOW, color: '#222', borderRadius: 4, minWidth: 58, height: 30, fontSize: 11, fontWeight: 800 },
-  ssoBadge: { position: 'absolute', top: 12, left: 12, background: '#eef3ff', color: '#1d4ed8', border: '1px solid #c9d8ff', borderRadius: 4, fontSize: 11, fontWeight: 800, padding: '3px 7px' },
+  appDock: { position: 'fixed', top: 188, right: 0, zIndex: 95, display: 'flex', flexDirection: 'row-reverse', alignItems: 'stretch', color: '#222' },
+  appDockTab: { width: 44, minHeight: 142, border: 0, borderRadius: '12px 0 0 12px', background: SHELL_RED, color: '#fff', boxShadow: '-4px 8px 20px rgba(0,0,0,0.16)', display: 'grid', alignContent: 'center', justifyItems: 'center', gap: 10, padding: '14px 0', fontWeight: 900 },
+  appDockDots: { writingMode: 'vertical-rl', letterSpacing: 2, color: SHELL_YELLOW, fontSize: 16, lineHeight: 1 },
+  appDockText: { writingMode: 'vertical-rl', transform: 'rotate(180deg)', textTransform: 'uppercase', letterSpacing: 0.8, fontSize: 12 },
+  appPanel: { width: 310, maxHeight: 500, background: '#fff', border: '1px solid #e1e1e1', borderTop: `7px solid ${SHELL_RED}`, borderRadius: '8px 0 0 8px', padding: '14px 14px 16px', boxShadow: '-12px 16px 34px rgba(0,0,0,0.16)', color: '#222', display: 'flex', flexDirection: 'column', overflow: 'hidden' },
+  launcherHeader: { display: 'flex', gap: 10, alignItems: 'center', padding: '0 2px 12px', color: '#222' },
+  launcherTitle: { display: 'grid', gap: 2, lineHeight: 1.2 },
+  launcherIcon: { width: 44, height: 44, borderRadius: 4, background: SHELL_YELLOW, color: SHELL_RED, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 900 },
+  launcherDots: { height: 1, margin: '0 2px 10px', background: '#e7e7e7' },
+  launcherScroll: { overflowY: 'auto', padding: '0 2px 4px', flex: 1, scrollbarWidth: 'thin', scrollbarColor: '#c9c9c9 transparent' },
+  toolSection: { marginTop: 18 },
+  toolHeading: { display: 'flex', alignItems: 'center', gap: 8, color: 'rgba(255,255,255,0.86)', fontSize: 13, fontWeight: 800, marginBottom: 12, textTransform: 'uppercase' },
+  appGrid: { display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: '18px 12px', alignItems: 'start' },
+  appTile: { position: 'relative', minHeight: 92, textAlign: 'center', background: '#fff', border: '1px solid transparent', borderRadius: 4, padding: '0 4px', display: 'grid', gridTemplateRows: '50px auto', justifyItems: 'center', alignItems: 'start', gap: 7, color: '#222', fontFamily: 'inherit' },
+  appIcon: { width: 50, height: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 12, fontSize: 13, fontWeight: 900, boxShadow: '0 4px 10px rgba(0,0,0,0.08)' },
+  appTitle: { fontSize: 12, fontWeight: 800, lineHeight: 1.15, color: '#222', maxWidth: 78, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' },
+  appText: { display: 'none' },
+  star: { position: 'absolute', top: -2, right: 10, border: '1px solid #ddd', background: '#fff', color: '#777', borderRadius: 999, width: 21, height: 21, fontSize: 12, lineHeight: 1, fontWeight: 900 },
+  starActive: { position: 'absolute', top: -2, right: 10, border: '1px solid #f0c800', background: SHELL_YELLOW, color: '#222', borderRadius: 999, width: 21, height: 21, fontSize: 12, lineHeight: 1, fontWeight: 900 },
+  ssoBadge: { position: 'absolute', top: 37, left: 16, background: '#fff', color: SHELL_RED, border: `1px solid ${SHELL_RED}`, borderRadius: 3, fontSize: 8, fontWeight: 800, padding: '1px 4px' },
   launching: { position: 'absolute', inset: 0, zIndex: 2, background: 'rgba(255,255,255,0.94)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, fontWeight: 800, color: SHELL_RED },
   spinner: { width: 18, height: 18, border: '3px solid #ffd3d3', borderTopColor: SHELL_RED, borderRadius: '50%', animation: 'spin 0.8s linear infinite' },
   tag: { display: 'inline-flex', alignItems: 'center', width: 'fit-content', padding: '4px 9px', borderRadius: 4, border: '1px solid', fontSize: 12, fontWeight: 800 },
