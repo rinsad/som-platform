@@ -327,6 +327,7 @@ export default function IntraPortal() {
     'Please share the updated HR service turnaround times.',
   ]);
   const [hrDraft, setHrDraft] = useState('');
+  const [appLauncherOpen, setAppLauncherOpen] = useState(false);
   const debounceRef = useRef(null);
 
   useEffect(() => {
@@ -372,6 +373,7 @@ export default function IntraPortal() {
   }, [searchTerm, kbCategory]);
 
   async function handleAppClick(app) {
+    setAppLauncherOpen(false);
     if (app.ssoEnabled) {
       if (!isLoggedIn) {
         window.location.href = '/login';
@@ -715,8 +717,20 @@ export default function IntraPortal() {
       </section>
 
       <section id="employee-tools" style={s.toolsBand}>
-        <aside className="som-app-dock" style={s.appDock} aria-label="Employee app launcher">
-          <button style={s.appDockTab} aria-label="Open employee apps">
+        <aside
+          className={`som-app-dock${appLauncherOpen ? ' is-open' : ''}`}
+          style={s.appDock}
+          aria-label="Employee app launcher"
+          onMouseLeave={() => setAppLauncherOpen(false)}
+        >
+          <button
+            type="button"
+            style={s.appDockTab}
+            aria-label={appLauncherOpen ? 'Close employee apps' : 'Open employee apps'}
+            aria-expanded={appLauncherOpen}
+            onClick={() => setAppLauncherOpen((open) => !open)}
+            onMouseEnter={() => setAppLauncherOpen(true)}
+          >
             <span style={s.appDockDots}>•••</span>
             <span style={s.appDockText}>Apps</span>
           </button>
@@ -732,7 +746,7 @@ export default function IntraPortal() {
 
             <div style={s.launcherDots} />
 
-            <div style={s.launcherScroll}>
+            <div className="som-launcher-scroll" style={s.launcherScroll}>
               {appsErr && <div style={s.error}>{appsErr}</div>}
 
               <div style={s.appGrid}>
@@ -884,11 +898,28 @@ export default function IntraPortal() {
           transform: translateX(calc(100% + 48px));
           transition: opacity 0.18s ease, transform 0.2s ease;
         }
-        .som-app-dock:hover .som-app-panel,
-        .som-app-dock:focus-within .som-app-panel {
+        .som-app-dock.is-open .som-app-panel {
           opacity: 1;
           pointer-events: auto;
           transform: translateX(0);
+        }
+        .som-app-panel::before {
+          content: "";
+          position: absolute;
+          inset: 0;
+          background: radial-gradient(circle at 18% 10%, rgba(255, 213, 0, 0.24), transparent 30%),
+            linear-gradient(145deg, rgba(255,255,255,0.88), rgba(255,255,255,0.64));
+          pointer-events: none;
+        }
+        .som-launcher-scroll::-webkit-scrollbar {
+          width: 7px;
+        }
+        .som-launcher-scroll::-webkit-scrollbar-track {
+          background: transparent;
+        }
+        .som-launcher-scroll::-webkit-scrollbar-thumb {
+          background: rgba(0,0,0,0.22);
+          border-radius: 999px;
         }
         @media (max-width: 760px) {
           .som-two-column,
@@ -904,7 +935,7 @@ export default function IntraPortal() {
           .som-app-panel {
             width: calc(100vw - 58px) !important;
             max-height: min(520px, 68vh) !important;
-            border-radius: 8px 0 0 8px !important;
+            border-radius: 24px 0 0 24px !important;
           }
         }
       `}</style>
@@ -998,26 +1029,26 @@ const s = {
   awardCard: { background: '#fff', border: '1px solid #dfdfdf', borderRadius: 4, padding: 18, display: 'grid', gap: 8, textAlign: 'center', justifyItems: 'center' },
   awardPhoto: { width: 84, height: 84, borderRadius: '50%', background: SHELL_RED, color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 24, fontWeight: 900 },
   awardYears: { background: '#fff8cc', border: '1px solid #ffe889', borderRadius: 4, padding: '5px 9px', fontWeight: 800 },
-  appDock: { position: 'fixed', top: 188, right: 0, zIndex: 95, display: 'flex', flexDirection: 'row-reverse', alignItems: 'stretch', color: '#222' },
-  appDockTab: { width: 44, minHeight: 142, border: 0, borderRadius: '12px 0 0 12px', background: SHELL_RED, color: '#fff', boxShadow: '-4px 8px 20px rgba(0,0,0,0.16)', display: 'grid', alignContent: 'center', justifyItems: 'center', gap: 10, padding: '14px 0', fontWeight: 900 },
-  appDockDots: { writingMode: 'vertical-rl', letterSpacing: 2, color: SHELL_YELLOW, fontSize: 16, lineHeight: 1 },
-  appDockText: { writingMode: 'vertical-rl', transform: 'rotate(180deg)', textTransform: 'uppercase', letterSpacing: 0.8, fontSize: 12 },
-  appPanel: { width: 310, maxHeight: 500, background: '#fff', border: '1px solid #e1e1e1', borderTop: `7px solid ${SHELL_RED}`, borderRadius: '8px 0 0 8px', padding: '14px 14px 16px', boxShadow: '-12px 16px 34px rgba(0,0,0,0.16)', color: '#222', display: 'flex', flexDirection: 'column', overflow: 'hidden' },
-  launcherHeader: { display: 'flex', gap: 10, alignItems: 'center', padding: '0 2px 12px', color: '#222' },
+  appDock: { position: 'fixed', top: 188, right: 0, zIndex: 95, display: 'flex', flexDirection: 'row-reverse', alignItems: 'center', color: '#222' },
+  appDockTab: { width: 38, minHeight: 130, border: 0, borderRadius: '18px 0 0 18px', background: SHELL_RED, color: '#fff', boxShadow: '-5px 10px 24px rgba(221,29,33,0.28)', display: 'grid', alignContent: 'center', justifyItems: 'center', gap: 10, padding: '13px 0', fontWeight: 900 },
+  appDockDots: { writingMode: 'vertical-rl', letterSpacing: 2, color: SHELL_YELLOW, fontSize: 17, lineHeight: 1 },
+  appDockText: { writingMode: 'vertical-rl', transform: 'rotate(180deg)', textTransform: 'uppercase', letterSpacing: 1, fontSize: 11 },
+  appPanel: { position: 'relative', width: 326, maxHeight: 510, background: 'rgba(255,255,255,0.74)', backdropFilter: 'blur(18px) saturate(1.35)', WebkitBackdropFilter: 'blur(18px) saturate(1.35)', border: '1px solid rgba(255,255,255,0.72)', borderRadius: '26px 0 0 26px', padding: 16, boxShadow: '-20px 24px 46px rgba(0,0,0,0.20)', color: '#222', display: 'flex', flexDirection: 'column', overflow: 'hidden' },
+  launcherHeader: { position: 'relative', zIndex: 1, display: 'flex', gap: 12, alignItems: 'center', padding: '2px 4px 14px', color: '#222' },
   launcherTitle: { display: 'grid', gap: 2, lineHeight: 1.2 },
-  launcherIcon: { width: 44, height: 44, borderRadius: 4, background: SHELL_YELLOW, color: SHELL_RED, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 900 },
-  launcherDots: { height: 1, margin: '0 2px 10px', background: '#e7e7e7' },
-  launcherScroll: { overflowY: 'auto', padding: '0 2px 4px', flex: 1, scrollbarWidth: 'thin', scrollbarColor: '#c9c9c9 transparent' },
+  launcherIcon: { width: 52, height: 52, borderRadius: 14, background: SHELL_YELLOW, color: SHELL_RED, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 900, boxShadow: '0 8px 18px rgba(255,213,0,0.34)' },
+  launcherDots: { position: 'relative', zIndex: 1, height: 1, margin: '0 2px 14px', background: 'rgba(0,0,0,0.08)' },
+  launcherScroll: { position: 'relative', zIndex: 1, overflowY: 'auto', padding: '4px 4px 6px', flex: 1, scrollbarWidth: 'thin', scrollbarColor: 'rgba(0,0,0,0.22) transparent' },
   toolSection: { marginTop: 18 },
   toolHeading: { display: 'flex', alignItems: 'center', gap: 8, color: 'rgba(255,255,255,0.86)', fontSize: 13, fontWeight: 800, marginBottom: 12, textTransform: 'uppercase' },
-  appGrid: { display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: '18px 12px', alignItems: 'start' },
-  appTile: { position: 'relative', minHeight: 92, textAlign: 'center', background: '#fff', border: '1px solid transparent', borderRadius: 4, padding: '0 4px', display: 'grid', gridTemplateRows: '50px auto', justifyItems: 'center', alignItems: 'start', gap: 7, color: '#222', fontFamily: 'inherit' },
-  appIcon: { width: 50, height: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 12, fontSize: 13, fontWeight: 900, boxShadow: '0 4px 10px rgba(0,0,0,0.08)' },
-  appTitle: { fontSize: 12, fontWeight: 800, lineHeight: 1.15, color: '#222', maxWidth: 78, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' },
+  appGrid: { display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: '20px 14px', alignItems: 'start' },
+  appTile: { position: 'relative', minHeight: 104, textAlign: 'center', background: 'transparent', border: '1px solid transparent', borderRadius: 16, padding: '2px 4px 0', display: 'grid', gridTemplateRows: '58px auto', justifyItems: 'center', alignItems: 'start', gap: 8, color: '#222', fontFamily: 'inherit' },
+  appIcon: { width: 58, height: 58, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 16, fontSize: 14, fontWeight: 900, boxShadow: '0 10px 20px rgba(0,0,0,0.10), inset 0 1px 0 rgba(255,255,255,0.72)' },
+  appTitle: { fontSize: 12, fontWeight: 800, lineHeight: 1.12, color: '#1f1f1f', maxWidth: 82, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' },
   appText: { display: 'none' },
-  star: { position: 'absolute', top: -2, right: 10, border: '1px solid #ddd', background: '#fff', color: '#777', borderRadius: 999, width: 21, height: 21, fontSize: 12, lineHeight: 1, fontWeight: 900 },
-  starActive: { position: 'absolute', top: -2, right: 10, border: '1px solid #f0c800', background: SHELL_YELLOW, color: '#222', borderRadius: 999, width: 21, height: 21, fontSize: 12, lineHeight: 1, fontWeight: 900 },
-  ssoBadge: { position: 'absolute', top: 37, left: 16, background: '#fff', color: SHELL_RED, border: `1px solid ${SHELL_RED}`, borderRadius: 3, fontSize: 8, fontWeight: 800, padding: '1px 4px' },
+  star: { position: 'absolute', top: 0, right: 7, border: '1px solid rgba(0,0,0,0.08)', background: 'rgba(255,255,255,0.92)', color: '#777', borderRadius: 999, width: 21, height: 21, fontSize: 12, lineHeight: 1, fontWeight: 900, boxShadow: '0 3px 8px rgba(0,0,0,0.08)' },
+  starActive: { position: 'absolute', top: 0, right: 7, border: '1px solid #f0c800', background: SHELL_YELLOW, color: '#222', borderRadius: 999, width: 21, height: 21, fontSize: 12, lineHeight: 1, fontWeight: 900, boxShadow: '0 3px 8px rgba(0,0,0,0.08)' },
+  ssoBadge: { position: 'absolute', top: 43, left: 12, background: 'rgba(255,255,255,0.96)', color: SHELL_RED, border: `1px solid ${SHELL_RED}`, borderRadius: 6, fontSize: 8, fontWeight: 800, padding: '1px 5px', boxShadow: '0 2px 6px rgba(0,0,0,0.08)' },
   launching: { position: 'absolute', inset: 0, zIndex: 2, background: 'rgba(255,255,255,0.94)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, fontWeight: 800, color: SHELL_RED },
   spinner: { width: 18, height: 18, border: '3px solid #ffd3d3', borderTopColor: SHELL_RED, borderRadius: '50%', animation: 'spin 0.8s linear infinite' },
   tag: { display: 'inline-flex', alignItems: 'center', width: 'fit-content', padding: '4px 9px', borderRadius: 4, border: '1px solid', fontSize: 12, fontWeight: 800 },
