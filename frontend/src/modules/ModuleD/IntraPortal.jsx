@@ -877,19 +877,23 @@ export default function IntraPortal() {
           transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
         }
         .som-lift-card:hover,
-        .som-lift-card:focus-within {
+        .som-lift-card:focus-within,
+        .som-lift-card:active {
           transform: translateY(-6px);
           box-shadow: 0 14px 30px rgba(0,0,0,0.12) !important;
           border-color: #c9c9c9 !important;
         }
         .som-lift-card:hover .som-lift-accent,
         .som-lift-card:focus-within .som-lift-accent,
+        .som-lift-card:active .som-lift-accent,
         .som-lift-card:hover .som-letter-badge,
-        .som-lift-card:focus-within .som-letter-badge {
+        .som-lift-card:focus-within .som-letter-badge,
+        .som-lift-card:active .som-letter-badge {
           background: #DD1D21 !important;
         }
         .som-lift-card:hover .som-letter-badge,
-        .som-lift-card:focus-within .som-letter-badge {
+        .som-lift-card:focus-within .som-letter-badge,
+        .som-lift-card:active .som-letter-badge {
           color: #FFD500 !important;
         }
         .som-app-panel {
