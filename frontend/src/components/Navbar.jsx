@@ -93,7 +93,7 @@ export default function Navbar({ user, onLogout, showDashboardLink = false, vari
               <img src="/logo.png" alt="Shell Oman Marketing" style={styles.publicLogoImg} />
             </a>
 
-            <nav className="som-public-nav" style={isPreview ? { ...styles.navLinks, ...styles.previewNavLinks } : styles.navLinks} aria-label="Primary">
+            <nav className={`som-public-nav${isPreview ? ' is-preview-menu' : ''}`} style={isPreview ? { ...styles.navLinks, ...styles.previewNavLinks } : styles.navLinks} aria-label="Primary">
               {menuItems.map((item) => (
                 <div key={item.label} className="som-public-nav-item" style={styles.navItem}>
                   <a
@@ -144,6 +144,29 @@ export default function Navbar({ user, onLogout, showDashboardLink = false, vari
           }
           @media (max-width: 980px) {
             .som-public-nav { display: none !important; }
+            .som-public-nav.is-preview-menu {
+              display: flex !important;
+              order: 3;
+              flex: 0 0 100% !important;
+              width: 100%;
+              overflow-x: auto;
+              overflow-y: hidden;
+              padding: 0 0 2px;
+              scrollbar-width: none;
+            }
+            .som-public-nav.is-preview-menu::-webkit-scrollbar {
+              display: none;
+            }
+            .som-public-nav.is-preview-menu .som-public-nav-item {
+              flex: 0 0 auto;
+            }
+            .som-public-nav.is-preview-menu a {
+              min-height: 42px !important;
+              padding: 0 14px !important;
+              font-size: 16px !important;
+              white-space: nowrap;
+              border-bottom-width: 3px !important;
+            }
           }
           @media (max-width: 760px) {
             .som-public-utility {
@@ -180,6 +203,7 @@ export default function Navbar({ user, onLogout, showDashboardLink = false, vari
             }
             .som-public-inner {
               justify-content: space-between !important;
+              flex-wrap: wrap !important;
               gap: 14px !important;
             }
           }
