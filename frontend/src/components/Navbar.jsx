@@ -33,6 +33,14 @@ const PUBLIC_MENU = [
   },
 ];
 
+const PREVIEW_MENU = [
+  { label: 'Our company', href: '#our-company' },
+  { label: 'Business function', href: '#business-function' },
+  { label: 'People finder', href: '#people-finder' },
+  { label: 'HR online', href: '#hr-online' },
+  { label: 'Goal Zero', href: '#goal-zero' },
+];
+
 function SearchIcon() {
   return (
     <svg viewBox="0 0 24 24" width="25" height="25" aria-hidden="true">
@@ -50,8 +58,10 @@ function ChevronIcon() {
 }
 
 export default function Navbar({ user, onLogout, showDashboardLink = false, variant = 'app' }) {
-  const isPublic = variant === 'public';
+  const isPublic = variant === 'public' || variant === 'preview';
+  const isPreview = variant === 'preview';
   const styles = isPublic ? publicStyles : appStyles;
+  const menuItems = isPreview ? PREVIEW_MENU : PUBLIC_MENU;
 
   if (isPublic) {
     return (
@@ -83,21 +93,22 @@ export default function Navbar({ user, onLogout, showDashboardLink = false, vari
               <img src="/logo.png" alt="Shell Oman Marketing" style={styles.publicLogoImg} />
             </a>
 
-            <nav className="som-public-nav" style={styles.navLinks} aria-label="Primary">
-              {PUBLIC_MENU.map((item) => (
+            <nav className="som-public-nav" style={isPreview ? { ...styles.navLinks, ...styles.previewNavLinks } : styles.navLinks} aria-label="Primary">
+              {menuItems.map((item) => (
                 <div key={item.label} className="som-public-nav-item" style={styles.navItem}>
                   <a
                     href={item.href}
                     style={{
                       ...styles.navText,
+                      ...(isPreview ? styles.previewNavText : {}),
                       ...(item.active ? styles.navTextActive : {}),
                       ...(item.highlight ? styles.navTextHighlight : {}),
                     }}
                   >
                     {item.label}
-                    {item.items && <ChevronIcon />}
+                    {!isPreview && item.items && <ChevronIcon />}
                   </a>
-                  {item.items && (
+                  {!isPreview && item.items && (
                     <div className="som-public-dropdown" style={styles.dropdown}>
                       <strong style={styles.dropdownTitle}>Go to: {item.label}</strong>
                       {item.items.map((entry) => (
@@ -458,6 +469,9 @@ const publicStyles = {
     flex: 1,
     justifyContent: 'flex-start',
   },
+  previewNavLinks: {
+    justifyContent: 'flex-start',
+  },
   navItem: {
     position: 'relative',
   },
@@ -471,6 +485,12 @@ const publicStyles = {
     fontWeight: 600,
     padding: '0 18px',
     borderBottom: '5px solid transparent',
+  },
+  previewNavText: {
+    minHeight: 70,
+    fontSize: 18,
+    fontWeight: 600,
+    padding: '0 18px',
   },
   navTextActive: {
     borderBottomColor: '#FFD500',

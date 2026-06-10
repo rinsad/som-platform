@@ -1,8 +1,10 @@
-import { Outlet, useNavigate } from 'react-router-dom';
+import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 
 export default function PublicShell() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const isPreview = location.pathname.startsWith('/intra-portal-preview');
 
   const raw = localStorage.getItem('som_user');
   const user = raw ? JSON.parse(raw) : null;
@@ -16,7 +18,7 @@ export default function PublicShell() {
 
   return (
     <div style={s.root}>
-      <Navbar user={user} onLogout={handleLogout} showDashboardLink={!!user} variant="public" />
+      <Navbar user={user} onLogout={handleLogout} showDashboardLink={!!user} variant={isPreview ? 'preview' : 'public'} />
       <main style={s.main}>
         <Outlet />
       </main>

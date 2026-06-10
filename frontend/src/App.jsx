@@ -9,6 +9,7 @@ import NewPurchaseRequest from './modules/ModuleB/NewPurchaseRequest';
 import PRDetail from './modules/ModuleB/PRDetail';
 import AssetRegistry from './modules/ModuleC/AssetRegistry';
 import IntraPortal from './modules/ModuleD/IntraPortal';
+import IntraPortalPreview from './modules/ModuleD/IntraPortalPreview';
 import UserManagement from './modules/Admin/UserManagement';
 import KBManagement from './modules/Admin/KBManagement';
 import PermissionsPage from './modules/Admin/PermissionsPage';
@@ -45,6 +46,7 @@ function App() {
             React Router resolves / here instead of the authenticated group. */}
         <Route path="/" element={<PublicShell />}>
           <Route index element={<IntraPortal />} />
+          <Route path="intra-portal-preview" element={<IntraPortalPreview />} />
         </Route>
 
         {/* Authenticated app — /dashboard, /capex, etc. */}
