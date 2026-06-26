@@ -20,9 +20,10 @@ const renderShell = () => render(
   </MemoryRouter>
 );
 
-test('renders the SOM Platform brand name', () => {
+test('renders the Shell Oman brand name', () => {
   renderShell();
-  expect(screen.getByText('SOM Platform')).toBeInTheDocument();
+  expect(screen.getByText('Shell Oman Marketing')).toBeInTheDocument();
+  expect(screen.getByText('Enterprise Platform')).toBeInTheDocument();
 });
 
 test('shows the logged-in user name in the navbar', () => {
@@ -30,12 +31,11 @@ test('shows the logged-in user name in the navbar', () => {
   expect(screen.getByText(/Ali Hassan/i)).toBeInTheDocument();
 });
 
-test('all 4 module links are visible in the sidebar', () => {
+test('module links are visible in the sidebar', () => {
   renderShell();
   expect(screen.getByText(/Capex Planning/i)).toBeInTheDocument();
   expect(screen.getByText(/Purchase Requests/i)).toBeInTheDocument();
   expect(screen.getByText(/Assets/i)).toBeInTheDocument();
-  expect(screen.getByText(/Intra Portal/i)).toBeInTheDocument();
 });
 
 test('renders child route content in the main area', () => {
