@@ -24,30 +24,27 @@ afterEach(() => {
 
 // ── DEPT_NAMES constant ───────────────────────────────────────────────────────
 describe('DEPT_NAMES', () => {
-  test('exports an array of 4 department names', () => {
-    expect(DEPT_NAMES).toHaveLength(4);
-    expect(DEPT_NAMES).toContain('Retail Operations');
-    expect(DEPT_NAMES).toContain('Infrastructure');
-    expect(DEPT_NAMES).toContain('Technology');
-    expect(DEPT_NAMES).toContain('QHSE');
+  test('exports an array of 6 department names', () => {
+    expect(DEPT_NAMES).toHaveLength(6);
+    expect(DEPT_NAMES).toContain('Aviation');
+    expect(DEPT_NAMES).toContain('Mobility');
+    expect(DEPT_NAMES).toContain('HR & Real Estate');
   });
 });
 
 // ── getDepartments ────────────────────────────────────────────────────────────
 describe('getDepartments', () => {
-  test('makes one fetch call per department', async () => {
-    const deptData = { name: 'Retail Operations', totalBudget: 1200000 };
-    global.fetch = makeFetch(deptData);
+  test('makes one fetch call for department list', async () => {
+    global.fetch = makeFetch([]);
     await getDepartments();
-    expect(global.fetch).toHaveBeenCalledTimes(4);
+    expect(global.fetch).toHaveBeenCalledTimes(1);
   });
 
-  test('calls the department endpoint with encoded department name', async () => {
-    global.fetch = makeFetch({});
+  test('calls the departments endpoint', async () => {
+    global.fetch = makeFetch([]);
     await getDepartments();
     const calledUrls = global.fetch.mock.calls.map(([url]) => url);
-    expect(calledUrls.some((u) => u.includes('/api/capex/department/Retail%20Operations'))).toBe(true);
-    expect(calledUrls.some((u) => u.includes('/api/capex/department/Infrastructure'))).toBe(true);
+    expect(calledUrls.some((u) => u.includes('/api/capex/departments'))).toBe(true);
   });
 
   test('sends Authorization header on every call', async () => {
@@ -58,10 +55,10 @@ describe('getDepartments', () => {
     });
   });
 
-  test('returns an array of 4 dept objects', async () => {
-    global.fetch = makeFetch({ name: 'mock' });
+  test('returns department objects', async () => {
+    global.fetch = makeFetch([{ name: 'mock' }]);
     const result = await getDepartments();
-    expect(result).toHaveLength(4);
+    expect(result).toHaveLength(1);
   });
 
   test('throws when any department fetch returns non-ok', async () => {

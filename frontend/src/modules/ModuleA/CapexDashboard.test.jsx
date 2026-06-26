@@ -27,10 +27,12 @@ const MONTHLY = [
 ];
 
 const mockDepts = [
-  { name: 'Retail Operations', totalBudget: 1200000, actual: 680000, committed: 180000, remaining: 340000, percentUsed: 57, monthlyData: MONTHLY },
-  { name: 'Infrastructure',    totalBudget: 1500000, actual: 920000, committed:  95000, remaining: 485000, percentUsed: 61, monthlyData: MONTHLY },
-  { name: 'Technology',        totalBudget:  900000, actual: 190000, committed:  60000, remaining: 650000, percentUsed: 21, monthlyData: MONTHLY },
-  { name: 'QHSE',              totalBudget:  600000, actual:  80000, committed:  40000, remaining: 480000, percentUsed: 13, monthlyData: MONTHLY },
+  { name: 'HR & Real Estate', totalBudget: 800000, actual: 350000, committed: 120000, remaining: 330000, percentUsed: 44, monthlyData: MONTHLY },
+  { name: 'Finance & Operations', totalBudget: 600000, actual: 210000, committed: 80000, remaining: 310000, percentUsed: 35, monthlyData: MONTHLY },
+  { name: 'Trading, Lubricants & Supply Chain', totalBudget: 2000000, actual: 890000, committed: 250000, remaining: 860000, percentUsed: 45, monthlyData: MONTHLY },
+  { name: 'Aviation', totalBudget: 1500000, actual: 720000, committed: 180000, remaining: 600000, percentUsed: 48, monthlyData: MONTHLY },
+  { name: 'Mobility', totalBudget: 1200000, actual: 480000, committed: 150000, remaining: 570000, percentUsed: 40, monthlyData: MONTHLY },
+  { name: 'General', totalBudget: 500000, actual: 140000, committed: 60000, remaining: 300000, percentUsed: 28, monthlyData: MONTHLY },
 ];
 
 const mockSync = { lastSynced: new Date().toISOString(), status: 'success', source: 'GSAP' };
@@ -58,13 +60,24 @@ const mockManualEntries = [
   { id: 'ME-2026-001', entryType: 'Actual', department: 'Retail Operations', period: '2026-03', amount: 15400, referenceNumber: 'INV-4421', enteredBy: 'Sara Al Harthi', status: 'Posted' },
 ];
 
+const mockAdminConfig = {
+  thresholds: { lowMaxOmr: 25000, mediumMaxOmr: 300000 },
+  workflowRules: [
+    { id: 1, valueBand: 'LOW', conditionKey: 'standard', stepOrder: 10, approverRole: 'FiB', label: 'FiB Validation', isActive: true },
+  ],
+  departments: mockDepts,
+};
+
 // Routes all fetch calls to the correct mock response
 function makeFetchMock(depts = mockDepts) {
   return jest.fn().mockImplementation((url, options) => {
     const method = options?.method || 'GET';
 
+    if (url.includes('admin-config')) return Promise.resolve({ ok: true, json: async () => method === 'PATCH' ? mockAdminConfig.thresholds : mockAdminConfig });
+    if (url.includes('departments'))  return Promise.resolve({ ok: true, json: async () => depts });
     if (url.includes('sync-status'))  return Promise.resolve({ ok: true, json: async () => mockSync });
     if (url.includes('gsap-data'))    return Promise.resolve({ ok: true, json: async () => mockGsapData });
+    if (url.includes('requests'))     return Promise.resolve({ ok: true, json: async () => [] });
     if (url.includes('initiations'))  return Promise.resolve({ ok: true, json: async () => method === 'POST' ? mockInitiations[0] : mockInitiations });
     if (url.includes('manual-entries')) return Promise.resolve({ ok: true, json: async () => method === 'POST' ? mockManualEntries[0] : mockManualEntries });
     // department/:name
@@ -75,6 +88,7 @@ function makeFetchMock(depts = mockDepts) {
 
 beforeEach(() => {
   localStorage.setItem('som_token', 'fake-token');
+  localStorage.setItem('som_user', JSON.stringify({ role: 'Admin', fullName: 'Test Admin' }));
   global.fetch = makeFetchMock();
   global.ResizeObserver = class { observe() {} unobserve() {} disconnect() {} };
 });
@@ -120,19 +134,18 @@ describe('Loading and error states', () => {
     global.fetch = makeFetchMock();
     fireEvent.click(screen.getByText(/retry/i));
 
-    await waitFor(() => expect(screen.getByText('Retail Operations')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText('HR & Real Estate')).toBeInTheDocument());
   });
 });
 
 // ── Overview tab ─────────────────────────────────────────────────────────────
 describe('Overview tab', () => {
-  test('renders all 4 department meter labels', async () => {
+  test('renders department meter labels', async () => {
     renderDashboard();
     await waitForLoad();
-    expect(screen.getByText('Retail Operations')).toBeInTheDocument();
-    expect(screen.getByText('Infrastructure')).toBeInTheDocument();
-    expect(screen.getByText('Technology')).toBeInTheDocument();
-    expect(screen.getByText('QHSE')).toBeInTheDocument();
+    expect(screen.getByText('HR & Real Estate')).toBeInTheDocument();
+    expect(screen.getByText('Aviation')).toBeInTheDocument();
+    expect(screen.getByText('Mobility')).toBeInTheDocument();
   });
 
   test('renders 4 summary cards', async () => {
@@ -157,7 +170,7 @@ describe('Overview tab', () => {
     renderDashboard();
     await waitForLoad();
     // QHSE is 13% — should be green
-    const bar = screen.getAllByTestId('meter-bar-QHSE')[0];
+    const bar = screen.getAllByTestId('meter-bar-General')[0];
     expect(bar.style.backgroundColor).toBe('rgb(46, 125, 50)'); // #2e7d32
   });
 
@@ -170,10 +183,10 @@ describe('Overview tab', () => {
 
 // ── Tab navigation ────────────────────────────────────────────────────────────
 describe('Tab navigation', () => {
-  test('shows all 5 tab buttons', async () => {
+  test('shows CAPEX tab buttons', async () => {
     renderDashboard();
     await waitForLoad();
-    ['Overview', 'Departments', 'GSAP Sync', 'Manual Entries', 'Initiations'].forEach((label) => {
+    ['Overview', 'Departments', 'GSAP Sync', 'Manual Entries', 'Requests', 'Admin Config', 'Initiations'].forEach((label) => {
       expect(screen.getByRole('button', { name: label })).toBeInTheDocument();
     });
   });
@@ -185,11 +198,10 @@ describe('Tab navigation', () => {
     expect(screen.getByText('Department Dashboard')).toBeInTheDocument();
   });
 
-  test('clicking GSAP Sync tab shows sync data section', async () => {
+  test('GSAP Sync tab is disabled while SAP integration is unavailable', async () => {
     renderDashboard();
     await waitForLoad();
-    fireEvent.click(screen.getByRole('button', { name: 'GSAP Sync' }));
-    await waitFor(() => expect(screen.getByText(/GSAP Integration/i)).toBeInTheDocument());
+    expect(screen.getByRole('button', { name: 'GSAP Sync' })).toHaveStyle({ cursor: 'not-allowed' });
   });
 
   test('clicking Manual Entries tab shows Add Entry button', async () => {
@@ -208,7 +220,7 @@ describe('Tab navigation', () => {
 });
 
 // ── GSAP Sync tab ─────────────────────────────────────────────────────────────
-describe('GSAP Sync tab', () => {
+describe.skip('GSAP Sync tab', () => {
   test('displays approved budget WBS code', async () => {
     renderDashboard();
     await waitForLoad();

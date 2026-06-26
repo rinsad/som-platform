@@ -107,7 +107,7 @@ describe('CapexInitiationForm — interactions', () => {
     const { onSubmit } = renderForm();
 
     await user.type(screen.getByPlaceholderText(/Solar Panel/i), 'EV Charging Hub');
-    await user.selectOptions(screen.getByLabelText(/Department \*/i), 'Technology');
+    await user.selectOptions(screen.getByLabelText(/Department \*/i), 'Finance & Operations');
     await user.selectOptions(screen.getByLabelText(/Project Type/i), 'Upgrade');
     await user.type(screen.getByLabelText(/Estimated Budget/i), '150000');
     await user.selectOptions(screen.getByLabelText(/Priority/i), 'High');
@@ -121,7 +121,7 @@ describe('CapexInitiationForm — interactions', () => {
     expect(onSubmit).toHaveBeenCalledWith(
       expect.objectContaining({
         title: 'EV Charging Hub',
-        department: 'Technology',
+        department: 'Finance & Operations',
         projectType: 'Upgrade',
         estimatedBudget: 150000,
         priority: 'High',

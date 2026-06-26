@@ -6,6 +6,7 @@ build
 dist
 coverage
 *.log
+~$*
 som_platform_backup_20260428_210052.sql
 extra/
 

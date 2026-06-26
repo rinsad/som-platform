@@ -5,6 +5,11 @@ import {
 import {
   getDepartments, getSyncStatus, getGsapData,
   getInitiations, createInitiation,
+  getCapexRequests, getCapexRequest, createCapexRequest, decideCapexRequest,
+  updateCapexProcurement, createCapexMilestone, updateCapexMilestone,
+  saveCapexFinancialClosure, getCapexAuditLogs, getCapexReportCsvUrl,
+  getCapexAdminConfig, updateCapexThresholds, updateCapexWorkflowRule,
+  uploadCapexAttachment, downloadCapexAttachment,
   getManualEntries, createManualEntry,
   DEPT_NAMES,
 } from '../../services/capexService';
@@ -12,6 +17,7 @@ import usePermissions from '../../hooks/usePermissions';
 import ManualEntryModal        from './ManualEntryModal';
 import CapexInitiationForm     from './CapexInitiationForm';
 import CapexBudgetUploadModal  from './CapexBudgetUploadModal';
+import CapexRequestForm        from './CapexRequestForm';
 
 if (typeof Chart.register === 'function') {
   Chart.register(BarController, BarElement, CategoryScale, LinearScale, Tooltip, Legend);
@@ -99,6 +105,8 @@ const ALL_TABS = [
   { id: 'departments', label: 'Departments',    permKey: 'capex.planning.departments' },
   { id: 'gsap',        label: 'GSAP Sync',      disabled: true },
   { id: 'manual',      label: 'Manual Entries', permKey: 'capex.tracking.manual-entry' },
+  { id: 'requests',    label: 'Requests',       permKey: 'capex' },
+  { id: 'admin',       label: 'Admin Config',   adminOnly: true },
   { id: 'initiations', label: 'Initiations',    adminOnly: true },
 ];
 
@@ -118,15 +126,25 @@ export default function CapexDashboard() {
   const [depts,          setDepts]          = useState([]);
   const [syncStatus,     setSyncStatus]     = useState(null);
   const [gsapData,       setGsapData]       = useState(null);
+  const [capexRequests,  setCapexRequests]  = useState([]);
+  const [selectedRequest,setSelectedRequest]= useState(null);
   const [initiations,    setInitiations]    = useState([]);
   const [manualEntries,  setManualEntries]  = useState([]);
   const [loading,        setLoading]        = useState(true);
   const [error,          setError]          = useState('');
   const [selectedDept,   setSelectedDept]   = useState('');
   const [showManual,     setShowManual]      = useState(false);
+  const [showRequestForm,setShowRequestForm] = useState(false);
   const [showInitForm,   setShowInitForm]    = useState(false);
   const [showBudgetUpload, setShowBudgetUpload] = useState(false);
   const [uploadToast,    setUploadToast]    = useState('');
+  const [auditLogs,      setAuditLogs]      = useState([]);
+  const [procurementForm,setProcurementForm]= useState({});
+  const [milestoneForm,  setMilestoneForm]  = useState({ stageName: '', milestoneName: '', plannedDate: '', actualDate: '', paymentPercentage: '', paymentAmount: '', completionEvidence: '' });
+  const [closureForm,    setClosureForm]    = useState({ actualSpend: '', finalRoi: '', finalSavings: '', financeComments: '', capexFormAttachment: '' });
+  const [adminConfig,    setAdminConfig]    = useState(null);
+  const [thresholdForm,  setThresholdForm]  = useState({ lowMaxOmr: 25000, mediumMaxOmr: 300000 });
+  const [attachmentType, setAttachmentType] = useState('Scope Document');
 
   const overviewChartRef = useRef(null);
   const overviewChartInst = useRef(null);
@@ -151,6 +169,19 @@ export default function CapexDashboard() {
       setGsapData(gsap);
       setInitiations(inits);
       setManualEntries(entries);
+      const requests = await getCapexRequests();
+      setCapexRequests(requests);
+      if (!selectedRequest && requests.length) {
+        getCapexRequest(requests[0].id).then(setSelectedRequest).catch(() => {});
+      }
+      if (isAdmin) {
+        const config = await getCapexAdminConfig();
+        setAdminConfig(config);
+        setThresholdForm({
+          lowMaxOmr: config.thresholds.lowMaxOmr,
+          mediumMaxOmr: config.thresholds.mediumMaxOmr,
+        });
+      }
     } catch {
       setError('Failed to load Capex data. Please ensure the backend is running.');
     } finally {
@@ -160,9 +191,133 @@ export default function CapexDashboard() {
 
   useEffect(() => { fetchAll(); }, []);
 
+  useEffect(() => {
+    if (!selectedRequest) return;
+    setProcurementForm({
+      ndaRequired: !!selectedRequest.procurement?.ndaRequired,
+      ndaStatus: selectedRequest.procurement?.ndaStatus || 'Not required',
+      ndaCompletionDate: selectedRequest.procurement?.ndaCompletionDate || '',
+      dpaRequired: !!selectedRequest.procurement?.dpaRequired,
+      dpaStatus: selectedRequest.procurement?.dpaStatus || 'Not required',
+      dpaCompletionDate: selectedRequest.procurement?.dpaCompletionDate || '',
+      vendorRegistrationStatus: selectedRequest.procurement?.vendorRegistrationStatus || 'Pending',
+      agreementStatus: selectedRequest.procurement?.agreementStatus || 'Pending',
+      gsapProjectReference: selectedRequest.procurement?.gsapProjectReference || '',
+      gsapProjectCreatedAt: selectedRequest.procurement?.gsapProjectCreatedAt || '',
+      prNumber: selectedRequest.procurement?.prNumber || '',
+      prCreatedAt: selectedRequest.procurement?.prCreatedAt || '',
+      prStatus: selectedRequest.procurement?.prStatus || '',
+      poNumber: selectedRequest.procurement?.poNumber || '',
+      poCreatedAt: selectedRequest.procurement?.poCreatedAt || '',
+      poValue: selectedRequest.procurement?.poValue || '',
+      poStatus: selectedRequest.procurement?.poStatus || '',
+      poAttachmentName: selectedRequest.procurement?.poAttachmentName || '',
+      poReleasedAfterJobDone: !!selectedRequest.procurement?.poReleasedAfterJobDone,
+    });
+    setClosureForm({
+      actualSpend: selectedRequest.financialClosure?.actualSpend || '',
+      finalRoi: selectedRequest.financialClosure?.finalRoi || '',
+      finalSavings: selectedRequest.financialClosure?.finalSavings || '',
+      financeComments: selectedRequest.financialClosure?.financeComments || '',
+      capexFormAttachment: selectedRequest.financialClosure?.capexFormAttachment || '',
+    });
+    getCapexAuditLogs(selectedRequest.id).then(setAuditLogs).catch(() => setAuditLogs([]));
+  }, [selectedRequest]);
+
   function showUploadToast(msg) {
     setUploadToast(msg);
     setTimeout(() => setUploadToast(''), 5000);
+  }
+
+  async function openCapexRequest(id) {
+    const detail = await getCapexRequest(id);
+    setSelectedRequest(detail);
+  }
+
+  async function refreshSelectedRequest(id = selectedRequest?.id) {
+    if (!id) return;
+    const [detail, requests] = await Promise.all([getCapexRequest(id), getCapexRequests()]);
+    setSelectedRequest(detail);
+    setCapexRequests(requests);
+  }
+
+  async function handleCreateCapexRequest(data) {
+    const created = await createCapexRequest(data);
+    const detail = await getCapexRequest(created.id);
+    setCapexRequests((prev) => [created, ...prev]);
+    setSelectedRequest(detail);
+    setShowRequestForm(false);
+  }
+
+  async function handleCapexDecision(decision) {
+    if (!selectedRequest) return;
+    const comment = decision === 'APPROVED' ? '' : window.prompt('Comment required for this action') || '';
+    if (decision !== 'APPROVED' && !comment.trim()) return;
+    const updated = await decideCapexRequest(selectedRequest.id, decision, comment);
+    setSelectedRequest(updated);
+    const requests = await getCapexRequests();
+    setCapexRequests(requests);
+  }
+
+  async function handleSaveProcurement() {
+    if (!selectedRequest) return;
+    await updateCapexProcurement(selectedRequest.id, procurementForm);
+    await refreshSelectedRequest();
+  }
+
+  async function handleAddMilestone(e) {
+    e.preventDefault();
+    if (!selectedRequest || !milestoneForm.stageName || !milestoneForm.milestoneName) return;
+    await createCapexMilestone(selectedRequest.id, milestoneForm);
+    setMilestoneForm({ stageName: '', milestoneName: '', plannedDate: '', actualDate: '', paymentPercentage: '', paymentAmount: '', completionEvidence: '' });
+    await refreshSelectedRequest();
+  }
+
+  async function handleCompleteMilestone(milestone) {
+    if (!selectedRequest) return;
+    await updateCapexMilestone(selectedRequest.id, milestone.id, {
+      actualDate: milestone.actualDate || new Date().toISOString().slice(0, 10),
+      status: 'Complete',
+    });
+    await refreshSelectedRequest();
+  }
+
+  async function handleSaveClosure(closeRequest = false) {
+    if (!selectedRequest) return;
+    await saveCapexFinancialClosure(selectedRequest.id, { ...closureForm, closeRequest });
+    await refreshSelectedRequest();
+  }
+
+  async function handleAttachmentUpload(e) {
+    if (!selectedRequest || !e.target.files?.[0]) return;
+    const formData = new FormData();
+    formData.append('file', e.target.files[0]);
+    formData.append('type', attachmentType);
+    formData.append('linkedType', 'Request');
+    formData.append('retentionYears', '7');
+    await uploadCapexAttachment(selectedRequest.id, formData);
+    e.target.value = '';
+    await refreshSelectedRequest();
+  }
+
+  async function handleSaveThresholds() {
+    const updated = await updateCapexThresholds(thresholdForm);
+    setThresholdForm({ lowMaxOmr: updated.lowMaxOmr, mediumMaxOmr: updated.mediumMaxOmr });
+    const config = await getCapexAdminConfig();
+    setAdminConfig(config);
+  }
+
+  async function handleWorkflowRuleChange(rule, field, value) {
+    setAdminConfig(prev => ({
+      ...prev,
+      workflowRules: prev.workflowRules.map(r => r.id === rule.id ? { ...r, [field]: value } : r),
+    }));
+  }
+
+  async function handleSaveWorkflowRule(rule) {
+    await updateCapexWorkflowRule(rule.id, rule);
+    const config = await getCapexAdminConfig();
+    setAdminConfig(config);
   }
 
   // ── Overview chart (aggregated monthly) ────────────────────────────────────
@@ -578,6 +733,252 @@ export default function CapexDashboard() {
       )}
 
       {/* ── TAB: Initiations ─────────────────────────────────────────────── */}
+      {activeTab === 'requests' && (
+        <div>
+          <div style={s.tabActionRow}>
+            <div>
+              <h2 style={s.sectionTitle}>CAPEX Requests</h2>
+              <p style={s.tabSubtitle}>Governance workflow for quotations, HSSE risk, approvals, and procurement handover.</p>
+            </div>
+            <div style={{ display: 'flex', gap: 10, flexShrink: 0 }}>
+              <a href={getCapexReportCsvUrl()} style={{ ...s.secondaryBtn, textDecoration: 'none' }}>Export CSV</a>
+              <button style={s.primaryBtn} onClick={() => setShowRequestForm(true)}>+ New CAPEX Request</button>
+            </div>
+          </div>
+
+          {showRequestForm && (
+            <CapexRequestForm
+              onSubmit={handleCreateCapexRequest}
+              onCancel={() => setShowRequestForm(false)}
+            />
+          )}
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1.1fr 0.9fr', gap: 20, alignItems: 'flex-start' }}>
+            <div style={s.section}>
+              <DataTable
+                columns={[
+                  { key: 'id', label: 'Request' },
+                  { key: 'title', label: 'Title',
+                    render: (v, row) => (
+                      <button style={s.linkBtn} onClick={() => openCapexRequest(row.id)}>{v}</button>
+                    )
+                  },
+                  { key: 'department', label: 'Department' },
+                  { key: 'estimatedValue', label: 'Value', render: (v) => fmtOMR(v) },
+                  { key: 'valueBand', label: 'Band', render: (v) => <StatusBadge status={v === 'LOW' ? 'Low' : v === 'MEDIUM' ? 'Medium' : 'High'} /> },
+                  { key: 'status', label: 'Status', render: (v) => <StatusBadge status={v} /> },
+                ]}
+                rows={capexRequests}
+                emptyMsg="No CAPEX requests yet. Create the first request to start workflow routing."
+              />
+            </div>
+
+            <div style={s.section}>
+              {!selectedRequest ? (
+                <p style={{ color: 'var(--label-secondary)', fontSize: 14 }}>Select a request to view workflow details.</p>
+              ) : (
+                <div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'flex-start', marginBottom: 16 }}>
+                    <div>
+                      <h3 style={{ margin: 0, fontSize: 17, color: 'var(--label)' }}>{selectedRequest.title}</h3>
+                      <p style={{ margin: '4px 0 0', fontSize: 12, color: 'var(--label-secondary)' }}>
+                        {selectedRequest.id} - {selectedRequest.department} - {fmtOMR(selectedRequest.estimatedValue)}
+                      </p>
+                    </div>
+                    <StatusBadge status={selectedRequest.status} />
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 16 }}>
+                    <MiniInfo label="Value Band" value={selectedRequest.valueBand} />
+                    <MiniInfo label="Quotes" value={`${selectedRequest.quotations?.length || 0} / 3`} />
+                    <MiniInfo label="HSSE Risk" value={selectedRequest.hsseRisk} />
+                    <MiniInfo label="Worker Welfare" value={selectedRequest.workerWelfareRisk} />
+                  </div>
+
+                  <h4 style={s.detailTitle}>Scope</h4>
+                  <p style={s.detailText}>{selectedRequest.scopeDetails}</p>
+
+                  {selectedRequest.fewerThan3Justification && (
+                    <>
+                      <h4 style={s.detailTitle}>Fewer than 3 Quotations Justification</h4>
+                      <p style={s.detailText}>{selectedRequest.fewerThan3Justification}</p>
+                    </>
+                  )}
+
+                  <h4 style={s.detailTitle}>Supplier Quotations</h4>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 16 }}>
+                    {(selectedRequest.quotations || []).map((q) => (
+                      <div key={q.id} style={s.compactRow}>
+                        <span style={{ fontWeight: q.isSelected ? 700 : 500 }}>{q.supplierName}{q.isSelected ? ' (selected)' : ''}</span>
+                        <span>{fmtOMR(q.quoteValue)}</span>
+                      </div>
+                    ))}
+                  </div>
+
+                  <h4 style={s.detailTitle}>Attachments</h4>
+                  <div style={s.lifecycleGrid}>
+                    <select style={s.compactInput} value={attachmentType} onChange={e => setAttachmentType(e.target.value)}>
+                      {['Scope Document', 'Supplier Quotation', 'HSSE Evidence', 'PO Document', 'Milestone Evidence', 'CAPEX Closure Form'].map(v => <option key={v}>{v}</option>)}
+                    </select>
+                    <input style={s.compactInput} type="file" onChange={handleAttachmentUpload} />
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 16 }}>
+                    {(selectedRequest.attachments || []).map((a) => (
+                      <div key={a.id} style={s.compactRow}>
+                        <span>{a.type}: {a.name}</span>
+                        <button style={s.linkBtn} onClick={() => downloadCapexAttachment(selectedRequest.id, a)}>Download</button>
+                      </div>
+                    ))}
+                    {!(selectedRequest.attachments || []).length && <p style={s.detailText}>No documents uploaded yet.</p>}
+                  </div>
+
+                  <h4 style={s.detailTitle}>Approval Workflow</h4>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    {(selectedRequest.approvalSteps || []).map((step) => (
+                      <div key={step.id} style={s.compactRow}>
+                        <span>{step.stepOrder}. {step.label}</span>
+                        <StatusBadge status={step.status} />
+                      </div>
+                    ))}
+                  </div>
+
+                  {selectedRequest.status !== 'Approved for Procurement' &&
+                   selectedRequest.status !== 'Rejected' &&
+                   selectedRequest.status !== 'Returned for Correction' && (
+                    <div style={{ display: 'flex', gap: 8, marginTop: 18 }}>
+                      <button style={s.primaryBtn} onClick={() => handleCapexDecision('APPROVED')}>Approve Step</button>
+                      <button style={s.warnBtn} onClick={() => handleCapexDecision('RETURNED')}>Return</button>
+                      <button style={s.dangerBtn} onClick={() => handleCapexDecision('REJECTED')}>Reject</button>
+                    </div>
+                  )}
+
+                  <h4 style={s.detailTitle}>Procurement Tracking</h4>
+                  <div style={s.lifecycleGrid}>
+                    <label style={s.check}><input type="checkbox" checked={!!procurementForm.ndaRequired} onChange={e => setProcurementForm(p => ({ ...p, ndaRequired: e.target.checked, ndaStatus: e.target.checked ? 'Pending' : 'Not required' }))} /> NDA required</label>
+                    <select style={s.compactInput} value={procurementForm.ndaStatus || 'Not required'} onChange={e => setProcurementForm(p => ({ ...p, ndaStatus: e.target.value }))}>
+                      {['Not required', 'Pending', 'Completed'].map(v => <option key={v}>{v}</option>)}
+                    </select>
+                    <label style={s.check}><input type="checkbox" checked={!!procurementForm.dpaRequired} onChange={e => setProcurementForm(p => ({ ...p, dpaRequired: e.target.checked, dpaStatus: e.target.checked ? 'Pending' : 'Not required' }))} /> DPA required</label>
+                    <select style={s.compactInput} value={procurementForm.dpaStatus || 'Not required'} onChange={e => setProcurementForm(p => ({ ...p, dpaStatus: e.target.value }))}>
+                      {['Not required', 'Pending', 'Completed'].map(v => <option key={v}>{v}</option>)}
+                    </select>
+                    <select style={s.compactInput} value={procurementForm.vendorRegistrationStatus || 'Pending'} onChange={e => setProcurementForm(p => ({ ...p, vendorRegistrationStatus: e.target.value }))}>
+                      {['Not required', 'Pending', 'Completed'].map(v => <option key={v}>{v}</option>)}
+                    </select>
+                    <select style={s.compactInput} value={procurementForm.agreementStatus || 'Pending'} onChange={e => setProcurementForm(p => ({ ...p, agreementStatus: e.target.value }))}>
+                      {['Not required', 'Pending', 'Completed'].map(v => <option key={v}>{v}</option>)}
+                    </select>
+                    <input style={s.compactInput} placeholder="GSAP project reference" value={procurementForm.gsapProjectReference || ''} onChange={e => setProcurementForm(p => ({ ...p, gsapProjectReference: e.target.value }))} />
+                    <input style={s.compactInput} placeholder="PR number" value={procurementForm.prNumber || ''} onChange={e => setProcurementForm(p => ({ ...p, prNumber: e.target.value }))} />
+                    <input style={s.compactInput} placeholder="PO number" value={procurementForm.poNumber || ''} onChange={e => setProcurementForm(p => ({ ...p, poNumber: e.target.value }))} />
+                    <input style={s.compactInput} type="number" placeholder="PO value" value={procurementForm.poValue || ''} onChange={e => setProcurementForm(p => ({ ...p, poValue: e.target.value }))} />
+                    <input style={s.compactInput} placeholder="PO attachment filename" value={procurementForm.poAttachmentName || ''} onChange={e => setProcurementForm(p => ({ ...p, poAttachmentName: e.target.value }))} />
+                    <select style={s.compactInput} value={procurementForm.poStatus || ''} onChange={e => setProcurementForm(p => ({ ...p, poStatus: e.target.value }))}>
+                      {['', 'Draft', 'Created', 'Released', 'Uploaded'].map(v => <option key={v}>{v || 'PO status'}</option>)}
+                    </select>
+                  </div>
+                  <button style={{ ...s.primaryBtn, marginTop: 10 }} onClick={handleSaveProcurement}>Save Procurement</button>
+
+                  <h4 style={s.detailTitle}>Project Execution</h4>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 12 }}>
+                    {(selectedRequest.milestones || []).map((m) => (
+                      <div key={m.id} style={s.compactRow}>
+                        <span>{m.stageName} - {m.milestoneName}</span>
+                        <span style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                          <StatusBadge status={m.status} />
+                          {m.status !== 'Complete' && <button style={s.miniBtn} onClick={() => handleCompleteMilestone(m)}>Complete</button>}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                  <form onSubmit={handleAddMilestone} style={s.lifecycleGrid}>
+                    <input style={s.compactInput} placeholder="Stage" value={milestoneForm.stageName} onChange={e => setMilestoneForm(p => ({ ...p, stageName: e.target.value }))} />
+                    <input style={s.compactInput} placeholder="Milestone" value={milestoneForm.milestoneName} onChange={e => setMilestoneForm(p => ({ ...p, milestoneName: e.target.value }))} />
+                    <input style={s.compactInput} type="date" value={milestoneForm.plannedDate} onChange={e => setMilestoneForm(p => ({ ...p, plannedDate: e.target.value }))} />
+                    <input style={s.compactInput} type="number" placeholder="Payment %" value={milestoneForm.paymentPercentage} onChange={e => setMilestoneForm(p => ({ ...p, paymentPercentage: e.target.value }))} />
+                    <input style={s.compactInput} type="number" placeholder="Payment amount" value={milestoneForm.paymentAmount} onChange={e => setMilestoneForm(p => ({ ...p, paymentAmount: e.target.value }))} />
+                    <input style={s.compactInput} placeholder="Evidence filename" value={milestoneForm.completionEvidence} onChange={e => setMilestoneForm(p => ({ ...p, completionEvidence: e.target.value }))} />
+                    <button style={s.primaryBtn} type="submit">Add Milestone</button>
+                  </form>
+
+                  <h4 style={s.detailTitle}>Financial Closure</h4>
+                  <div style={s.lifecycleGrid}>
+                    <input style={s.compactInput} type="number" placeholder="Actual spend" value={closureForm.actualSpend} onChange={e => setClosureForm(p => ({ ...p, actualSpend: e.target.value }))} />
+                    <input style={s.compactInput} placeholder="Final ROI" value={closureForm.finalRoi} onChange={e => setClosureForm(p => ({ ...p, finalRoi: e.target.value }))} />
+                    <input style={s.compactInput} type="number" placeholder="Final savings" value={closureForm.finalSavings} onChange={e => setClosureForm(p => ({ ...p, finalSavings: e.target.value }))} />
+                    <input style={s.compactInput} placeholder="CAPEX closure form" value={closureForm.capexFormAttachment} onChange={e => setClosureForm(p => ({ ...p, capexFormAttachment: e.target.value }))} />
+                    <input style={{ ...s.compactInput, gridColumn: '1 / -1' }} placeholder="Finance comments" value={closureForm.financeComments} onChange={e => setClosureForm(p => ({ ...p, financeComments: e.target.value }))} />
+                  </div>
+                  <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
+                    <button style={s.warnBtn} onClick={() => handleSaveClosure(false)}>Save Closure Draft</button>
+                    <button style={s.primaryBtn} onClick={() => handleSaveClosure(true)}>Close Request</button>
+                  </div>
+
+                  <h4 style={s.detailTitle}>Audit History</h4>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    {auditLogs.length ? auditLogs.map(log => (
+                      <div key={log.id} style={s.compactRow}>
+                        <span>{log.message}</span>
+                        <span style={{ color: 'var(--label-secondary)' }}>{log.actor}</span>
+                      </div>
+                    )) : <p style={s.detailText}>No audit events recorded yet.</p>}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {activeTab === 'admin' && (
+        <div>
+          <div style={s.tabActionRow}>
+            <div>
+              <h2 style={s.sectionTitle}>CAPEX Admin Configuration</h2>
+              <p style={s.tabSubtitle}>Maintain first-build governance thresholds and approval matrix rules.</p>
+            </div>
+          </div>
+
+          <div style={s.section}>
+            <h3 style={s.detailTitle}>Value Thresholds</h3>
+            <div style={{ ...s.lifecycleGrid, maxWidth: 520 }}>
+              <input style={s.compactInput} type="number" value={thresholdForm.lowMaxOmr} onChange={e => setThresholdForm(p => ({ ...p, lowMaxOmr: Number(e.target.value) }))} />
+              <input style={s.compactInput} type="number" value={thresholdForm.mediumMaxOmr} onChange={e => setThresholdForm(p => ({ ...p, mediumMaxOmr: Number(e.target.value) }))} />
+              <MiniInfo label="Low Value Max" value={`OMR ${Number(thresholdForm.lowMaxOmr).toLocaleString()}`} />
+              <MiniInfo label="Medium Value Max" value={`OMR ${Number(thresholdForm.mediumMaxOmr).toLocaleString()}`} />
+            </div>
+            <button style={s.primaryBtn} onClick={handleSaveThresholds}>Save Thresholds</button>
+          </div>
+
+          <div style={s.section}>
+            <h3 style={s.detailTitle}>Workflow Matrix</h3>
+            <DataTable
+              columns={[
+                { key: 'valueBand', label: 'Band' },
+                { key: 'conditionKey', label: 'Condition' },
+                { key: 'stepOrder', label: 'Order',
+                  render: (v, row) => <input style={{ ...s.compactInput, width: 74 }} type="number" value={v} onChange={e => handleWorkflowRuleChange(row, 'stepOrder', Number(e.target.value))} />
+                },
+                { key: 'approverRole', label: 'Approver Role',
+                  render: (v, row) => <input style={s.compactInput} value={v} onChange={e => handleWorkflowRuleChange(row, 'approverRole', e.target.value)} />
+                },
+                { key: 'label', label: 'Step Label',
+                  render: (v, row) => <input style={s.compactInput} value={v} onChange={e => handleWorkflowRuleChange(row, 'label', e.target.value)} />
+                },
+                { key: 'isActive', label: 'Active',
+                  render: (v, row) => <input type="checkbox" checked={!!v} onChange={e => handleWorkflowRuleChange(row, 'isActive', e.target.checked)} />
+                },
+                { key: 'id', label: 'Action',
+                  render: (_, row) => <button style={s.miniBtn} onClick={() => handleSaveWorkflowRule(row)}>Save</button>
+                },
+              ]}
+              rows={adminConfig?.workflowRules || []}
+              emptyMsg="Workflow configuration has not loaded."
+            />
+          </div>
+        </div>
+      )}
+
       {activeTab === 'initiations' && (
         <div>
           <div style={s.tabActionRow}>
@@ -643,6 +1044,15 @@ export default function CapexDashboard() {
 }
 
 // ── Styles ────────────────────────────────────────────────────────────────────
+function MiniInfo({ label, value }) {
+  return (
+    <div style={s.miniInfo}>
+      <span style={s.miniLabel}>{label}</span>
+      <strong style={s.miniValue}>{value || '-'}</strong>
+    </div>
+  );
+}
+
 const s = {
   center: {
     display: 'flex', flexDirection: 'column',
@@ -763,6 +1173,55 @@ const s = {
     border: 'none', borderRadius: 'var(--radius-sm)',
     fontSize: 14, fontWeight: 600, color: '#fff', cursor: 'pointer',
     boxShadow: 'var(--shadow-sm)', flexShrink: 0,
+  },
+  warnBtn: {
+    padding: '9px 14px', background: 'rgba(251,191,36,0.14)',
+    border: '1px solid rgba(251,191,36,0.30)', borderRadius: 'var(--radius-sm)',
+    fontSize: 13, fontWeight: 700, color: '#fbbf24', cursor: 'pointer',
+  },
+  dangerBtn: {
+    padding: '9px 14px', background: 'rgba(220,38,38,0.12)',
+    border: '1px solid rgba(220,38,38,0.30)', borderRadius: 'var(--radius-sm)',
+    fontSize: 13, fontWeight: 700, color: '#ff6b6b', cursor: 'pointer',
+  },
+  linkBtn: {
+    background: 'transparent', border: 'none', padding: 0,
+    color: 'var(--shell-red)', fontWeight: 700, cursor: 'pointer',
+    textAlign: 'left', font: 'inherit',
+  },
+  miniInfo: {
+    background: 'var(--bg)', border: '1px solid var(--separator-clear)',
+    borderRadius: 'var(--radius-sm)', padding: '10px 12px',
+  },
+  miniLabel: {
+    display: 'block', fontSize: 10, fontWeight: 700,
+    color: 'var(--label-secondary)', textTransform: 'uppercase', letterSpacing: '0.4px',
+  },
+  miniValue: { display: 'block', marginTop: 4, fontSize: 13, color: 'var(--label)' },
+  detailTitle: { margin: '16px 0 8px', fontSize: 12, fontWeight: 800, color: 'var(--label-secondary)', textTransform: 'uppercase', letterSpacing: '0.4px' },
+  detailText: { margin: 0, fontSize: 13, color: 'var(--label)', lineHeight: 1.55 },
+  compactRow: {
+    display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12,
+    background: 'var(--bg)', border: '1px solid var(--separator-clear)',
+    borderRadius: 'var(--radius-sm)', padding: '9px 12px', fontSize: 13,
+  },
+  lifecycleGrid: {
+    display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+    gap: 8, marginBottom: 12,
+  },
+  compactInput: {
+    border: '1px solid var(--separator)', borderRadius: 'var(--radius-sm)',
+    padding: '8px 10px', fontSize: 12, color: 'var(--label)',
+    background: 'var(--bg)', fontFamily: 'inherit', minWidth: 0,
+  },
+  miniBtn: {
+    padding: '5px 8px', border: '1px solid var(--separator)',
+    borderRadius: 'var(--radius-sm)', background: 'var(--surface)',
+    color: 'var(--label-secondary)', fontSize: 11, fontWeight: 700, cursor: 'pointer',
+  },
+  inlineLink: {
+    color: 'var(--shell-red)', fontSize: 12, fontWeight: 700,
+    textDecoration: 'none', whiteSpace: 'nowrap',
   },
 
   tableWrap: { overflowX: 'auto' },
