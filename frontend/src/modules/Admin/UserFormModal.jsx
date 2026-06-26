@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { USER_ROLES } from '../../services/usersService';
 
-const ROLES = ['Admin', 'Manager', 'Finance', 'Employee'];
-const DEPARTMENTS = ['IT', 'Operations', 'Finance', 'Retail', 'HR', 'Legal', 'Commercial', 'Engineering'];
+const DEPARTMENTS = ['IT', 'Operations', 'Finance', 'Retail', 'HR', 'Legal', 'Commercial', 'Engineering', 'Procurement', 'Internal Audit', 'Assets', 'HSSE'];
 
 export default function UserFormModal({ user, onSave, onClose }) {
   const isEdit = !!user;
@@ -80,7 +80,7 @@ export default function UserFormModal({ user, onSave, onClose }) {
             </div>
             <div style={s.row}>
               <SelectField label="Role *" name="role" value={form.role}
-                onChange={handleField} options={ROLES} />
+                onChange={handleField} options={USER_ROLES} />
               <SelectField label="Department" name="department" value={form.department}
                 onChange={handleField} options={['', ...DEPARTMENTS]} />
             </div>

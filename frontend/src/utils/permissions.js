@@ -22,8 +22,13 @@ export function buildPermMap(permissions = []) {
  */
 export function can(permMap, role, resourceKey, action = 'can_view') {
   if (role === 'Admin') return true;
-  const p = permMap[resourceKey];
-  return p ? !!p[action] : false;
+  const parts = resourceKey.split('.');
+  for (let i = parts.length; i >= 1; i -= 1) {
+    const key = parts.slice(0, i).join('.');
+    const p = permMap[key];
+    if (p?.[action]) return true;
+  }
+  return false;
 }
 
 export const canView   = (m, r, k) => can(m, r, k, 'can_view');

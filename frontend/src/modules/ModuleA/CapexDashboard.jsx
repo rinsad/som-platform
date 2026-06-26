@@ -111,25 +111,22 @@ const ALL_TABS = [
   { id: 'departments', label: 'Departments',    permKey: 'capex.planning.departments' },
   { id: 'gsap',        label: 'GSAP Sync',      disabled: true },
   { id: 'manual',      label: 'Manual Entries', permKey: 'capex.tracking.manual-entry' },
-  { id: 'requests',    label: 'Requests',       permKey: 'capex' },
-  { id: 'governance',  label: 'Governance',     permKey: 'capex' },
-  { id: 'admin',       label: 'Admin Config',   adminOnly: true },
-  { id: 'initiations', label: 'Initiations',    adminOnly: true },
+  { id: 'requests',    label: 'Requests',       permKey: 'capex.requests' },
+  { id: 'governance',  label: 'Governance',     permKey: 'capex.governance.dashboard' },
+  { id: 'admin',       label: 'Admin Config',   permKey: 'capex.admin' },
+  { id: 'initiations', label: 'Initiations',    permKey: 'capex.initiations' },
 ];
 
 // ── Component ─────────────────────────────────────────────────────────────────
 export default function CapexDashboard() {
-  const rawUser          = localStorage.getItem('som_user');
-  const isAdmin          = rawUser ? JSON.parse(rawUser)?.role === 'Admin' : false;
-  const { canView }      = usePermissions();
+  const { canView, canCreate, canEdit } = usePermissions();
 
   const TABS = ALL_TABS.filter(t => {
-    if (t.adminOnly && !isAdmin) return false;
     if (t.permKey && !canView(t.permKey)) return false;
     return true;
   });
 
-  const [activeTab,      setActiveTab]      = useState('overview');
+  const [activeTab,      setActiveTab]      = useState(() => TABS[0]?.id || 'overview');
   const [depts,          setDepts]          = useState([]);
   const [syncStatus,     setSyncStatus]     = useState(null);
   const [gsapData,       setGsapData]       = useState(null);
@@ -179,17 +176,44 @@ export default function CapexDashboard() {
     setLoading(true);
     setError('');
     try {
-      const [deptResults, syncRes, gsap, inits, entries, gov, refs, schedules, drill] = await Promise.all([
-        getDepartments(),
-        getSyncStatus(),
-        getGsapData(),
-        getInitiations(),
-        getManualEntries(),
-        getCapexGovernanceDashboard(),
-        getCapexProcessReference(),
-        getCapexReportSchedules(),
-        getCapexDashboardDrilldown(drilldownType),
+      let allowedCalls = 0;
+      let failedCalls = 0;
+      const safe = (allowed, fn, fallback) => {
+        if (!allowed) return Promise.resolve(fallback);
+        allowedCalls += 1;
+        return fn().catch(() => {
+          failedCalls += 1;
+          return fallback;
+        });
+      };
+      const [
+        deptResults,
+        syncRes,
+        gsap,
+        inits,
+        entries,
+        gov,
+        refs,
+        schedules,
+        drill,
+        requests,
+        config,
+      ] = await Promise.all([
+        safe(canView('capex.planning.departments'), getDepartments, []),
+        safe(canView('capex.planning.dashboard'), getSyncStatus, null),
+        safe(canView('capex.planning.dashboard'), getGsapData, null),
+        safe(canView('capex.initiations'), getInitiations, []),
+        safe(canView('capex.tracking.manual-entry'), getManualEntries, []),
+        safe(canView('capex.governance.dashboard'), getCapexGovernanceDashboard, null),
+        safe(canView('capex.governance.dashboard'), getCapexProcessReference, null),
+        safe(canView('capex.reports'), getCapexReportSchedules, []),
+        safe(canView('capex.governance.dashboard'), () => getCapexDashboardDrilldown(drilldownType), { rows: [] }),
+        safe(canView('capex.requests'), getCapexRequests, []),
+        safe(canView('capex.admin'), getCapexAdminConfig, null),
       ]);
+      if (allowedCalls > 0 && failedCalls === allowedCalls) {
+        throw new Error('All permitted CAPEX requests failed');
+      }
       setDepts(deptResults);
       if (deptResults.length) setSelectedDept(prev => prev || deptResults[0].name);
       setSyncStatus(syncRes);
@@ -200,13 +224,11 @@ export default function CapexDashboard() {
       setProcessRef(refs);
       setReportSchedules(schedules);
       setDrilldownRows(drill.rows || []);
-      const requests = await getCapexRequests();
       setCapexRequests(requests);
       if (!selectedRequest && requests.length) {
         getCapexRequest(requests[0].id).then(setSelectedRequest).catch(() => {});
       }
-      if (isAdmin) {
-        const config = await getCapexAdminConfig();
+      if (config) {
         setAdminConfig(config);
         setThresholdForm({
           lowMaxOmr: config.thresholds.lowMaxOmr,
@@ -904,7 +926,9 @@ export default function CapexDashboard() {
               <h2 style={s.sectionTitle}>Manual Entry Fallback</h2>
               <p style={s.tabSubtitle}>Post budget adjustments, actuals, or PO commitments for non-GSAP items with a standardised structure.</p>
             </div>
-            <button style={s.primaryBtn} onClick={() => setShowManual(true)}>+ Add Entry</button>
+            {canCreate('capex.tracking.manual-entry') && (
+              <button style={s.primaryBtn} onClick={() => setShowManual(true)}>+ Add Entry</button>
+            )}
           </div>
 
           <div style={s.section}>
@@ -936,8 +960,12 @@ export default function CapexDashboard() {
               <p style={s.tabSubtitle}>Governance workflow for quotations, HSSE risk, approvals, and procurement handover.</p>
             </div>
             <div style={{ display: 'flex', gap: 10, flexShrink: 0 }}>
-              <a href={getCapexReportCsvUrl()} style={{ ...s.secondaryBtn, textDecoration: 'none' }}>Export CSV</a>
-              <button style={s.primaryBtn} onClick={() => setShowRequestForm(true)}>+ New CAPEX Request</button>
+              {canView('capex.reports') && (
+                <a href={getCapexReportCsvUrl()} style={{ ...s.secondaryBtn, textDecoration: 'none' }}>Export CSV</a>
+              )}
+              {canCreate('capex.requests') && (
+                <button style={s.primaryBtn} onClick={() => setShowRequestForm(true)}>+ New CAPEX Request</button>
+              )}
             </div>
           </div>
 
@@ -1015,7 +1043,9 @@ export default function CapexDashboard() {
                     <select style={s.compactInput} value={attachmentType} onChange={e => setAttachmentType(e.target.value)}>
                       {['Scope Document', 'Supplier Quotation', 'HSSE Evidence', 'PO Document', 'Milestone Evidence', 'CAPEX Closure Form'].map(v => <option key={v}>{v}</option>)}
                     </select>
-                    <input style={s.compactInput} type="file" onChange={handleAttachmentUpload} />
+                    {canCreate('capex.documents') && (
+                      <input style={s.compactInput} type="file" onChange={handleAttachmentUpload} />
+                    )}
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 16 }}>
                     {(selectedRequest.attachments || []).map((a) => (
@@ -1037,7 +1067,8 @@ export default function CapexDashboard() {
                     ))}
                   </div>
 
-                  {selectedRequest.status !== 'Approved for Procurement' &&
+                  {canEdit('capex.approvals') &&
+                   selectedRequest.status !== 'Approved for Procurement' &&
                    selectedRequest.status !== 'Rejected' &&
                    selectedRequest.status !== 'Returned for Correction' && (
                     <div style={{ display: 'flex', gap: 8, marginTop: 18 }}>
@@ -1072,7 +1103,9 @@ export default function CapexDashboard() {
                       {['', 'Draft', 'Created', 'Released', 'Uploaded'].map(v => <option key={v}>{v || 'PO status'}</option>)}
                     </select>
                   </div>
-                  <button style={{ ...s.primaryBtn, marginTop: 10 }} onClick={handleSaveProcurement}>Save Procurement</button>
+                  {canEdit('capex.procurement') && (
+                    <button style={{ ...s.primaryBtn, marginTop: 10 }} onClick={handleSaveProcurement}>Save Procurement</button>
+                  )}
 
                   <h4 style={s.detailTitle}>Project Execution</h4>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 12 }}>
@@ -1081,12 +1114,12 @@ export default function CapexDashboard() {
                         <span>{m.stageName} - {m.milestoneName}</span>
                         <span style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                           <StatusBadge status={m.status} />
-                          {m.status !== 'Complete' && <button style={s.miniBtn} onClick={() => handleCompleteMilestone(m)}>Complete</button>}
+                          {canEdit('capex.requests') && m.status !== 'Complete' && <button style={s.miniBtn} onClick={() => handleCompleteMilestone(m)}>Complete</button>}
                         </span>
                       </div>
                     ))}
                   </div>
-                  <form onSubmit={handleAddMilestone} style={s.lifecycleGrid}>
+                  {canEdit('capex.requests') && <form onSubmit={handleAddMilestone} style={s.lifecycleGrid}>
                     <input style={s.compactInput} placeholder="Stage" value={milestoneForm.stageName} onChange={e => setMilestoneForm(p => ({ ...p, stageName: e.target.value }))} />
                     <input style={s.compactInput} placeholder="Milestone" value={milestoneForm.milestoneName} onChange={e => setMilestoneForm(p => ({ ...p, milestoneName: e.target.value }))} />
                     <input style={s.compactInput} type="date" value={milestoneForm.plannedDate} onChange={e => setMilestoneForm(p => ({ ...p, plannedDate: e.target.value }))} />
@@ -1094,7 +1127,7 @@ export default function CapexDashboard() {
                     <input style={s.compactInput} type="number" placeholder="Payment amount" value={milestoneForm.paymentAmount} onChange={e => setMilestoneForm(p => ({ ...p, paymentAmount: e.target.value }))} />
                     <input style={s.compactInput} placeholder="Evidence filename" value={milestoneForm.completionEvidence} onChange={e => setMilestoneForm(p => ({ ...p, completionEvidence: e.target.value }))} />
                     <button style={s.primaryBtn} type="submit">Add Milestone</button>
-                  </form>
+                  </form>}
 
                   <h4 style={s.detailTitle}>Financial Closure</h4>
                   <div style={s.lifecycleGrid}>
@@ -1104,10 +1137,12 @@ export default function CapexDashboard() {
                     <input style={s.compactInput} placeholder="CAPEX closure form" value={closureForm.capexFormAttachment} onChange={e => setClosureForm(p => ({ ...p, capexFormAttachment: e.target.value }))} />
                     <input style={{ ...s.compactInput, gridColumn: '1 / -1' }} placeholder="Finance comments" value={closureForm.financeComments} onChange={e => setClosureForm(p => ({ ...p, financeComments: e.target.value }))} />
                   </div>
-                  <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
-                    <button style={s.warnBtn} onClick={() => handleSaveClosure(false)}>Save Closure Draft</button>
-                    <button style={s.primaryBtn} onClick={() => handleSaveClosure(true)}>Close Request</button>
-                  </div>
+                  {canEdit('capex.finance') && (
+                    <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
+                      <button style={s.warnBtn} onClick={() => handleSaveClosure(false)}>Save Closure Draft</button>
+                      <button style={s.primaryBtn} onClick={() => handleSaveClosure(true)}>Close Request</button>
+                    </div>
+                  )}
 
                   <h4 style={s.detailTitle}>AUC, Capitalization & PO Closure</h4>
                   <div style={s.lifecycleGrid}>
@@ -1118,7 +1153,7 @@ export default function CapexDashboard() {
                       {['Open', 'In Review', 'Capitalized'].map(v => <option key={v}>{v}</option>)}
                     </select>
                     <label style={s.check}><input type="checkbox" checked={aucForm.capitalizationReady} onChange={e => setAucForm(p => ({ ...p, capitalizationReady: e.target.checked }))} /> Capitalization ready</label>
-                    <button style={s.primaryBtn} onClick={handleSaveAuc}>Save AUC</button>
+                    {canEdit('capex.finance') && <button style={s.primaryBtn} onClick={handleSaveAuc}>Save AUC</button>}
                   </div>
 
                   <div style={s.lifecycleGrid}>
@@ -1129,7 +1164,7 @@ export default function CapexDashboard() {
                     <input style={s.compactInput} placeholder="Asset category" value={capitalizationForm.assetCategory} onChange={e => setCapitalizationForm(p => ({ ...p, assetCategory: e.target.value }))} />
                     <input style={s.compactInput} type="number" placeholder="Capitalized value" value={capitalizationForm.capitalizedValue} onChange={e => setCapitalizationForm(p => ({ ...p, capitalizedValue: e.target.value }))} />
                     <input style={s.compactInput} type="date" value={capitalizationForm.capitalizationRequestDate} onChange={e => setCapitalizationForm(p => ({ ...p, capitalizationRequestDate: e.target.value }))} />
-                    <button style={s.primaryBtn} onClick={handleSaveCapitalization}>Save Capitalization</button>
+                    {canEdit('capex.finance') && <button style={s.primaryBtn} onClick={handleSaveCapitalization}>Save Capitalization</button>}
                   </div>
 
                   <div style={s.lifecycleGrid}>
@@ -1140,7 +1175,7 @@ export default function CapexDashboard() {
                     <input style={s.compactInput} type="number" placeholder="Unutilized commitment" value={poClosureForm.unutilizedCommitment} onChange={e => setPoClosureForm(p => ({ ...p, unutilizedCommitment: e.target.value }))} />
                     <input style={s.compactInput} type="date" value={poClosureForm.closureDueDate} onChange={e => setPoClosureForm(p => ({ ...p, closureDueDate: e.target.value }))} />
                     <label style={s.check}><input type="checkbox" checked={poClosureForm.finalInvoiceReceived} onChange={e => setPoClosureForm(p => ({ ...p, finalInvoiceReceived: e.target.checked }))} /> Final invoice</label>
-                    <button style={s.primaryBtn} onClick={handleSavePoClosure}>Save PO Closure</button>
+                    {canEdit('capex.closure') && <button style={s.primaryBtn} onClick={handleSavePoClosure}>Save PO Closure</button>}
                   </div>
 
                   <h4 style={s.detailTitle}>Closure Checklist</h4>
@@ -1150,7 +1185,7 @@ export default function CapexDashboard() {
                         <span>{item.label}</span>
                         <span style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                           <StatusBadge status={item.status} />
-                          {item.status !== 'Completed' && <button style={s.miniBtn} onClick={() => handleChecklistStatus(item, 'Completed')}>Done</button>}
+                          {canEdit('capex.closure') && item.status !== 'Completed' && <button style={s.miniBtn} onClick={() => handleChecklistStatus(item, 'Completed')}>Done</button>}
                         </span>
                       </div>
                     ))}
@@ -1165,7 +1200,7 @@ export default function CapexDashboard() {
                       {['Draft', 'Pending', 'Approved', 'Active'].map(v => <option key={v}>{v}</option>)}
                     </select>
                     <input style={s.compactInput} type="date" value={moaForm.expiryDate} onChange={e => setMoaForm(p => ({ ...p, expiryDate: e.target.value }))} />
-                    <button style={s.primaryBtn} onClick={handleCreateMoa}>Save MOA</button>
+                    {canCreate('capex.moa') && <button style={s.primaryBtn} onClick={handleCreateMoa}>Save MOA</button>}
                   </div>
                   <DataTable
                     columns={[
@@ -1182,7 +1217,7 @@ export default function CapexDashboard() {
                     <input style={s.compactInput} type="number" placeholder="Revised budget" value={variationForm.revisedBudget} onChange={e => setVariationForm(p => ({ ...p, revisedBudget: e.target.value }))} />
                     <input style={{ ...s.compactInput, gridColumn: '1 / -1' }} placeholder="Variation justification" value={variationForm.justification} onChange={e => setVariationForm(p => ({ ...p, justification: e.target.value }))} />
                     <input style={{ ...s.compactInput, gridColumn: '1 / -1' }} placeholder="Financial impact analysis" value={variationForm.financialImpactAnalysis} onChange={e => setVariationForm(p => ({ ...p, financialImpactAnalysis: e.target.value }))} />
-                    <button style={s.primaryBtn} onClick={handleCreateVariation}>Create Variation</button>
+                    {canCreate('capex.variations') && <button style={s.primaryBtn} onClick={handleCreateVariation}>Create Variation</button>}
                   </div>
 
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 12 }}>
@@ -1191,7 +1226,7 @@ export default function CapexDashboard() {
                         <span>{gate.gateName}</span>
                         <span style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                           <StatusBadge status={gate.status} />
-                          {gate.status !== 'Passed' && <button style={s.miniBtn} onClick={() => handleDecisionGate(gate)}>Pass</button>}
+                          {canEdit('capex.approvals') && gate.status !== 'Passed' && <button style={s.miniBtn} onClick={() => handleDecisionGate(gate)}>Pass</button>}
                         </span>
                       </div>
                     ))}
@@ -1205,7 +1240,7 @@ export default function CapexDashboard() {
                     <input style={s.compactInput} type="number" placeholder="Invited vendors" value={procPerfForm.invitedVendorCount} onChange={e => setProcPerfForm(p => ({ ...p, invitedVendorCount: e.target.value }))} />
                     <input style={s.compactInput} type="number" placeholder="Budget estimate" value={procPerfForm.budgetEstimate} onChange={e => setProcPerfForm(p => ({ ...p, budgetEstimate: e.target.value }))} />
                     <input style={s.compactInput} type="number" placeholder="Awarded value" value={procPerfForm.awardedValue} onChange={e => setProcPerfForm(p => ({ ...p, awardedValue: e.target.value }))} />
-                    <button style={s.primaryBtn} onClick={handleSaveProcurementPerformance}>Save Procurement KPIs</button>
+                    {canEdit('capex.procurement') && <button style={s.primaryBtn} onClick={handleSaveProcurementPerformance}>Save Procurement KPIs</button>}
                   </div>
 
                   <div style={s.lifecycleGrid}>
@@ -1217,7 +1252,7 @@ export default function CapexDashboard() {
                     <select style={s.compactInput} value={benefitForm.status} onChange={e => setBenefitForm(p => ({ ...p, status: e.target.value }))}>
                       {['Planned', 'In Review', 'Completed'].map(v => <option key={v}>{v}</option>)}
                     </select>
-                    <button style={s.primaryBtn} onClick={handleSaveBenefitReview}>Save Benefit Review</button>
+                    {canEdit('capex.finance') && <button style={s.primaryBtn} onClick={handleSaveBenefitReview}>Save Benefit Review</button>}
                   </div>
 
                   <div style={s.lifecycleGrid}>
@@ -1229,7 +1264,7 @@ export default function CapexDashboard() {
                     </select>
                     <input style={{ ...s.compactInput, gridColumn: '1 / -1' }} placeholder="Risk title" value={riskForm.title} onChange={e => setRiskForm(p => ({ ...p, title: e.target.value }))} />
                     <input style={{ ...s.compactInput, gridColumn: '1 / -1' }} placeholder="Mitigation plan" value={riskForm.mitigationPlan} onChange={e => setRiskForm(p => ({ ...p, mitigationPlan: e.target.value }))} />
-                    <button style={s.primaryBtn} onClick={handleCreateRisk}>Add Risk</button>
+                    {canCreate('capex.risks') && <button style={s.primaryBtn} onClick={handleCreateRisk}>Add Risk</button>}
                   </div>
 
                   <h4 style={s.detailTitle}>Document Versioning & Signatures</h4>
@@ -1237,12 +1272,12 @@ export default function CapexDashboard() {
                     <input style={s.compactInput} placeholder="Document name" value={docVersionForm.documentName} onChange={e => setDocVersionForm(p => ({ ...p, documentName: e.target.value }))} />
                     <input style={s.compactInput} placeholder="Version" value={docVersionForm.versionLabel} onChange={e => setDocVersionForm(p => ({ ...p, versionLabel: e.target.value }))} />
                     <input style={{ ...s.compactInput, gridColumn: '1 / -1' }} placeholder="Changelog" value={docVersionForm.changelog} onChange={e => setDocVersionForm(p => ({ ...p, changelog: e.target.value }))} />
-                    <button style={s.primaryBtn} onClick={handleCreateDocumentVersion}>Save Version</button>
+                    {canCreate('capex.documents') && <button style={s.primaryBtn} onClick={handleCreateDocumentVersion}>Save Version</button>}
                   </div>
                   <div style={s.lifecycleGrid}>
                     <input style={s.compactInput} placeholder="Signer name" value={signatureForm.signerName} onChange={e => setSignatureForm(p => ({ ...p, signerName: e.target.value }))} />
                     <input style={s.compactInput} placeholder="Signer role" value={signatureForm.signerRole} onChange={e => setSignatureForm(p => ({ ...p, signerRole: e.target.value }))} />
-                    <button style={s.primaryBtn} onClick={handleCreateSignature}>Capture Signature</button>
+                    {canCreate('capex.documents') && <button style={s.primaryBtn} onClick={handleCreateSignature}>Capture Signature</button>}
                   </div>
 
                   <h4 style={s.detailTitle}>Audit History</h4>
@@ -1269,7 +1304,9 @@ export default function CapexDashboard() {
               <p style={s.tabSubtitle}>Executive controls for portfolio health, MOA compliance, AUC, capitalization, PO closure, decision gates, and reporting.</p>
             </div>
             <div style={{ display: 'flex', gap: 10, flexShrink: 0 }}>
-              <a href={getCapexGovernanceExportUrl('csv')} style={{ ...s.secondaryBtn, textDecoration: 'none' }}>Export Governance CSV</a>
+              {canView('capex.reports') && (
+                <a href={getCapexGovernanceExportUrl('csv')} style={{ ...s.secondaryBtn, textDecoration: 'none' }}>Export Governance CSV</a>
+              )}
               <button style={s.primaryBtn} onClick={() => refreshGovernance()}>Refresh</button>
             </div>
           </div>
@@ -1341,7 +1378,9 @@ export default function CapexDashboard() {
                 <input style={s.compactInput} type="date" value={scheduleForm.nextRunDate} onChange={e => setScheduleForm(p => ({ ...p, nextRunDate: e.target.value }))} />
                 <input style={{ ...s.compactInput, gridColumn: '1 / -1' }} placeholder="Recipients, comma separated" value={scheduleForm.recipients} onChange={e => setScheduleForm(p => ({ ...p, recipients: e.target.value }))} />
               </div>
-              <button style={s.primaryBtn} onClick={handleCreateReportSchedule}>Add Schedule</button>
+              {canCreate('capex.reports') && (
+                <button style={s.primaryBtn} onClick={handleCreateReportSchedule}>Add Schedule</button>
+              )}
               <DataTable
                 columns={[
                   { key: 'reportName', label: 'Report' },
@@ -1388,7 +1427,9 @@ export default function CapexDashboard() {
               <MiniInfo label="Low Value Max" value={`OMR ${Number(thresholdForm.lowMaxOmr).toLocaleString()}`} />
               <MiniInfo label="Medium Value Max" value={`OMR ${Number(thresholdForm.mediumMaxOmr).toLocaleString()}`} />
             </div>
-            <button style={s.primaryBtn} onClick={handleSaveThresholds}>Save Thresholds</button>
+            {canEdit('capex.admin') && (
+              <button style={s.primaryBtn} onClick={handleSaveThresholds}>Save Thresholds</button>
+            )}
           </div>
 
           <div style={s.section}>
@@ -1410,7 +1451,7 @@ export default function CapexDashboard() {
                   render: (v, row) => <input type="checkbox" checked={!!v} onChange={e => handleWorkflowRuleChange(row, 'isActive', e.target.checked)} />
                 },
                 { key: 'id', label: 'Action',
-                  render: (_, row) => <button style={s.miniBtn} onClick={() => handleSaveWorkflowRule(row)}>Save</button>
+                  render: (_, row) => canEdit('capex.admin') ? <button style={s.miniBtn} onClick={() => handleSaveWorkflowRule(row)}>Save</button> : '-'
                 },
               ]}
               rows={adminConfig?.workflowRules || []}
@@ -1428,13 +1469,15 @@ export default function CapexDashboard() {
               <p style={s.tabSubtitle}>Standardised requirement gathering — capture project details, stakeholders, and justification before budget approval.</p>
             </div>
             <div style={{ display: 'flex', gap: 10, flexShrink: 0 }}>
+              {canCreate('capex.finance') && (
               <button
                 style={{ ...s.primaryBtn, background: 'var(--surface)', color: 'var(--shell-red)', border: '1px solid rgba(221,29,33,0.30)', boxShadow: 'none' }}
                 onClick={() => setShowBudgetUpload(true)}
               >
                 ↑ Upload Approved Budget
               </button>
-              {!showInitForm && (
+              )}
+              {canCreate('capex.initiations') && !showInitForm && (
                 <button style={s.primaryBtn} onClick={() => setShowInitForm(true)}>+ New Initiation</button>
               )}
             </div>

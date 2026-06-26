@@ -1,6 +1,7 @@
 const request = require('supertest');
 const jwt = require('jsonwebtoken');
 const app = require('../src/index');
+const { getRolePermissionPreset } = require('../src/config/capexRolePermissions');
 
 const token = jwt.sign(
   { id: 1, email: 'admin@shell.om', role: 'Admin', department: 'IT' },
@@ -9,6 +10,14 @@ const token = jwt.sign(
 );
 
 const auth = { Authorization: `Bearer ${token}` };
+
+const limitedToken = jwt.sign(
+  { id: '00000000-0000-0000-0000-000000000001', email: 'limited@shell.om', role: 'Employee', department: 'Retail' },
+  process.env.JWT_SECRET || 'som-super-secret-key-2026',
+  { expiresIn: '1h' }
+);
+
+const limitedAuth = { Authorization: `Bearer ${limitedToken}` };
 
 describe('GET /api/capex/summary', () => {
   test('returns 200 with 6 departments', async () => {
@@ -36,6 +45,31 @@ describe('GET /api/capex/summary', () => {
   test('returns 401 without a token', async () => {
     const res = await request(app).get('/api/capex/summary');
     expect(res.statusCode).toBe(401);
+  });
+
+  test('returns 403 when user lacks CAPEX permission', async () => {
+    const res = await request(app).get('/api/capex/summary').set(limitedAuth);
+    expect(res.statusCode).toBe(403);
+  });
+});
+
+describe('CAPEX role permission presets', () => {
+  test('Project Owner can create requests but cannot edit finance controls', () => {
+    const preset = getRolePermissionPreset('Project Owner');
+    const requests = preset.find((p) => p.resource_key === 'capex.requests');
+    const finance = preset.find((p) => p.resource_key === 'capex.finance');
+
+    expect(requests).toMatchObject({ can_view: true, can_create: true, can_edit: true });
+    expect(finance?.can_edit).not.toBe(true);
+  });
+
+  test('Finance Manager can edit finance controls and create reports', () => {
+    const preset = getRolePermissionPreset('Finance Manager');
+    const finance = preset.find((p) => p.resource_key === 'capex.finance');
+    const reports = preset.find((p) => p.resource_key === 'capex.reports');
+
+    expect(finance).toMatchObject({ can_view: true, can_edit: true });
+    expect(reports).toMatchObject({ can_view: true, can_create: true });
   });
 });
 

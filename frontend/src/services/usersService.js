@@ -42,11 +42,30 @@ export const usersService = {
 // Drives both the UI checkbox tree and the DB resource_key values.
 // Structure: Application > Module > Page > Fields
 // Field keys match DB column names; labels match UI form/table headers.
+export const USER_ROLES = [
+  'Admin',
+  'CEO/Board',
+  'CFO',
+  'Finance Manager',
+  'Finance in Business',
+  'CP Manager',
+  'CP Lead',
+  'Project Owner',
+  'Project Engineer',
+  'Business GM',
+  'Internal Audit',
+  'Asset Team',
+  'HSSE Focal',
+  'Manager',
+  'Finance',
+  'Employee',
+];
+
 export const PERMISSION_TREE = [
   // ── MODULE A: CAPEX PLANNING ─────────────────────────────────────────────
   {
     key: 'capex',
-    label: 'Capex Planning',
+    label: 'CAPEX Governance',
     level: 'application',
     icon: '◈',
     modules: [
@@ -101,6 +120,147 @@ export const PERMISSION_TREE = [
               { key: 'capex.tracking.manual-entry.reference_number', label: 'Reference Number' },
               { key: 'capex.tracking.manual-entry.entered_by',       label: 'Entered By' },
               { key: 'capex.tracking.manual-entry.status',           label: 'Status' },
+            ],
+          },
+        ],
+      },
+      {
+        key: 'capex.governance',
+        label: 'Governance',
+        level: 'module',
+        pages: [
+          {
+            key: 'capex.governance.dashboard',
+            label: 'Governance Dashboard',
+            level: 'page',
+            fields: [
+              { key: 'capex.governance.dashboard.portfolio',      label: 'Portfolio Summary' },
+              { key: 'capex.governance.dashboard.auc',            label: 'AUC Aging' },
+              { key: 'capex.governance.dashboard.capitalization', label: 'Capitalization' },
+              { key: 'capex.governance.dashboard.po_closure',     label: 'PO Closure' },
+              { key: 'capex.governance.dashboard.moa_compliance', label: 'MOA Compliance' },
+              { key: 'capex.governance.dashboard.risk',           label: 'Risk Register' },
+            ],
+          },
+          {
+            key: 'capex.requests',
+            label: 'CAPEX Requests',
+            level: 'page',
+            fields: [
+              { key: 'capex.requests.scope',       label: 'Scope & Business Case' },
+              { key: 'capex.requests.quotations',  label: 'Supplier Quotations' },
+              { key: 'capex.requests.milestones',  label: 'Milestones' },
+              { key: 'capex.requests.attachments', label: 'Attachments' },
+            ],
+          },
+          {
+            key: 'capex.approvals',
+            label: 'Approvals & Decision Gates',
+            level: 'page',
+            fields: [
+              { key: 'capex.approvals.workflow', label: 'Approval Workflow' },
+              { key: 'capex.approvals.gates',    label: 'Decision Gates' },
+              { key: 'capex.approvals.comments', label: 'Approval Comments' },
+            ],
+          },
+          {
+            key: 'capex.procurement',
+            label: 'Procurement & PR/PO',
+            level: 'page',
+            fields: [
+              { key: 'capex.procurement.pr',          label: 'PR Tracking' },
+              { key: 'capex.procurement.po',          label: 'PO Tracking' },
+              { key: 'capex.procurement.vendor',      label: 'Vendor Controls' },
+              { key: 'capex.procurement.performance', label: 'Procurement KPIs' },
+            ],
+          },
+          {
+            key: 'capex.finance',
+            label: 'Finance, AUC & Capitalization',
+            level: 'page',
+            fields: [
+              { key: 'capex.finance.budget',         label: 'Budget Monitoring' },
+              { key: 'capex.finance.auc',            label: 'AUC Tracking' },
+              { key: 'capex.finance.capitalization', label: 'Capitalization' },
+              { key: 'capex.finance.benefits',       label: 'Benefit Reviews' },
+            ],
+          },
+          {
+            key: 'capex.closure',
+            label: 'Closure Controls',
+            level: 'page',
+            fields: [
+              { key: 'capex.closure.financial',      label: 'Financial Closure' },
+              { key: 'capex.closure.po',             label: 'PO Closure' },
+              { key: 'capex.closure.checklist',      label: 'Closure Checklist' },
+              { key: 'capex.closure.asset_handover', label: 'Asset Handover' },
+            ],
+          },
+          {
+            key: 'capex.moa',
+            label: 'MOA Records',
+            level: 'page',
+            fields: [
+              { key: 'capex.moa.matrix',    label: 'Authority Matrix' },
+              { key: 'capex.moa.revisions', label: 'MOA Revisions' },
+              { key: 'capex.moa.expiry',    label: 'Expiry & Renewal' },
+            ],
+          },
+          {
+            key: 'capex.variations',
+            label: 'Budget Variations',
+            level: 'page',
+            fields: [
+              { key: 'capex.variations.transfer', label: 'Transfers' },
+              { key: 'capex.variations.impact',   label: 'Financial Impact' },
+              { key: 'capex.variations.fib',      label: 'FiB Review' },
+            ],
+          },
+          {
+            key: 'capex.risks',
+            label: 'Risk & Escalations',
+            level: 'page',
+            fields: [
+              { key: 'capex.risks.register',    label: 'Risk Register' },
+              { key: 'capex.risks.mitigation',  label: 'Mitigation Plan' },
+              { key: 'capex.risks.escalations', label: 'Escalations' },
+            ],
+          },
+          {
+            key: 'capex.documents',
+            label: 'Documents & Signatures',
+            level: 'page',
+            fields: [
+              { key: 'capex.documents.versions',   label: 'Document Versions' },
+              { key: 'capex.documents.signatures', label: 'E-Signatures' },
+              { key: 'capex.documents.audit',      label: 'Audit History' },
+            ],
+          },
+          {
+            key: 'capex.reports',
+            label: 'Reports & Scheduling',
+            level: 'page',
+            fields: [
+              { key: 'capex.reports.export',    label: 'Report Exports' },
+              { key: 'capex.reports.schedules', label: 'Report Schedules' },
+            ],
+          },
+          {
+            key: 'capex.admin',
+            label: 'Admin Configuration',
+            level: 'page',
+            fields: [
+              { key: 'capex.admin.thresholds',      label: 'Value Thresholds' },
+              { key: 'capex.admin.workflow_matrix', label: 'Workflow Matrix' },
+            ],
+          },
+          {
+            key: 'capex.initiations',
+            label: 'Initiations & Budget Uploads',
+            level: 'page',
+            fields: [
+              { key: 'capex.initiations.pipeline',       label: 'Initiation Pipeline' },
+              { key: 'capex.initiations.budget_uploads', label: 'Budget Uploads' },
             ],
           },
         ],

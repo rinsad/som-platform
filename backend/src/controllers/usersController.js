@@ -1,5 +1,6 @@
 const bcrypt = require('bcryptjs');
 const pool = require('../database/db');
+const { getRolePermissionPreset } = require('../config/capexRolePermissions');
 
 // ── List all users (no password hashes) ─────────────────────────────────────
 exports.listUsers = async (req, res, next) => {
@@ -63,8 +64,9 @@ exports.createUser = async (req, res, next) => {
       [employee_id || null, full_name, email, password_hash, role, department || null, req.user.id]
     );
 
-    if (permissions.length > 0) {
-      await _upsertPermissions(client, user.id, permissions);
+    const permissionsToApply = permissions.length > 0 ? permissions : getRolePermissionPreset(role);
+    if (permissionsToApply.length > 0) {
+      await _upsertPermissions(client, user.id, permissionsToApply);
     }
 
     await client.query('COMMIT');
@@ -88,6 +90,15 @@ exports.updateUser = async (req, res, next) => {
     const { employee_id, full_name, email, password, role, department, is_active, permissions } = req.body;
 
     await client.query('BEGIN');
+
+    const { rows: [existingUser] } = await client.query(
+      `SELECT role FROM som_users WHERE id = $1`,
+      [id]
+    );
+    if (!existingUser) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'User not found' });
+    }
 
     // Build partial update
     const fields = [];
@@ -123,6 +134,12 @@ exports.updateUser = async (req, res, next) => {
       await client.query('DELETE FROM som_permissions WHERE user_id=$1', [id]);
       if (permissions.length > 0) {
         await _upsertPermissions(client, id, permissions);
+      }
+    } else if (role !== undefined && role !== existingUser.role) {
+      const rolePreset = getRolePermissionPreset(role);
+      if (rolePreset.length > 0) {
+        await client.query('DELETE FROM som_permissions WHERE user_id=$1', [id]);
+        await _upsertPermissions(client, id, rolePreset);
       }
     }
 
