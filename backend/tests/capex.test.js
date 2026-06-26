@@ -187,6 +187,10 @@ describe('CAPEX request lifecycle rules', () => {
       .set(auth);
     expect(detailBeforeChecklist.statusCode).toBe(200);
     expect(detailBeforeChecklist.body.closureChecklist.length).toBeGreaterThan(0);
+    const checklistLabels = detailBeforeChecklist.body.closureChecklist.map(item => item.label);
+    expect(checklistLabels).toContain('Asset handover completed');
+    expect(checklistLabels).toContain('Lessons learned captured');
+    expect(checklistLabels).toContain('Retention release completed');
 
     const checklistItem = detailBeforeChecklist.body.closureChecklist[0];
     const checklist = await request(app)
