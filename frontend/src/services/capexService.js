@@ -100,6 +100,130 @@ export function getCapexReportCsvUrl() {
   return `${API}/api/capex/requests/report?format=csv`;
 }
 
+export function getCapexGovernanceDashboard() {
+  return request('/api/capex/dashboard/governance');
+}
+
+export function getCapexDashboardDrilldown(type = 'businessUnit', filters = {}) {
+  const params = new URLSearchParams({ type, ...filters });
+  return request(`/api/capex/dashboard/drilldown?${params.toString()}`);
+}
+
+export function getCapexProcessReference() {
+  return request('/api/capex/process-reference');
+}
+
+export function getCapexReportExport(format = 'json', reportType = 'governance') {
+  const params = new URLSearchParams({ format, reportType });
+  return request(`/api/capex/reports/export?${params.toString()}`);
+}
+
+export function getCapexGovernanceExportUrl(format = 'csv', reportType = 'governance') {
+  return `${API}/api/capex/reports/export?format=${encodeURIComponent(format)}&reportType=${encodeURIComponent(reportType)}`;
+}
+
+export function getCapexReportSchedules() {
+  return request('/api/capex/report-schedules');
+}
+
+export function createCapexReportSchedule(data) {
+  return request('/api/capex/report-schedules', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+}
+
+export function updateCapexAuc(id, data) {
+  return request(`/api/capex/requests/${encodeURIComponent(id)}/auc`, {
+    method: 'PATCH',
+    body: JSON.stringify(data),
+  });
+}
+
+export function updateCapexCapitalization(id, data) {
+  return request(`/api/capex/requests/${encodeURIComponent(id)}/capitalization`, {
+    method: 'PATCH',
+    body: JSON.stringify(data),
+  });
+}
+
+export function updateCapexPoClosure(id, data) {
+  return request(`/api/capex/requests/${encodeURIComponent(id)}/po-closure`, {
+    method: 'PATCH',
+    body: JSON.stringify(data),
+  });
+}
+
+export function updateCapexClosureChecklistItem(id, itemId, data) {
+  return request(`/api/capex/requests/${encodeURIComponent(id)}/closure-checklist/${encodeURIComponent(itemId)}`, {
+    method: 'PATCH',
+    body: JSON.stringify(data),
+  });
+}
+
+export function saveCapexBenefitReview(id, data) {
+  return request(`/api/capex/requests/${encodeURIComponent(id)}/benefit-reviews`, {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+}
+
+export function createCapexRisk(id, data) {
+  return request(`/api/capex/requests/${encodeURIComponent(id)}/risks`, {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+}
+
+export function createCapexMoa(id, data) {
+  return request(`/api/capex/requests/${encodeURIComponent(id)}/moa`, {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+}
+
+export function createCapexMoaRevision(id, moaId, data) {
+  return request(`/api/capex/requests/${encodeURIComponent(id)}/moa/${encodeURIComponent(moaId)}/revisions`, {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+}
+
+export function createCapexDocumentVersion(id, data) {
+  return request(`/api/capex/requests/${encodeURIComponent(id)}/document-versions`, {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+}
+
+export function createCapexSignature(id, data) {
+  return request(`/api/capex/requests/${encodeURIComponent(id)}/signatures`, {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+}
+
+export function createCapexBudgetVariation(id, data) {
+  return request(`/api/capex/requests/${encodeURIComponent(id)}/budget-variations`, {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+}
+
+export function updateCapexProcurementPerformance(id, data) {
+  return request(`/api/capex/requests/${encodeURIComponent(id)}/procurement-performance`, {
+    method: 'PATCH',
+    body: JSON.stringify(data),
+  });
+}
+
+export function updateCapexDecisionGate(id, gateKey, data) {
+  return request(`/api/capex/requests/${encodeURIComponent(id)}/decision-gates/${encodeURIComponent(gateKey)}`, {
+    method: 'PATCH',
+    body: JSON.stringify(data),
+  });
+}
+
 export function getCapexAdminConfig() {
   return request('/api/capex/admin-config');
 }

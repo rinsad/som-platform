@@ -8,6 +8,12 @@ import {
   getCapexRequests, getCapexRequest, createCapexRequest, decideCapexRequest,
   updateCapexProcurement, createCapexMilestone, updateCapexMilestone,
   saveCapexFinancialClosure, getCapexAuditLogs, getCapexReportCsvUrl,
+  getCapexGovernanceDashboard, getCapexDashboardDrilldown, getCapexProcessReference,
+  getCapexGovernanceExportUrl, getCapexReportSchedules, createCapexReportSchedule,
+  updateCapexAuc, updateCapexCapitalization, updateCapexPoClosure,
+  updateCapexClosureChecklistItem, saveCapexBenefitReview, createCapexRisk,
+  createCapexMoa, createCapexDocumentVersion, createCapexSignature,
+  createCapexBudgetVariation, updateCapexProcurementPerformance, updateCapexDecisionGate,
   getCapexAdminConfig, updateCapexThresholds, updateCapexWorkflowRule,
   uploadCapexAttachment, downloadCapexAttachment,
   getManualEntries, createManualEntry,
@@ -106,6 +112,7 @@ const ALL_TABS = [
   { id: 'gsap',        label: 'GSAP Sync',      disabled: true },
   { id: 'manual',      label: 'Manual Entries', permKey: 'capex.tracking.manual-entry' },
   { id: 'requests',    label: 'Requests',       permKey: 'capex' },
+  { id: 'governance',  label: 'Governance',     permKey: 'capex' },
   { id: 'admin',       label: 'Admin Config',   adminOnly: true },
   { id: 'initiations', label: 'Initiations',    adminOnly: true },
 ];
@@ -142,9 +149,25 @@ export default function CapexDashboard() {
   const [procurementForm,setProcurementForm]= useState({});
   const [milestoneForm,  setMilestoneForm]  = useState({ stageName: '', milestoneName: '', plannedDate: '', actualDate: '', paymentPercentage: '', paymentAmount: '', completionEvidence: '' });
   const [closureForm,    setClosureForm]    = useState({ actualSpend: '', finalRoi: '', finalSavings: '', financeComments: '', capexFormAttachment: '' });
+  const [governance,     setGovernance]     = useState(null);
+  const [drilldownType,  setDrilldownType]  = useState('businessUnit');
+  const [drilldownRows,  setDrilldownRows]  = useState([]);
+  const [processRef,     setProcessRef]     = useState(null);
+  const [reportSchedules,setReportSchedules]= useState([]);
   const [adminConfig,    setAdminConfig]    = useState(null);
   const [thresholdForm,  setThresholdForm]  = useState({ lowMaxOmr: 25000, mediumMaxOmr: 300000 });
   const [attachmentType, setAttachmentType] = useState('Scope Document');
+  const [aucForm,        setAucForm]        = useState({ aucAccount: '', aucValue: '', aucStartDate: '', capitalizationReady: false, status: 'Open' });
+  const [capitalizationForm, setCapitalizationForm] = useState({ status: 'Not Started', financeVerified: false, capitalizationRequestDate: '', assetMasterNumber: '', assetCategory: '', capitalizedValue: '' });
+  const [poClosureForm,  setPoClosureForm]  = useState({ finalInvoiceReceived: false, vendorConfirmationReceived: false, closureStatus: 'Open', openCommitmentValue: '', unutilizedCommitment: '', closureDueDate: '' });
+  const [benefitForm,    setBenefitForm]    = useState({ reviewPeriodMonths: 6, plannedRoi: '', actualRoi: '', plannedSavings: '', actualSavings: '', benefitScore: '', status: 'Planned' });
+  const [riskForm,       setRiskForm]       = useState({ category: 'Schedule Risk', title: '', severity: 'Amber', mitigationPlan: '', owner: '' });
+  const [moaForm,        setMoaForm]        = useState({ moaNumber: '', title: '', approvalAuthority: '', approvalStatus: 'Draft', projectValue: '', expiryDate: '', renewalRequired: false });
+  const [variationForm,  setVariationForm]  = useState({ variationType: 'Variation', originalBudget: '', revisedBudget: '', justification: '', financialImpactAnalysis: '', fibReviewStatus: 'Pending' });
+  const [procPerfForm,   setProcPerfForm]   = useState({ rfqIssuedAt: '', tenderStartedAt: '', tenderCompletedAt: '', vendorResponseCount: '', invitedVendorCount: '', budgetEstimate: '', awardedValue: '', poProcessingDays: '', cpOwner: '' });
+  const [docVersionForm, setDocVersionForm] = useState({ documentType: 'MOA', documentName: '', versionLabel: 'v1', changelog: '', retentionUntil: '' });
+  const [signatureForm,  setSignatureForm]  = useState({ linkedType: 'MOA', linkedId: '', signerName: '', signerRole: '', decision: 'Signed' });
+  const [scheduleForm,   setScheduleForm]   = useState({ reportName: 'Monthly CAPEX Governance Pack', reportType: 'governance', audience: 'CEO/CFO', frequency: 'Monthly', format: 'PDF', recipients: '', nextRunDate: '' });
 
   const overviewChartRef = useRef(null);
   const overviewChartInst = useRef(null);
@@ -156,12 +179,16 @@ export default function CapexDashboard() {
     setLoading(true);
     setError('');
     try {
-      const [deptResults, syncRes, gsap, inits, entries] = await Promise.all([
+      const [deptResults, syncRes, gsap, inits, entries, gov, refs, schedules, drill] = await Promise.all([
         getDepartments(),
         getSyncStatus(),
         getGsapData(),
         getInitiations(),
         getManualEntries(),
+        getCapexGovernanceDashboard(),
+        getCapexProcessReference(),
+        getCapexReportSchedules(),
+        getCapexDashboardDrilldown(drilldownType),
       ]);
       setDepts(deptResults);
       if (deptResults.length) setSelectedDept(prev => prev || deptResults[0].name);
@@ -169,6 +196,10 @@ export default function CapexDashboard() {
       setGsapData(gsap);
       setInitiations(inits);
       setManualEntries(entries);
+      setGovernance(gov);
+      setProcessRef(refs);
+      setReportSchedules(schedules);
+      setDrilldownRows(drill.rows || []);
       const requests = await getCapexRequests();
       setCapexRequests(requests);
       if (!selectedRequest && requests.length) {
@@ -221,6 +252,51 @@ export default function CapexDashboard() {
       financeComments: selectedRequest.financialClosure?.financeComments || '',
       capexFormAttachment: selectedRequest.financialClosure?.capexFormAttachment || '',
     });
+    setAucForm({
+      aucAccount: selectedRequest.auc?.aucAccount || '',
+      aucValue: selectedRequest.auc?.aucValue || '',
+      aucStartDate: selectedRequest.auc?.aucStartDate || '',
+      capitalizationReady: !!selectedRequest.auc?.capitalizationReady,
+      status: selectedRequest.auc?.status || 'Open',
+    });
+    setCapitalizationForm({
+      status: selectedRequest.capitalization?.status || 'Not Started',
+      financeVerified: !!selectedRequest.capitalization?.financeVerified,
+      capitalizationRequestDate: selectedRequest.capitalization?.capitalizationRequestDate || '',
+      assetMasterNumber: selectedRequest.capitalization?.assetMasterNumber || '',
+      assetCategory: selectedRequest.capitalization?.assetCategory || '',
+      capitalizedValue: selectedRequest.capitalization?.capitalizedValue || '',
+    });
+    setPoClosureForm({
+      finalInvoiceReceived: !!selectedRequest.poClosure?.finalInvoiceReceived,
+      vendorConfirmationReceived: !!selectedRequest.poClosure?.vendorConfirmationReceived,
+      closureStatus: selectedRequest.poClosure?.closureStatus || 'Open',
+      openCommitmentValue: selectedRequest.poClosure?.openCommitmentValue || '',
+      unutilizedCommitment: selectedRequest.poClosure?.unutilizedCommitment || '',
+      closureDueDate: selectedRequest.poClosure?.closureDueDate || '',
+    });
+    setProcPerfForm({
+      rfqIssuedAt: selectedRequest.procurementPerformance?.rfqIssuedAt || '',
+      tenderStartedAt: selectedRequest.procurementPerformance?.tenderStartedAt || '',
+      tenderCompletedAt: selectedRequest.procurementPerformance?.tenderCompletedAt || '',
+      vendorResponseCount: selectedRequest.procurementPerformance?.vendorResponseCount || '',
+      invitedVendorCount: selectedRequest.procurementPerformance?.invitedVendorCount || '',
+      budgetEstimate: selectedRequest.procurementPerformance?.budgetEstimate || selectedRequest.estimatedValue || '',
+      awardedValue: selectedRequest.procurementPerformance?.awardedValue || selectedRequest.procurement?.poValue || '',
+      poProcessingDays: selectedRequest.procurementPerformance?.poProcessingDays || '',
+      cpOwner: selectedRequest.procurementPerformance?.cpOwner || '',
+    });
+    setMoaForm(prev => ({
+      ...prev,
+      projectValue: selectedRequest.estimatedValue || '',
+      title: selectedRequest.title ? `${selectedRequest.title} MOA` : '',
+    }));
+    setVariationForm(prev => ({
+      ...prev,
+      originalBudget: selectedRequest.estimatedValue || '',
+      revisedBudget: selectedRequest.estimatedValue || '',
+    }));
+    setDocVersionForm(prev => ({ ...prev, documentName: selectedRequest.title || '' }));
     getCapexAuditLogs(selectedRequest.id).then(setAuditLogs).catch(() => setAuditLogs([]));
   }, [selectedRequest]);
 
@@ -239,6 +315,19 @@ export default function CapexDashboard() {
     const [detail, requests] = await Promise.all([getCapexRequest(id), getCapexRequests()]);
     setSelectedRequest(detail);
     setCapexRequests(requests);
+  }
+
+  async function refreshGovernance(type = drilldownType) {
+    const [gov, refs, schedules, drill] = await Promise.all([
+      getCapexGovernanceDashboard(),
+      getCapexProcessReference(),
+      getCapexReportSchedules(),
+      getCapexDashboardDrilldown(type),
+    ]);
+    setGovernance(gov);
+    setProcessRef(refs);
+    setReportSchedules(schedules);
+    setDrilldownRows(drill.rows || []);
   }
 
   async function handleCreateCapexRequest(data) {
@@ -286,6 +375,112 @@ export default function CapexDashboard() {
     if (!selectedRequest) return;
     await saveCapexFinancialClosure(selectedRequest.id, { ...closureForm, closeRequest });
     await refreshSelectedRequest();
+    await refreshGovernance();
+  }
+
+  async function handleSaveAuc() {
+    if (!selectedRequest) return;
+    await updateCapexAuc(selectedRequest.id, aucForm);
+    await refreshSelectedRequest();
+    await refreshGovernance();
+  }
+
+  async function handleSaveCapitalization() {
+    if (!selectedRequest) return;
+    await updateCapexCapitalization(selectedRequest.id, capitalizationForm);
+    await refreshSelectedRequest();
+    await refreshGovernance();
+  }
+
+  async function handleSavePoClosure() {
+    if (!selectedRequest) return;
+    await updateCapexPoClosure(selectedRequest.id, poClosureForm);
+    await refreshSelectedRequest();
+    await refreshGovernance();
+  }
+
+  async function handleChecklistStatus(item, status) {
+    if (!selectedRequest) return;
+    await updateCapexClosureChecklistItem(selectedRequest.id, item.id, { status });
+    await refreshSelectedRequest();
+    await refreshGovernance();
+  }
+
+  async function handleSaveBenefitReview() {
+    if (!selectedRequest) return;
+    await saveCapexBenefitReview(selectedRequest.id, benefitForm);
+    setBenefitForm({ reviewPeriodMonths: 6, plannedRoi: '', actualRoi: '', plannedSavings: '', actualSavings: '', benefitScore: '', status: 'Planned' });
+    await refreshSelectedRequest();
+    await refreshGovernance();
+  }
+
+  async function handleCreateRisk() {
+    if (!selectedRequest || !riskForm.title.trim()) return;
+    await createCapexRisk(selectedRequest.id, riskForm);
+    setRiskForm({ category: 'Schedule Risk', title: '', severity: 'Amber', mitigationPlan: '', owner: '' });
+    await refreshSelectedRequest();
+    await refreshGovernance();
+  }
+
+  async function handleCreateMoa() {
+    if (!selectedRequest || !moaForm.moaNumber.trim()) return;
+    await createCapexMoa(selectedRequest.id, moaForm);
+    setMoaForm({ moaNumber: '', title: '', approvalAuthority: '', approvalStatus: 'Draft', projectValue: selectedRequest.estimatedValue || '', expiryDate: '', renewalRequired: false });
+    await refreshSelectedRequest();
+    await refreshGovernance();
+  }
+
+  async function handleCreateVariation() {
+    if (!selectedRequest || !variationForm.justification.trim()) return;
+    await createCapexBudgetVariation(selectedRequest.id, variationForm);
+    setVariationForm({ variationType: 'Variation', originalBudget: selectedRequest.estimatedValue || '', revisedBudget: selectedRequest.estimatedValue || '', justification: '', financialImpactAnalysis: '', fibReviewStatus: 'Pending' });
+    await refreshSelectedRequest();
+    await refreshGovernance();
+  }
+
+  async function handleSaveProcurementPerformance() {
+    if (!selectedRequest) return;
+    await updateCapexProcurementPerformance(selectedRequest.id, procPerfForm);
+    await refreshSelectedRequest();
+    await refreshGovernance();
+  }
+
+  async function handleDecisionGate(gate, status = 'Passed') {
+    if (!selectedRequest) return;
+    await updateCapexDecisionGate(selectedRequest.id, gate.gateKey, { status, reviewer: JSON.parse(localStorage.getItem('som_user') || '{}')?.fullName || 'Current user' });
+    await refreshSelectedRequest();
+    await refreshGovernance();
+  }
+
+  async function handleCreateDocumentVersion() {
+    if (!selectedRequest || !docVersionForm.documentName.trim()) return;
+    await createCapexDocumentVersion(selectedRequest.id, docVersionForm);
+    setDocVersionForm({ documentType: 'MOA', documentName: selectedRequest.title || '', versionLabel: 'v1', changelog: '', retentionUntil: '' });
+    await refreshSelectedRequest();
+    await refreshGovernance();
+  }
+
+  async function handleCreateSignature() {
+    if (!selectedRequest || !signatureForm.signerName.trim()) return;
+    await createCapexSignature(selectedRequest.id, signatureForm);
+    setSignatureForm({ linkedType: 'MOA', linkedId: '', signerName: '', signerRole: '', decision: 'Signed' });
+    await refreshSelectedRequest();
+    await refreshGovernance();
+  }
+
+  async function handleCreateReportSchedule() {
+    await createCapexReportSchedule({
+      ...scheduleForm,
+      recipients: scheduleForm.recipients.split(',').map(v => v.trim()).filter(Boolean),
+    });
+    setScheduleForm({ reportName: 'Monthly CAPEX Governance Pack', reportType: 'governance', audience: 'CEO/CFO', frequency: 'Monthly', format: 'PDF', recipients: '', nextRunDate: '' });
+    await refreshGovernance();
+  }
+
+  async function handleDrilldownChange(type) {
+    setDrilldownType(type);
+    const drill = await getCapexDashboardDrilldown(type);
+    setDrilldownRows(drill.rows || []);
   }
 
   async function handleAttachmentUpload(e) {
@@ -914,6 +1109,142 @@ export default function CapexDashboard() {
                     <button style={s.primaryBtn} onClick={() => handleSaveClosure(true)}>Close Request</button>
                   </div>
 
+                  <h4 style={s.detailTitle}>AUC, Capitalization & PO Closure</h4>
+                  <div style={s.lifecycleGrid}>
+                    <input style={s.compactInput} placeholder="AUC account" value={aucForm.aucAccount} onChange={e => setAucForm(p => ({ ...p, aucAccount: e.target.value }))} />
+                    <input style={s.compactInput} type="number" placeholder="AUC value" value={aucForm.aucValue} onChange={e => setAucForm(p => ({ ...p, aucValue: e.target.value }))} />
+                    <input style={s.compactInput} type="date" value={aucForm.aucStartDate} onChange={e => setAucForm(p => ({ ...p, aucStartDate: e.target.value }))} />
+                    <select style={s.compactInput} value={aucForm.status} onChange={e => setAucForm(p => ({ ...p, status: e.target.value }))}>
+                      {['Open', 'In Review', 'Capitalized'].map(v => <option key={v}>{v}</option>)}
+                    </select>
+                    <label style={s.check}><input type="checkbox" checked={aucForm.capitalizationReady} onChange={e => setAucForm(p => ({ ...p, capitalizationReady: e.target.checked }))} /> Capitalization ready</label>
+                    <button style={s.primaryBtn} onClick={handleSaveAuc}>Save AUC</button>
+                  </div>
+
+                  <div style={s.lifecycleGrid}>
+                    <select style={s.compactInput} value={capitalizationForm.status} onChange={e => setCapitalizationForm(p => ({ ...p, status: e.target.value }))}>
+                      {['Not Started', 'Ready', 'Pending Approval', 'In Progress', 'Capitalized'].map(v => <option key={v}>{v}</option>)}
+                    </select>
+                    <input style={s.compactInput} placeholder="Asset master number" value={capitalizationForm.assetMasterNumber} onChange={e => setCapitalizationForm(p => ({ ...p, assetMasterNumber: e.target.value }))} />
+                    <input style={s.compactInput} placeholder="Asset category" value={capitalizationForm.assetCategory} onChange={e => setCapitalizationForm(p => ({ ...p, assetCategory: e.target.value }))} />
+                    <input style={s.compactInput} type="number" placeholder="Capitalized value" value={capitalizationForm.capitalizedValue} onChange={e => setCapitalizationForm(p => ({ ...p, capitalizedValue: e.target.value }))} />
+                    <input style={s.compactInput} type="date" value={capitalizationForm.capitalizationRequestDate} onChange={e => setCapitalizationForm(p => ({ ...p, capitalizationRequestDate: e.target.value }))} />
+                    <button style={s.primaryBtn} onClick={handleSaveCapitalization}>Save Capitalization</button>
+                  </div>
+
+                  <div style={s.lifecycleGrid}>
+                    <select style={s.compactInput} value={poClosureForm.closureStatus} onChange={e => setPoClosureForm(p => ({ ...p, closureStatus: e.target.value }))}>
+                      {['Open', 'In Progress', 'Closed'].map(v => <option key={v}>{v}</option>)}
+                    </select>
+                    <input style={s.compactInput} type="number" placeholder="Open commitment" value={poClosureForm.openCommitmentValue} onChange={e => setPoClosureForm(p => ({ ...p, openCommitmentValue: e.target.value }))} />
+                    <input style={s.compactInput} type="number" placeholder="Unutilized commitment" value={poClosureForm.unutilizedCommitment} onChange={e => setPoClosureForm(p => ({ ...p, unutilizedCommitment: e.target.value }))} />
+                    <input style={s.compactInput} type="date" value={poClosureForm.closureDueDate} onChange={e => setPoClosureForm(p => ({ ...p, closureDueDate: e.target.value }))} />
+                    <label style={s.check}><input type="checkbox" checked={poClosureForm.finalInvoiceReceived} onChange={e => setPoClosureForm(p => ({ ...p, finalInvoiceReceived: e.target.checked }))} /> Final invoice</label>
+                    <button style={s.primaryBtn} onClick={handleSavePoClosure}>Save PO Closure</button>
+                  </div>
+
+                  <h4 style={s.detailTitle}>Closure Checklist</h4>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 12 }}>
+                    {(selectedRequest.closureChecklist || []).map(item => (
+                      <div key={item.id} style={s.compactRow}>
+                        <span>{item.label}</span>
+                        <span style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                          <StatusBadge status={item.status} />
+                          {item.status !== 'Completed' && <button style={s.miniBtn} onClick={() => handleChecklistStatus(item, 'Completed')}>Done</button>}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+
+                  <h4 style={s.detailTitle}>MOA, Variation & Decision Gates</h4>
+                  <div style={s.lifecycleGrid}>
+                    <input style={s.compactInput} placeholder="MOA number" value={moaForm.moaNumber} onChange={e => setMoaForm(p => ({ ...p, moaNumber: e.target.value }))} />
+                    <input style={s.compactInput} placeholder="MOA title" value={moaForm.title} onChange={e => setMoaForm(p => ({ ...p, title: e.target.value }))} />
+                    <input style={s.compactInput} placeholder="Authority" value={moaForm.approvalAuthority} onChange={e => setMoaForm(p => ({ ...p, approvalAuthority: e.target.value }))} />
+                    <select style={s.compactInput} value={moaForm.approvalStatus} onChange={e => setMoaForm(p => ({ ...p, approvalStatus: e.target.value }))}>
+                      {['Draft', 'Pending', 'Approved', 'Active'].map(v => <option key={v}>{v}</option>)}
+                    </select>
+                    <input style={s.compactInput} type="date" value={moaForm.expiryDate} onChange={e => setMoaForm(p => ({ ...p, expiryDate: e.target.value }))} />
+                    <button style={s.primaryBtn} onClick={handleCreateMoa}>Save MOA</button>
+                  </div>
+                  <DataTable
+                    columns={[
+                      { key: 'moaNumber', label: 'MOA' },
+                      { key: 'approvalStatus', label: 'Status', render: v => <StatusBadge status={v} /> },
+                      { key: 'matrixValidated', label: 'Matrix', render: v => v ? 'Valid' : 'Review' },
+                    ]}
+                    rows={selectedRequest.moaRecords || []}
+                    emptyMsg="No MOA records."
+                  />
+
+                  <div style={s.lifecycleGrid}>
+                    <input style={s.compactInput} type="number" placeholder="Original budget" value={variationForm.originalBudget} onChange={e => setVariationForm(p => ({ ...p, originalBudget: e.target.value }))} />
+                    <input style={s.compactInput} type="number" placeholder="Revised budget" value={variationForm.revisedBudget} onChange={e => setVariationForm(p => ({ ...p, revisedBudget: e.target.value }))} />
+                    <input style={{ ...s.compactInput, gridColumn: '1 / -1' }} placeholder="Variation justification" value={variationForm.justification} onChange={e => setVariationForm(p => ({ ...p, justification: e.target.value }))} />
+                    <input style={{ ...s.compactInput, gridColumn: '1 / -1' }} placeholder="Financial impact analysis" value={variationForm.financialImpactAnalysis} onChange={e => setVariationForm(p => ({ ...p, financialImpactAnalysis: e.target.value }))} />
+                    <button style={s.primaryBtn} onClick={handleCreateVariation}>Create Variation</button>
+                  </div>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 12 }}>
+                    {(selectedRequest.decisionGates || []).map(gate => (
+                      <div key={gate.gateKey} style={s.compactRow}>
+                        <span>{gate.gateName}</span>
+                        <span style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                          <StatusBadge status={gate.status} />
+                          {gate.status !== 'Passed' && <button style={s.miniBtn} onClick={() => handleDecisionGate(gate)}>Pass</button>}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+
+                  <h4 style={s.detailTitle}>Procurement Performance, Benefits & Risk</h4>
+                  <div style={s.lifecycleGrid}>
+                    <input style={s.compactInput} type="date" value={procPerfForm.rfqIssuedAt} onChange={e => setProcPerfForm(p => ({ ...p, rfqIssuedAt: e.target.value }))} />
+                    <input style={s.compactInput} type="date" value={procPerfForm.tenderCompletedAt} onChange={e => setProcPerfForm(p => ({ ...p, tenderCompletedAt: e.target.value }))} />
+                    <input style={s.compactInput} type="number" placeholder="Vendor responses" value={procPerfForm.vendorResponseCount} onChange={e => setProcPerfForm(p => ({ ...p, vendorResponseCount: e.target.value }))} />
+                    <input style={s.compactInput} type="number" placeholder="Invited vendors" value={procPerfForm.invitedVendorCount} onChange={e => setProcPerfForm(p => ({ ...p, invitedVendorCount: e.target.value }))} />
+                    <input style={s.compactInput} type="number" placeholder="Budget estimate" value={procPerfForm.budgetEstimate} onChange={e => setProcPerfForm(p => ({ ...p, budgetEstimate: e.target.value }))} />
+                    <input style={s.compactInput} type="number" placeholder="Awarded value" value={procPerfForm.awardedValue} onChange={e => setProcPerfForm(p => ({ ...p, awardedValue: e.target.value }))} />
+                    <button style={s.primaryBtn} onClick={handleSaveProcurementPerformance}>Save Procurement KPIs</button>
+                  </div>
+
+                  <div style={s.lifecycleGrid}>
+                    <select style={s.compactInput} value={benefitForm.reviewPeriodMonths} onChange={e => setBenefitForm(p => ({ ...p, reviewPeriodMonths: Number(e.target.value) }))}>
+                      {[6, 12, 24].map(v => <option key={v} value={v}>{v} months</option>)}
+                    </select>
+                    <input style={s.compactInput} type="number" placeholder="Actual ROI %" value={benefitForm.actualRoi} onChange={e => setBenefitForm(p => ({ ...p, actualRoi: e.target.value }))} />
+                    <input style={s.compactInput} type="number" placeholder="Actual savings" value={benefitForm.actualSavings} onChange={e => setBenefitForm(p => ({ ...p, actualSavings: e.target.value }))} />
+                    <select style={s.compactInput} value={benefitForm.status} onChange={e => setBenefitForm(p => ({ ...p, status: e.target.value }))}>
+                      {['Planned', 'In Review', 'Completed'].map(v => <option key={v}>{v}</option>)}
+                    </select>
+                    <button style={s.primaryBtn} onClick={handleSaveBenefitReview}>Save Benefit Review</button>
+                  </div>
+
+                  <div style={s.lifecycleGrid}>
+                    <select style={s.compactInput} value={riskForm.category} onChange={e => setRiskForm(p => ({ ...p, category: e.target.value }))}>
+                      {['Budget Risk', 'Schedule Risk', 'Vendor Risk', 'HSE Risk', 'Capitalization Risk', 'Operational Risk'].map(v => <option key={v}>{v}</option>)}
+                    </select>
+                    <select style={s.compactInput} value={riskForm.severity} onChange={e => setRiskForm(p => ({ ...p, severity: e.target.value }))}>
+                      {['Green', 'Amber', 'Red'].map(v => <option key={v}>{v}</option>)}
+                    </select>
+                    <input style={{ ...s.compactInput, gridColumn: '1 / -1' }} placeholder="Risk title" value={riskForm.title} onChange={e => setRiskForm(p => ({ ...p, title: e.target.value }))} />
+                    <input style={{ ...s.compactInput, gridColumn: '1 / -1' }} placeholder="Mitigation plan" value={riskForm.mitigationPlan} onChange={e => setRiskForm(p => ({ ...p, mitigationPlan: e.target.value }))} />
+                    <button style={s.primaryBtn} onClick={handleCreateRisk}>Add Risk</button>
+                  </div>
+
+                  <h4 style={s.detailTitle}>Document Versioning & Signatures</h4>
+                  <div style={s.lifecycleGrid}>
+                    <input style={s.compactInput} placeholder="Document name" value={docVersionForm.documentName} onChange={e => setDocVersionForm(p => ({ ...p, documentName: e.target.value }))} />
+                    <input style={s.compactInput} placeholder="Version" value={docVersionForm.versionLabel} onChange={e => setDocVersionForm(p => ({ ...p, versionLabel: e.target.value }))} />
+                    <input style={{ ...s.compactInput, gridColumn: '1 / -1' }} placeholder="Changelog" value={docVersionForm.changelog} onChange={e => setDocVersionForm(p => ({ ...p, changelog: e.target.value }))} />
+                    <button style={s.primaryBtn} onClick={handleCreateDocumentVersion}>Save Version</button>
+                  </div>
+                  <div style={s.lifecycleGrid}>
+                    <input style={s.compactInput} placeholder="Signer name" value={signatureForm.signerName} onChange={e => setSignatureForm(p => ({ ...p, signerName: e.target.value }))} />
+                    <input style={s.compactInput} placeholder="Signer role" value={signatureForm.signerRole} onChange={e => setSignatureForm(p => ({ ...p, signerRole: e.target.value }))} />
+                    <button style={s.primaryBtn} onClick={handleCreateSignature}>Capture Signature</button>
+                  </div>
+
                   <h4 style={s.detailTitle}>Audit History</h4>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                     {auditLogs.length ? auditLogs.map(log => (
@@ -926,6 +1257,116 @@ export default function CapexDashboard() {
                 </div>
               )}
             </div>
+          </div>
+        </div>
+      )}
+
+      {activeTab === 'governance' && (
+        <div>
+          <div style={s.tabActionRow}>
+            <div>
+              <h2 style={s.sectionTitle}>CAPEX Governance</h2>
+              <p style={s.tabSubtitle}>Executive controls for portfolio health, MOA compliance, AUC, capitalization, PO closure, decision gates, and reporting.</p>
+            </div>
+            <div style={{ display: 'flex', gap: 10, flexShrink: 0 }}>
+              <a href={getCapexGovernanceExportUrl('csv')} style={{ ...s.secondaryBtn, textDecoration: 'none' }}>Export Governance CSV</a>
+              <button style={s.primaryBtn} onClick={() => refreshGovernance()}>Refresh</button>
+            </div>
+          </div>
+
+          <div style={s.cardRow}>
+            <SummaryCard label="Approved Budget" value={fmtOMR(governance?.portfolio?.approvedBudget || 0)} color="var(--label)" sub={`${governance?.portfolio?.totalProjects || 0} projects`} />
+            <SummaryCard label="Forecast Spend" value={fmtOMR(governance?.portfolio?.forecastSpend || 0)} color="var(--shell-red)" sub={`${governance?.portfolio?.budgetUtilizationPercent || 0}% utilized`} />
+            <SummaryCard label="Open AUC" value={fmtOMR(governance?.auc?.totalValue || 0)} color="#BA7517" sub={`${governance?.auc?.agedOver180Days || 0} over 180 days`} />
+            <SummaryCard label="Red Risks" value={governance?.risk?.redRisks || 0} color="#DD1D21" sub={`${governance?.generatedAlerts?.length || 0} alerts`} />
+          </div>
+
+          <div style={s.section}>
+            <div style={s.sectionHead}>
+              <h3 style={s.sectionTitle}>Executive Control Summary</h3>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 10 }}>
+              <MiniInfo label="Pending Capitalization" value={governance?.capitalization?.pending || 0} />
+              <MiniInfo label="Open PO Value" value={fmtOMR(governance?.poClosure?.openCommitmentValue || 0)} />
+              <MiniInfo label="Closure Readiness" value={`${governance?.closure?.readinessPercent || 0}%`} />
+              <MiniInfo label="MOA Violations" value={governance?.moaCompliance?.matrixViolations || 0} />
+              <MiniInfo label="Document Versions" value={governance?.documentControls?.documentVersions || 0} />
+              <MiniInfo label="E-Signatures" value={governance?.documentControls?.electronicSignatures || 0} />
+              <MiniInfo label="Variations" value={governance?.variationControl?.totalVariations || 0} />
+              <MiniInfo label="Passed Gates" value={`${governance?.decisionGates?.passedGates || 0}/${governance?.decisionGates?.totalGates || 0}`} />
+            </div>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, alignItems: 'flex-start' }}>
+            <div style={s.section}>
+              <h3 style={s.sectionTitle}>Process Reference</h3>
+              <h4 style={s.detailTitle}>Business Units</h4>
+              <div style={s.pillWrap}>
+                {(processRef?.businessUnits || []).map(b => <span key={b.id} style={s.pill}>{b.name}</span>)}
+              </div>
+              <h4 style={s.detailTitle}>Approval Routes</h4>
+              <DataTable
+                columns={[
+                  { key: 'valueBand', label: 'Band' },
+                  { key: 'range', label: 'Range' },
+                  { key: 'route', label: 'Route' },
+                ]}
+                rows={processRef?.approvalRoutes || []}
+              />
+              <h4 style={s.detailTitle}>Escalation Thresholds</h4>
+              <DataTable
+                columns={[
+                  { key: 'triggerLabel', label: 'Trigger' },
+                  { key: 'thresholdValue', label: 'Threshold', render: (v, row) => `${v} ${row.thresholdUnit || ''}` },
+                  { key: 'escalationTarget', label: 'Escalate To' },
+                ]}
+                rows={processRef?.escalationPolicies || []}
+              />
+            </div>
+
+            <div style={s.section}>
+              <h3 style={s.sectionTitle}>Scheduled Reports</h3>
+              <div style={s.lifecycleGrid}>
+                <input style={s.compactInput} placeholder="Report name" value={scheduleForm.reportName} onChange={e => setScheduleForm(p => ({ ...p, reportName: e.target.value }))} />
+                <select style={s.compactInput} value={scheduleForm.reportType} onChange={e => setScheduleForm(p => ({ ...p, reportType: e.target.value }))}>
+                  {['governance', 'auc', 'po-closure', 'moa-compliance', 'benefits'].map(v => <option key={v}>{v}</option>)}
+                </select>
+                <input style={s.compactInput} placeholder="Audience" value={scheduleForm.audience} onChange={e => setScheduleForm(p => ({ ...p, audience: e.target.value }))} />
+                <select style={s.compactInput} value={scheduleForm.frequency} onChange={e => setScheduleForm(p => ({ ...p, frequency: e.target.value }))}>
+                  {['Weekly', 'Monthly', 'Quarterly'].map(v => <option key={v}>{v}</option>)}
+                </select>
+                <select style={s.compactInput} value={scheduleForm.format} onChange={e => setScheduleForm(p => ({ ...p, format: e.target.value }))}>
+                  {['PDF', 'CSV', 'XLSX'].map(v => <option key={v}>{v}</option>)}
+                </select>
+                <input style={s.compactInput} type="date" value={scheduleForm.nextRunDate} onChange={e => setScheduleForm(p => ({ ...p, nextRunDate: e.target.value }))} />
+                <input style={{ ...s.compactInput, gridColumn: '1 / -1' }} placeholder="Recipients, comma separated" value={scheduleForm.recipients} onChange={e => setScheduleForm(p => ({ ...p, recipients: e.target.value }))} />
+              </div>
+              <button style={s.primaryBtn} onClick={handleCreateReportSchedule}>Add Schedule</button>
+              <DataTable
+                columns={[
+                  { key: 'reportName', label: 'Report' },
+                  { key: 'frequency', label: 'Frequency' },
+                  { key: 'format', label: 'Format' },
+                  { key: 'nextRunDate', label: 'Next Run' },
+                ]}
+                rows={reportSchedules}
+                emptyMsg="No schedules yet."
+              />
+            </div>
+          </div>
+
+          <div style={s.section}>
+            <div style={s.sectionHead}>
+              <h3 style={s.sectionTitle}>Dashboard Drill-Down</h3>
+              <select style={s.compactInput} value={drilldownType} onChange={e => handleDrilldownChange(e.target.value)}>
+                {['businessUnit', 'aucAging', 'moaCompliance', 'risks', 'variations', 'procurementPerformance', 'decisionGates'].map(v => <option key={v}>{v}</option>)}
+              </select>
+            </div>
+            <DataTable
+              columns={Object.keys(drilldownRows[0] || {}).slice(0, 7).map(key => ({ key, label: key.replace(/[A-Z]/g, m => ` ${m}`).trim() }))}
+              rows={drilldownRows}
+              emptyMsg="No drill-down records available."
+            />
           </div>
         </div>
       )}
@@ -1174,6 +1615,12 @@ const s = {
     fontSize: 14, fontWeight: 600, color: '#fff', cursor: 'pointer',
     boxShadow: 'var(--shadow-sm)', flexShrink: 0,
   },
+  secondaryBtn: {
+    padding: '9px 14px', background: 'var(--surface)',
+    border: '1px solid var(--separator)', borderRadius: 'var(--radius-sm)',
+    fontSize: 13, fontWeight: 700, color: 'var(--label-secondary)', cursor: 'pointer',
+    boxShadow: 'var(--shadow-xs)', flexShrink: 0,
+  },
   warnBtn: {
     padding: '9px 14px', background: 'rgba(251,191,36,0.14)',
     border: '1px solid rgba(251,191,36,0.30)', borderRadius: 'var(--radius-sm)',
@@ -1222,6 +1669,13 @@ const s = {
   inlineLink: {
     color: 'var(--shell-red)', fontSize: 12, fontWeight: 700,
     textDecoration: 'none', whiteSpace: 'nowrap',
+  },
+  pillWrap: { display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 12 },
+  pill: {
+    display: 'inline-flex', alignItems: 'center',
+    border: '1px solid var(--separator-clear)', background: 'var(--bg)',
+    borderRadius: 'var(--radius-full)', padding: '5px 10px',
+    fontSize: 12, fontWeight: 700, color: 'var(--label-secondary)',
   },
 
   tableWrap: { overflowX: 'auto' },

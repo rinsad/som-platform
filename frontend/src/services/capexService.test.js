@@ -6,6 +6,10 @@ import {
   createInitiation,
   getManualEntries,
   createManualEntry,
+  getCapexGovernanceDashboard,
+  getCapexProcessReference,
+  updateCapexAuc,
+  createCapexBudgetVariation,
   DEPT_NAMES,
 } from './capexService';
 
@@ -197,5 +201,43 @@ describe('createManualEntry', () => {
   test('throws on non-ok response', async () => {
     global.fetch = makeFetch({ error: 'Bad Request' }, false);
     await expect(createManualEntry(payload)).rejects.toThrow('API error');
+  });
+});
+
+describe('governance service methods', () => {
+  test('calls governance dashboard endpoint', async () => {
+    global.fetch = makeFetch({ portfolio: {} });
+    await getCapexGovernanceDashboard();
+    expect(global.fetch).toHaveBeenCalledWith(
+      expect.stringContaining('/api/capex/dashboard/governance'),
+      expect.any(Object)
+    );
+  });
+
+  test('calls process reference endpoint', async () => {
+    global.fetch = makeFetch({ businessUnits: [] });
+    await getCapexProcessReference();
+    expect(global.fetch).toHaveBeenCalledWith(
+      expect.stringContaining('/api/capex/process-reference'),
+      expect.any(Object)
+    );
+  });
+
+  test('patches AUC tracking', async () => {
+    global.fetch = makeFetch({ status: 'Open' });
+    await updateCapexAuc('CAPEX-1', { aucValue: 100 });
+    expect(global.fetch).toHaveBeenCalledWith(
+      expect.stringContaining('/api/capex/requests/CAPEX-1/auc'),
+      expect.objectContaining({ method: 'PATCH' })
+    );
+  });
+
+  test('creates budget variation', async () => {
+    global.fetch = makeFetch({ id: 1 });
+    await createCapexBudgetVariation('CAPEX-1', { originalBudget: 100, revisedBudget: 120, justification: 'scope' });
+    expect(global.fetch).toHaveBeenCalledWith(
+      expect.stringContaining('/api/capex/requests/CAPEX-1/budget-variations'),
+      expect.objectContaining({ method: 'POST' })
+    );
   });
 });

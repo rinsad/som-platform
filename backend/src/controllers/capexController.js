@@ -34,6 +34,12 @@ function calcValueBandWithThresholds(value, thresholds) {
   return 'HIGH';
 }
 
+function approvalRouteForBand(valueBand) {
+  if (valueBand === 'LOW') return 'Project Lead + GM';
+  if (valueBand === 'MEDIUM') return 'GM + CFO + EMT';
+  return 'Contract Board';
+}
+
 function buildCapexWorkflow({ valueBand, quoteCount, hsseRisk, workerWelfareRisk }) {
   const steps = [];
   const add = (role, label) => steps.push({ role, label });
@@ -125,6 +131,59 @@ function hasPoUploadRequirements(data) {
 function csvCell(value) {
   const text = value === null || value === undefined ? '' : String(value);
   return `"${text.replace(/"/g, '""')}"`;
+}
+
+const DEFAULT_CLOSURE_CHECKLIST = [
+  ['project_completed', 'Project physically completed'],
+  ['final_invoice_received', 'Final vendor invoice received'],
+  ['goods_receipt_completed', 'Goods receipt completed'],
+  ['po_closed', 'All POs closed'],
+  ['auc_transferred', 'AUC transferred to fixed assets'],
+  ['capitalization_completed', 'Asset capitalization completed'],
+  ['documents_uploaded', 'Supporting documents uploaded'],
+  ['finance_validated', 'Finance validation completed'],
+  ['owner_signed_off', 'Project owner sign-off completed'],
+  ['audit_verified', 'Internal audit compliance verification'],
+];
+
+const DEFAULT_DECISION_GATES = [
+  ['gate_1_budget', 'Gate 1 - Budget Approval'],
+  ['gate_2_capex', 'Gate 2 - CAPEX Approval'],
+  ['gate_3_procurement', 'Gate 3 - Procurement Approval'],
+  ['gate_4_cost_schedule', 'Gate 4 - Cost & Schedule Review'],
+  ['gate_5_completion', 'Gate 5 - Completion & Acceptance'],
+  ['gate_6_auc', 'Gate 6 - AUC Review'],
+  ['gate_7_asset_acceptance', 'Gate 7 - Asset Acceptance'],
+  ['gate_8_benefits', 'Gate 8 - Benefits Realization'],
+];
+
+async function ensureCapexRequest(client, requestId) {
+  const { rows: [request] } = await client.query(`SELECT * FROM capex_requests WHERE id = $1 FOR UPDATE`, [requestId]);
+  return request || null;
+}
+
+async function insertDefaultClosureChecklist(client, requestId, owner) {
+  for (const [itemKey, label] of DEFAULT_CLOSURE_CHECKLIST) {
+    await client.query(
+      `INSERT INTO capex_closure_checklist_items
+       (request_id, item_key, label, responsible_owner, updated_by)
+       VALUES ($1,$2,$3,$4,$4)
+       ON CONFLICT (request_id, item_key) DO NOTHING`,
+      [requestId, itemKey, label, owner || 'System']
+    );
+  }
+}
+
+async function insertDefaultDecisionGates(client, requestId, reviewer) {
+  for (const [gateKey, gateName] of DEFAULT_DECISION_GATES) {
+    await client.query(
+      `INSERT INTO capex_decision_gate_reviews
+       (request_id, gate_key, gate_name, reviewer)
+       VALUES ($1,$2,$3,$4)
+       ON CONFLICT (request_id, gate_key) DO NOTHING`,
+      [requestId, gateKey, gateName, reviewer || 'System']
+    );
+  }
 }
 
 // ── GET /api/capex/summary ────────────────────────────────────────────────────
@@ -500,7 +559,7 @@ exports.getRequestById = async (req, res, next) => {
     const { rows: [request] } = await pool.query(`SELECT * FROM capex_requests WHERE id = $1`, [req.params.id]);
     if (!request) return res.status(404).json({ error: 'CAPEX request not found' });
 
-    const [quotes, steps, actions, procurement, milestones, closure, attachments] = await Promise.all([
+    const [quotes, steps, actions, procurement, milestones, closure, attachments, auc, capitalization, poClosure, checklist, benefits, risks, alerts, moa, docVersions, signatures, variations, procurementPerformance, gates] = await Promise.all([
       pool.query(`SELECT * FROM capex_supplier_quotations WHERE request_id = $1 ORDER BY id`, [request.id]),
       pool.query(`SELECT * FROM capex_approval_steps WHERE request_id = $1 ORDER BY step_order`, [request.id]),
       pool.query(`SELECT * FROM capex_approval_actions WHERE request_id = $1 ORDER BY created_at, id`, [request.id]),
@@ -508,6 +567,19 @@ exports.getRequestById = async (req, res, next) => {
       pool.query(`SELECT * FROM capex_project_milestones WHERE request_id = $1 ORDER BY id`, [request.id]),
       pool.query(`SELECT * FROM capex_financial_closure WHERE request_id = $1`, [request.id]),
       pool.query(`SELECT * FROM capex_attachments WHERE request_id = $1 ORDER BY uploaded_at, id`, [request.id]),
+      pool.query(`SELECT * FROM capex_auc_tracking WHERE request_id = $1`, [request.id]),
+      pool.query(`SELECT * FROM capex_capitalization_tracking WHERE request_id = $1`, [request.id]),
+      pool.query(`SELECT * FROM capex_po_closure_tracking WHERE request_id = $1`, [request.id]),
+      pool.query(`SELECT * FROM capex_closure_checklist_items WHERE request_id = $1 ORDER BY id`, [request.id]),
+      pool.query(`SELECT * FROM capex_benefit_reviews WHERE request_id = $1 ORDER BY review_period_months`, [request.id]),
+      pool.query(`SELECT * FROM capex_risks WHERE request_id = $1 ORDER BY created_at DESC, id DESC`, [request.id]),
+      pool.query(`SELECT * FROM capex_governance_alerts WHERE request_id = $1 ORDER BY triggered_at DESC, id DESC`, [request.id]),
+      pool.query(`SELECT * FROM capex_moa_records WHERE request_id = $1 ORDER BY created_at DESC, id DESC`, [request.id]),
+      pool.query(`SELECT * FROM capex_document_versions WHERE request_id = $1 ORDER BY uploaded_at DESC, id DESC`, [request.id]),
+      pool.query(`SELECT * FROM capex_electronic_signatures WHERE request_id = $1 ORDER BY signed_at DESC, id DESC`, [request.id]),
+      pool.query(`SELECT * FROM capex_budget_variations WHERE request_id = $1 ORDER BY requested_at DESC, id DESC`, [request.id]),
+      pool.query(`SELECT * FROM capex_procurement_performance WHERE request_id = $1`, [request.id]),
+      pool.query(`SELECT * FROM capex_decision_gate_reviews WHERE request_id = $1 ORDER BY id`, [request.id]),
     ]);
 
     res.json({
@@ -519,6 +591,19 @@ exports.getRequestById = async (req, res, next) => {
       milestones: milestones.rows.map(mapCapexMilestone),
       financialClosure: closure.rows[0] ? mapCapexClosure(closure.rows[0]) : null,
       attachments: attachments.rows.map(mapCapexAttachment),
+      auc: auc.rows[0] ? mapCapexAuc(auc.rows[0]) : null,
+      capitalization: capitalization.rows[0] ? mapCapexCapitalization(capitalization.rows[0]) : null,
+      poClosure: poClosure.rows[0] ? mapCapexPoClosure(poClosure.rows[0]) : null,
+      closureChecklist: checklist.rows.map(mapCapexClosureChecklistItem),
+      benefitReviews: benefits.rows.map(mapCapexBenefitReview),
+      risks: risks.rows.map(mapCapexRisk),
+      governanceAlerts: alerts.rows.map(mapCapexGovernanceAlert),
+      moaRecords: moa.rows.map(mapCapexMoaRecord),
+      documentVersions: docVersions.rows.map(mapCapexDocumentVersion),
+      electronicSignatures: signatures.rows.map(mapCapexElectronicSignature),
+      budgetVariations: variations.rows.map(mapCapexBudgetVariation),
+      procurementPerformance: procurementPerformance.rows[0] ? mapCapexProcurementPerformance(procurementPerformance.rows[0]) : null,
+      decisionGates: gates.rows.map(mapCapexDecisionGate),
     });
   } catch (err) { next(err); }
 };
@@ -605,6 +690,8 @@ exports.createRequest = async (req, res, next) => {
     }
 
     await client.query(`INSERT INTO capex_procurement_tracking (request_id) VALUES ($1)`, [id]);
+    await insertDefaultClosureChecklist(client, id, requesterName);
+    await insertDefaultDecisionGates(client, id, requesterName);
 
     const nextStatus = requestStatusForStep(workflow[0]);
     const { rows: [updated] } = await client.query(
@@ -934,6 +1021,1205 @@ exports.saveFinancialClosure = async (req, res, next) => {
   } finally {
     if (client) client.release();
   }
+};
+
+exports.updateAucTracking = async (req, res, next) => {
+  let client;
+  try {
+    const {
+      aucAccount, aucValue, aucStartDate, completionConfirmed, capitalizationReady,
+      status, businessOwner, financeOwner, escalationLevel, comments,
+    } = req.body;
+
+    client = await pool.connect();
+    await client.query('BEGIN');
+    const request = await ensureCapexRequest(client, req.params.id);
+    if (!request) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'CAPEX request not found' });
+    }
+
+    const { rows: [row] } = await client.query(
+      `INSERT INTO capex_auc_tracking
+       (request_id, auc_account, auc_value, auc_start_date, completion_confirmed,
+        capitalization_ready, status, business_owner, finance_owner, escalation_level,
+        comments, updated_by)
+       VALUES ($1,$2,COALESCE($3,0),$4,COALESCE($5,false),COALESCE($6,false),COALESCE($7,'Open'),$8,$9,$10,$11,$12)
+       ON CONFLICT (request_id) DO UPDATE SET
+        auc_account = COALESCE(EXCLUDED.auc_account, capex_auc_tracking.auc_account),
+        auc_value = CASE WHEN $3 IS NULL THEN capex_auc_tracking.auc_value ELSE EXCLUDED.auc_value END,
+        auc_start_date = COALESCE(EXCLUDED.auc_start_date, capex_auc_tracking.auc_start_date),
+        completion_confirmed = CASE WHEN $5 IS NULL THEN capex_auc_tracking.completion_confirmed ELSE EXCLUDED.completion_confirmed END,
+        capitalization_ready = CASE WHEN $6 IS NULL THEN capex_auc_tracking.capitalization_ready ELSE EXCLUDED.capitalization_ready END,
+        status = CASE WHEN $7 IS NULL THEN capex_auc_tracking.status ELSE EXCLUDED.status END,
+        business_owner = COALESCE(EXCLUDED.business_owner, capex_auc_tracking.business_owner),
+        finance_owner = COALESCE(EXCLUDED.finance_owner, capex_auc_tracking.finance_owner),
+        escalation_level = COALESCE(EXCLUDED.escalation_level, capex_auc_tracking.escalation_level),
+        comments = COALESCE(EXCLUDED.comments, capex_auc_tracking.comments),
+        updated_by = EXCLUDED.updated_by,
+        updated_at = NOW()
+       RETURNING *`,
+      [
+        req.params.id, aucAccount || null,
+        aucValue === undefined || aucValue === '' ? null : Number(aucValue),
+        aucStartDate || null,
+        completionConfirmed === undefined ? null : !!completionConfirmed,
+        capitalizationReady === undefined ? null : !!capitalizationReady,
+        status || null, businessOwner || null, financeOwner || null,
+        escalationLevel || null, comments || null, userName(req),
+      ]
+    );
+
+    await addAuditLog(client, req.params.id, 'AUC_UPDATED', `AUC tracking updated; status is ${row.status}.`, userName(req));
+    await client.query('COMMIT');
+    res.json(mapCapexAuc(row));
+  } catch (err) {
+    if (client) await client.query('ROLLBACK');
+    next(err);
+  } finally {
+    if (client) client.release();
+  }
+};
+
+exports.updateCapitalizationTracking = async (req, res, next) => {
+  let client;
+  try {
+    const {
+      status, financeVerified, capitalizationRequestDate, assetMasterNumber,
+      assetCategory, capitalizedValue, capitalizationApprovalDate,
+      fixedAssetRegisteredAt, depreciationStartDate, comments,
+    } = req.body;
+
+    client = await pool.connect();
+    await client.query('BEGIN');
+    const request = await ensureCapexRequest(client, req.params.id);
+    if (!request) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'CAPEX request not found' });
+    }
+
+    const { rows: [row] } = await client.query(
+      `INSERT INTO capex_capitalization_tracking
+       (request_id, status, finance_verified, capitalization_request_date,
+        asset_master_number, asset_category, capitalized_value,
+        capitalization_approval_date, fixed_asset_registered_at,
+        depreciation_start_date, comments, updated_by)
+       VALUES ($1,COALESCE($2,'Not Started'),COALESCE($3,false),$4,$5,$6,$7,$8,$9,$10,$11,$12)
+       ON CONFLICT (request_id) DO UPDATE SET
+        status = CASE WHEN $2 IS NULL THEN capex_capitalization_tracking.status ELSE EXCLUDED.status END,
+        finance_verified = CASE WHEN $3 IS NULL THEN capex_capitalization_tracking.finance_verified ELSE EXCLUDED.finance_verified END,
+        capitalization_request_date = COALESCE(EXCLUDED.capitalization_request_date, capex_capitalization_tracking.capitalization_request_date),
+        asset_master_number = COALESCE(EXCLUDED.asset_master_number, capex_capitalization_tracking.asset_master_number),
+        asset_category = COALESCE(EXCLUDED.asset_category, capex_capitalization_tracking.asset_category),
+        capitalized_value = COALESCE(EXCLUDED.capitalized_value, capex_capitalization_tracking.capitalized_value),
+        capitalization_approval_date = COALESCE(EXCLUDED.capitalization_approval_date, capex_capitalization_tracking.capitalization_approval_date),
+        fixed_asset_registered_at = COALESCE(EXCLUDED.fixed_asset_registered_at, capex_capitalization_tracking.fixed_asset_registered_at),
+        depreciation_start_date = COALESCE(EXCLUDED.depreciation_start_date, capex_capitalization_tracking.depreciation_start_date),
+        comments = COALESCE(EXCLUDED.comments, capex_capitalization_tracking.comments),
+        updated_by = EXCLUDED.updated_by,
+        updated_at = NOW()
+       RETURNING *`,
+      [
+        req.params.id, status || null,
+        financeVerified === undefined ? null : !!financeVerified,
+        capitalizationRequestDate || null, assetMasterNumber || null,
+        assetCategory || null,
+        capitalizedValue === undefined || capitalizedValue === '' ? null : Number(capitalizedValue),
+        capitalizationApprovalDate || null, fixedAssetRegisteredAt || null,
+        depreciationStartDate || null, comments || null, userName(req),
+      ]
+    );
+
+    await addAuditLog(client, req.params.id, 'CAPITALIZATION_UPDATED', `Capitalization tracking updated; status is ${row.status}.`, userName(req));
+    await client.query('COMMIT');
+    res.json(mapCapexCapitalization(row));
+  } catch (err) {
+    if (client) await client.query('ROLLBACK');
+    next(err);
+  } finally {
+    if (client) client.release();
+  }
+};
+
+exports.updatePoClosureTracking = async (req, res, next) => {
+  let client;
+  try {
+    const {
+      finalInvoiceReceived, vendorConfirmationReceived, closureStatus,
+      openCommitmentValue, unutilizedCommitment, closureDueDate, closedAt,
+      followUpOwner, comments,
+    } = req.body;
+
+    client = await pool.connect();
+    await client.query('BEGIN');
+    const request = await ensureCapexRequest(client, req.params.id);
+    if (!request) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'CAPEX request not found' });
+    }
+
+    const { rows: [row] } = await client.query(
+      `INSERT INTO capex_po_closure_tracking
+       (request_id, final_invoice_received, vendor_confirmation_received,
+        closure_status, open_commitment_value, unutilized_commitment,
+        closure_due_date, closed_at, follow_up_owner, comments, updated_by)
+       VALUES ($1,COALESCE($2,false),COALESCE($3,false),COALESCE($4,'Open'),COALESCE($5,0),COALESCE($6,0),$7,$8,$9,$10,$11)
+       ON CONFLICT (request_id) DO UPDATE SET
+        final_invoice_received = CASE WHEN $2 IS NULL THEN capex_po_closure_tracking.final_invoice_received ELSE EXCLUDED.final_invoice_received END,
+        vendor_confirmation_received = CASE WHEN $3 IS NULL THEN capex_po_closure_tracking.vendor_confirmation_received ELSE EXCLUDED.vendor_confirmation_received END,
+        closure_status = CASE WHEN $4 IS NULL THEN capex_po_closure_tracking.closure_status ELSE EXCLUDED.closure_status END,
+        open_commitment_value = CASE WHEN $5 IS NULL THEN capex_po_closure_tracking.open_commitment_value ELSE EXCLUDED.open_commitment_value END,
+        unutilized_commitment = CASE WHEN $6 IS NULL THEN capex_po_closure_tracking.unutilized_commitment ELSE EXCLUDED.unutilized_commitment END,
+        closure_due_date = COALESCE(EXCLUDED.closure_due_date, capex_po_closure_tracking.closure_due_date),
+        closed_at = COALESCE(EXCLUDED.closed_at, capex_po_closure_tracking.closed_at),
+        follow_up_owner = COALESCE(EXCLUDED.follow_up_owner, capex_po_closure_tracking.follow_up_owner),
+        comments = COALESCE(EXCLUDED.comments, capex_po_closure_tracking.comments),
+        updated_by = EXCLUDED.updated_by,
+        updated_at = NOW()
+       RETURNING *`,
+      [
+        req.params.id,
+        finalInvoiceReceived === undefined ? null : !!finalInvoiceReceived,
+        vendorConfirmationReceived === undefined ? null : !!vendorConfirmationReceived,
+        closureStatus || null,
+        openCommitmentValue === undefined || openCommitmentValue === '' ? null : Number(openCommitmentValue),
+        unutilizedCommitment === undefined || unutilizedCommitment === '' ? null : Number(unutilizedCommitment),
+        closureDueDate || null, closedAt || null, followUpOwner || null,
+        comments || null, userName(req),
+      ]
+    );
+
+    await addAuditLog(client, req.params.id, 'PO_CLOSURE_UPDATED', `PO closure tracking updated; status is ${row.closure_status}.`, userName(req));
+    await client.query('COMMIT');
+    res.json(mapCapexPoClosure(row));
+  } catch (err) {
+    if (client) await client.query('ROLLBACK');
+    next(err);
+  } finally {
+    if (client) client.release();
+  }
+};
+
+exports.updateClosureChecklistItem = async (req, res, next) => {
+  let client;
+  try {
+    const { status, responsibleOwner, dueDate, evidenceAttachment, comments } = req.body;
+    client = await pool.connect();
+    await client.query('BEGIN');
+    const request = await ensureCapexRequest(client, req.params.id);
+    if (!request) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'CAPEX request not found' });
+    }
+    await insertDefaultClosureChecklist(client, req.params.id, userName(req));
+
+    const { rows: [row] } = await client.query(
+      `UPDATE capex_closure_checklist_items SET
+        status = COALESCE($1, status),
+        responsible_owner = COALESCE($2, responsible_owner),
+        due_date = COALESCE($3, due_date),
+        evidence_attachment = COALESCE($4, evidence_attachment),
+        comments = COALESCE($5, comments),
+        completed_at = CASE WHEN COALESCE($1, status) = 'Completed' THEN COALESCE(completed_at, NOW()) ELSE NULL END,
+        updated_by = $6,
+        updated_at = NOW()
+       WHERE request_id = $7 AND id = $8
+       RETURNING *`,
+      [status || null, responsibleOwner || null, dueDate || null, evidenceAttachment || null, comments || null, userName(req), req.params.id, req.params.itemId]
+    );
+    if (!row) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'Closure checklist item not found' });
+    }
+
+    await addAuditLog(client, req.params.id, 'CLOSURE_CHECKLIST_UPDATED', `Closure checklist updated: ${row.label}.`, userName(req));
+    await client.query('COMMIT');
+    res.json(mapCapexClosureChecklistItem(row));
+  } catch (err) {
+    if (client) await client.query('ROLLBACK');
+    next(err);
+  } finally {
+    if (client) client.release();
+  }
+};
+
+exports.saveBenefitReview = async (req, res, next) => {
+  let client;
+  try {
+    const {
+      reviewPeriodMonths, plannedRoi, actualRoi, plannedSavings,
+      actualSavings, benefitScore, status, reviewedAt, reviewer, comments,
+    } = req.body;
+    if (![6, 12, 24].includes(Number(reviewPeriodMonths))) {
+      return res.status(400).json({ error: 'reviewPeriodMonths must be one of 6, 12, or 24' });
+    }
+
+    client = await pool.connect();
+    await client.query('BEGIN');
+    const request = await ensureCapexRequest(client, req.params.id);
+    if (!request) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'CAPEX request not found' });
+    }
+
+    const { rows: [row] } = await client.query(
+      `INSERT INTO capex_benefit_reviews
+       (request_id, review_period_months, planned_roi, actual_roi, planned_savings,
+        actual_savings, benefit_score, status, reviewed_at, reviewer, comments)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
+       ON CONFLICT (request_id, review_period_months) DO UPDATE SET
+        planned_roi = EXCLUDED.planned_roi,
+        actual_roi = EXCLUDED.actual_roi,
+        planned_savings = EXCLUDED.planned_savings,
+        actual_savings = EXCLUDED.actual_savings,
+        benefit_score = EXCLUDED.benefit_score,
+        status = EXCLUDED.status,
+        reviewed_at = EXCLUDED.reviewed_at,
+        reviewer = EXCLUDED.reviewer,
+        comments = EXCLUDED.comments,
+        updated_at = NOW()
+       RETURNING *`,
+      [
+        req.params.id, Number(reviewPeriodMonths),
+        plannedRoi === undefined || plannedRoi === '' ? null : Number(plannedRoi),
+        actualRoi === undefined || actualRoi === '' ? null : Number(actualRoi),
+        plannedSavings === undefined || plannedSavings === '' ? null : Number(plannedSavings),
+        actualSavings === undefined || actualSavings === '' ? null : Number(actualSavings),
+        benefitScore === undefined || benefitScore === '' ? null : Number(benefitScore),
+        status || 'Planned', reviewedAt || null, reviewer || userName(req), comments || '',
+      ]
+    );
+
+    await addAuditLog(client, req.params.id, 'BENEFIT_REVIEW_UPDATED', `${reviewPeriodMonths}-month benefit review updated.`, userName(req));
+    await client.query('COMMIT');
+    res.json(mapCapexBenefitReview(row));
+  } catch (err) {
+    if (client) await client.query('ROLLBACK');
+    next(err);
+  } finally {
+    if (client) client.release();
+  }
+};
+
+exports.createRisk = async (req, res, next) => {
+  let client;
+  try {
+    const { category, title, severity, probability, impact, mitigationPlan, owner, dueDate, status } = req.body;
+    if (!category || !title) return res.status(400).json({ error: 'category and title are required' });
+
+    client = await pool.connect();
+    await client.query('BEGIN');
+    const request = await ensureCapexRequest(client, req.params.id);
+    if (!request) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'CAPEX request not found' });
+    }
+
+    const { rows: [row] } = await client.query(
+      `INSERT INTO capex_risks
+       (request_id, category, title, severity, probability, impact, mitigation_plan,
+        owner, due_date, status, created_by)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
+       RETURNING *`,
+      [
+        req.params.id, category, title, severity || 'Amber', probability || '',
+        impact || '', mitigationPlan || '', owner || '', dueDate || null,
+        status || 'Open', userName(req),
+      ]
+    );
+
+    await addAuditLog(client, req.params.id, 'RISK_CREATED', `Risk created: ${title}.`, userName(req));
+    await client.query('COMMIT');
+    res.status(201).json(mapCapexRisk(row));
+  } catch (err) {
+    if (client) await client.query('ROLLBACK');
+    next(err);
+  } finally {
+    if (client) client.release();
+  }
+};
+
+exports.updateRisk = async (req, res, next) => {
+  let client;
+  try {
+    const { category, title, severity, probability, impact, mitigationPlan, owner, dueDate, status } = req.body;
+    client = await pool.connect();
+    await client.query('BEGIN');
+    const request = await ensureCapexRequest(client, req.params.id);
+    if (!request) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'CAPEX request not found' });
+    }
+
+    const { rows: [row] } = await client.query(
+      `UPDATE capex_risks SET
+        category = COALESCE($1, category),
+        title = COALESCE($2, title),
+        severity = COALESCE($3, severity),
+        probability = COALESCE($4, probability),
+        impact = COALESCE($5, impact),
+        mitigation_plan = COALESCE($6, mitigation_plan),
+        owner = COALESCE($7, owner),
+        due_date = COALESCE($8, due_date),
+        status = COALESCE($9, status),
+        closed_at = CASE WHEN COALESCE($9, status) = 'Closed' THEN COALESCE(closed_at, NOW()) ELSE NULL END,
+        updated_at = NOW()
+       WHERE request_id = $10 AND id = $11
+       RETURNING *`,
+      [category || null, title || null, severity || null, probability || null, impact || null, mitigationPlan || null, owner || null, dueDate || null, status || null, req.params.id, req.params.riskId]
+    );
+    if (!row) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'Risk not found' });
+    }
+
+    await addAuditLog(client, req.params.id, 'RISK_UPDATED', `Risk updated: ${row.title}.`, userName(req));
+    await client.query('COMMIT');
+    res.json(mapCapexRisk(row));
+  } catch (err) {
+    if (client) await client.query('ROLLBACK');
+    next(err);
+  } finally {
+    if (client) client.release();
+  }
+};
+
+exports.getProcessReferenceData = async (req, res, next) => {
+  try {
+    const [businessUnits, projectTypes, escalationPolicies] = await Promise.all([
+      pool.query(`SELECT id, name, is_active FROM capex_reference_business_units ORDER BY name`),
+      pool.query(`SELECT id, type_name, example, is_active FROM capex_reference_project_types ORDER BY type_name`),
+      pool.query(`SELECT * FROM capex_escalation_policy WHERE is_active = true ORDER BY id`),
+    ]);
+    res.json({
+      businessUnits: businessUnits.rows.map(r => ({ id: r.id, name: r.name, isActive: r.is_active })),
+      projectTypes: projectTypes.rows.map(r => ({ id: r.id, typeName: r.type_name, example: r.example, isActive: r.is_active })),
+      escalationPolicies: escalationPolicies.rows.map(mapCapexEscalationPolicy),
+      decisionGates: DEFAULT_DECISION_GATES.map(([gateKey, gateName]) => ({ gateKey, gateName })),
+      approvalRoutes: [
+        { valueBand: 'LOW', range: '<= OMR 25,000', route: approvalRouteForBand('LOW') },
+        { valueBand: 'MEDIUM', range: '> OMR 25,000 and <= OMR 300,000', route: approvalRouteForBand('MEDIUM') },
+        { valueBand: 'HIGH', range: '> OMR 300,000', route: approvalRouteForBand('HIGH') },
+      ],
+    });
+  } catch (err) { next(err); }
+};
+
+exports.createBudgetVariation = async (req, res, next) => {
+  let client;
+  try {
+    const {
+      variationType, originalBudget, revisedBudget, justification,
+      financialImpactAnalysis, fibReviewStatus, approvalStatus, approvedBy,
+    } = req.body;
+    if (originalBudget === undefined || revisedBudget === undefined || !justification) {
+      return res.status(400).json({ error: 'originalBudget, revisedBudget, and justification are required' });
+    }
+
+    const original = Number(originalBudget);
+    const revised = Number(revisedBudget);
+    const amount = revised - original;
+    const percent = original ? (amount / original) * 100 : 0;
+    const moaRequired = Math.abs(percent) > 10;
+
+    client = await pool.connect();
+    await client.query('BEGIN');
+    const request = await ensureCapexRequest(client, req.params.id);
+    if (!request) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'CAPEX request not found' });
+    }
+
+    const approved = approvalStatus === 'Approved';
+    const { rows: [row] } = await client.query(
+      `INSERT INTO capex_budget_variations
+       (request_id, variation_type, original_budget, revised_budget, variation_amount,
+        variation_percent, justification, financial_impact_analysis, fib_review_status,
+        moa_approval_required, approval_status, requested_by, approved_by, approved_at)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
+       RETURNING *`,
+      [
+        req.params.id, variationType || 'Variation', original, revised, amount,
+        percent, justification, financialImpactAnalysis || '', fibReviewStatus || 'Pending',
+        moaRequired, approvalStatus || 'Pending', userName(req),
+        approved ? (approvedBy || userName(req)) : null, approved ? new Date() : null,
+      ]
+    );
+    await addAuditLog(client, req.params.id, 'BUDGET_VARIATION_CREATED', `Budget variation ${row.approval_status}: ${row.variation_percent}%.`, userName(req));
+    await client.query('COMMIT');
+    res.status(201).json(mapCapexBudgetVariation(row));
+  } catch (err) {
+    if (client) await client.query('ROLLBACK');
+    next(err);
+  } finally {
+    if (client) client.release();
+  }
+};
+
+exports.saveProcurementPerformance = async (req, res, next) => {
+  let client;
+  try {
+    const {
+      rfqIssuedAt, tenderStartedAt, tenderCompletedAt, vendorResponseCount,
+      invitedVendorCount, awardedValue, budgetEstimate, poProcessingDays, cpOwner,
+    } = req.body;
+    const estimate = budgetEstimate === undefined || budgetEstimate === '' ? null : Number(budgetEstimate);
+    const award = awardedValue === undefined || awardedValue === '' ? null : Number(awardedValue);
+    const savings = estimate === null || award === null ? null : estimate - award;
+
+    client = await pool.connect();
+    await client.query('BEGIN');
+    const request = await ensureCapexRequest(client, req.params.id);
+    if (!request) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'CAPEX request not found' });
+    }
+
+    const { rows: [row] } = await client.query(
+      `INSERT INTO capex_procurement_performance
+       (request_id, rfq_issued_at, tender_started_at, tender_completed_at,
+        vendor_response_count, invited_vendor_count, awarded_value,
+        budget_estimate, procurement_savings, po_processing_days, cp_owner, updated_by)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
+       ON CONFLICT (request_id) DO UPDATE SET
+        rfq_issued_at = EXCLUDED.rfq_issued_at,
+        tender_started_at = EXCLUDED.tender_started_at,
+        tender_completed_at = EXCLUDED.tender_completed_at,
+        vendor_response_count = EXCLUDED.vendor_response_count,
+        invited_vendor_count = EXCLUDED.invited_vendor_count,
+        awarded_value = EXCLUDED.awarded_value,
+        budget_estimate = EXCLUDED.budget_estimate,
+        procurement_savings = EXCLUDED.procurement_savings,
+        po_processing_days = EXCLUDED.po_processing_days,
+        cp_owner = EXCLUDED.cp_owner,
+        updated_by = EXCLUDED.updated_by,
+        updated_at = NOW()
+       RETURNING *`,
+      [
+        req.params.id, rfqIssuedAt || null, tenderStartedAt || null, tenderCompletedAt || null,
+        Number(vendorResponseCount || 0), Number(invitedVendorCount || 0), award,
+        estimate, savings, poProcessingDays === undefined || poProcessingDays === '' ? null : Number(poProcessingDays),
+        cpOwner || '', userName(req),
+      ]
+    );
+    await addAuditLog(client, req.params.id, 'PROCUREMENT_PERFORMANCE_UPDATED', 'Procurement performance metrics updated.', userName(req));
+    await client.query('COMMIT');
+    res.json(mapCapexProcurementPerformance(row));
+  } catch (err) {
+    if (client) await client.query('ROLLBACK');
+    next(err);
+  } finally {
+    if (client) client.release();
+  }
+};
+
+exports.updateDecisionGate = async (req, res, next) => {
+  let client;
+  try {
+    const { status, reviewer, comments, evidence } = req.body;
+    client = await pool.connect();
+    await client.query('BEGIN');
+    const request = await ensureCapexRequest(client, req.params.id);
+    if (!request) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'CAPEX request not found' });
+    }
+    await insertDefaultDecisionGates(client, req.params.id, userName(req));
+
+    const { rows: [row] } = await client.query(
+      `UPDATE capex_decision_gate_reviews SET
+         status = COALESCE($1, status),
+         reviewer = COALESCE($2, reviewer),
+         reviewed_at = CASE WHEN COALESCE($1, status) IN ('Passed','Failed','Waived') THEN NOW() ELSE reviewed_at END,
+         comments = COALESCE($3, comments),
+         evidence = COALESCE($4, evidence),
+         updated_at = NOW()
+       WHERE request_id = $5 AND gate_key = $6
+       RETURNING *`,
+      [status || null, reviewer || userName(req), comments || null, evidence || null, req.params.id, req.params.gateKey]
+    );
+    if (!row) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'Decision gate not found' });
+    }
+    await addAuditLog(client, req.params.id, 'DECISION_GATE_UPDATED', `${row.gate_name} marked ${row.status}.`, userName(req));
+    await client.query('COMMIT');
+    res.json(mapCapexDecisionGate(row));
+  } catch (err) {
+    if (client) await client.query('ROLLBACK');
+    next(err);
+  } finally {
+    if (client) client.release();
+  }
+};
+
+exports.getMoaRecords = async (req, res, next) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT m.*,
+              COALESCE(json_agg(json_build_object(
+                'id', r.id,
+                'revisionNumber', r.revision_number,
+                'changeSummary', r.change_summary,
+                'revisedBy', r.revised_by,
+                'revisedAt', r.revised_at,
+                'attachmentId', r.attachment_id
+              ) ORDER BY r.revision_number) FILTER (WHERE r.id IS NOT NULL), '[]') AS revisions
+       FROM capex_moa_records m
+       LEFT JOIN capex_moa_revisions r ON r.moa_id = m.id
+       GROUP BY m.id
+       ORDER BY m.created_at DESC, m.id DESC`
+    );
+    res.json(rows.map(mapCapexMoaRecord));
+  } catch (err) { next(err); }
+};
+
+exports.saveMoaRecord = async (req, res, next) => {
+  let client;
+  try {
+    const {
+      moaNumber, title, approvalAuthority, approvalRoute, approvalStatus,
+      projectValue, effectiveDate, expiryDate, renewalRequired,
+      attachmentId, matrixViolationReason,
+    } = req.body;
+    if (!moaNumber || !title || !approvalAuthority) {
+      return res.status(400).json({ error: 'moaNumber, title, and approvalAuthority are required' });
+    }
+
+    client = await pool.connect();
+    await client.query('BEGIN');
+    const request = await ensureCapexRequest(client, req.params.id);
+    if (!request) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'CAPEX request not found' });
+    }
+
+    const thresholds = await getValueThresholds(client);
+    const value = projectValue === undefined || projectValue === '' ? Number(request.acv_po_value || request.estimated_value || 0) : Number(projectValue);
+    const valueBand = calcValueBandWithThresholds(value, thresholds);
+    const expectedRoute = approvalRouteForBand(valueBand);
+    const route = approvalRoute || expectedRoute;
+    const matrixValidated = route === expectedRoute && !matrixViolationReason;
+
+    const { rows: [row] } = await client.query(
+      `INSERT INTO capex_moa_records
+       (request_id, moa_number, title, approval_authority, approval_route,
+        approval_status, project_value, value_band, matrix_validated,
+        matrix_violation_reason, effective_date, expiry_date, renewal_required,
+        attachment_id, created_by, updated_by)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$15)
+       ON CONFLICT (request_id, moa_number) DO UPDATE SET
+        title = EXCLUDED.title,
+        approval_authority = EXCLUDED.approval_authority,
+        approval_route = EXCLUDED.approval_route,
+        approval_status = EXCLUDED.approval_status,
+        project_value = EXCLUDED.project_value,
+        value_band = EXCLUDED.value_band,
+        matrix_validated = EXCLUDED.matrix_validated,
+        matrix_violation_reason = EXCLUDED.matrix_violation_reason,
+        effective_date = EXCLUDED.effective_date,
+        expiry_date = EXCLUDED.expiry_date,
+        renewal_required = EXCLUDED.renewal_required,
+        attachment_id = EXCLUDED.attachment_id,
+        updated_by = EXCLUDED.updated_by,
+        updated_at = NOW()
+       RETURNING *`,
+      [
+        req.params.id, moaNumber, title, approvalAuthority, route,
+        approvalStatus || 'Draft', value, valueBand, matrixValidated,
+        matrixViolationReason || (matrixValidated ? null : `Expected route: ${expectedRoute}`),
+        effectiveDate || null, expiryDate || null, !!renewalRequired,
+        attachmentId || null, userName(req),
+      ]
+    );
+
+    await addAuditLog(client, req.params.id, 'MOA_UPDATED', `MOA record saved: ${row.moa_number}.`, userName(req));
+    await client.query('COMMIT');
+    res.status(201).json(mapCapexMoaRecord(row));
+  } catch (err) {
+    if (client) await client.query('ROLLBACK');
+    next(err);
+  } finally {
+    if (client) client.release();
+  }
+};
+
+exports.addMoaRevision = async (req, res, next) => {
+  let client;
+  try {
+    const { changeSummary, attachmentId } = req.body;
+    if (!changeSummary) return res.status(400).json({ error: 'changeSummary is required' });
+
+    client = await pool.connect();
+    await client.query('BEGIN');
+    const request = await ensureCapexRequest(client, req.params.id);
+    if (!request) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'CAPEX request not found' });
+    }
+
+    const { rows: [moa] } = await client.query(
+      `SELECT * FROM capex_moa_records WHERE id = $1 AND request_id = $2 FOR UPDATE`,
+      [req.params.moaId, req.params.id]
+    );
+    if (!moa) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'MOA record not found' });
+    }
+
+    const { rows: [last] } = await client.query(
+      `SELECT COALESCE(MAX(revision_number),0) AS max_revision FROM capex_moa_revisions WHERE moa_id = $1`,
+      [moa.id]
+    );
+    const revisionNumber = Number(last.max_revision || 0) + 1;
+    const { rows: [row] } = await client.query(
+      `INSERT INTO capex_moa_revisions
+       (moa_id, revision_number, change_summary, revised_by, attachment_id)
+       VALUES ($1,$2,$3,$4,$5)
+       RETURNING *`,
+      [moa.id, revisionNumber, changeSummary, userName(req), attachmentId || null]
+    );
+
+    await client.query(`UPDATE capex_moa_records SET updated_by = $1, updated_at = NOW() WHERE id = $2`, [userName(req), moa.id]);
+    await addAuditLog(client, req.params.id, 'MOA_REVISION_ADDED', `MOA revision ${revisionNumber} added for ${moa.moa_number}.`, userName(req));
+    await client.query('COMMIT');
+    res.status(201).json(mapCapexMoaRevision(row));
+  } catch (err) {
+    if (client) await client.query('ROLLBACK');
+    next(err);
+  } finally {
+    if (client) client.release();
+  }
+};
+
+exports.createDocumentVersion = async (req, res, next) => {
+  let client;
+  try {
+    const { attachmentId, documentType, documentName, versionLabel, changelog, retentionUntil } = req.body;
+    if (!documentType || !documentName || !versionLabel) {
+      return res.status(400).json({ error: 'documentType, documentName, and versionLabel are required' });
+    }
+
+    client = await pool.connect();
+    await client.query('BEGIN');
+    const request = await ensureCapexRequest(client, req.params.id);
+    if (!request) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'CAPEX request not found' });
+    }
+
+    const { rows: [row] } = await client.query(
+      `INSERT INTO capex_document_versions
+       (request_id, attachment_id, document_type, document_name, version_label,
+        changelog, retention_until, uploaded_by)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
+       ON CONFLICT (request_id, document_type, version_label) DO UPDATE SET
+        attachment_id = EXCLUDED.attachment_id,
+        document_name = EXCLUDED.document_name,
+        changelog = EXCLUDED.changelog,
+        retention_until = EXCLUDED.retention_until,
+        uploaded_by = EXCLUDED.uploaded_by,
+        uploaded_at = NOW()
+       RETURNING *`,
+      [req.params.id, attachmentId || null, documentType, documentName, versionLabel, changelog || '', retentionUntil || null, userName(req)]
+    );
+
+    await addAuditLog(client, req.params.id, 'DOCUMENT_VERSIONED', `Document version saved: ${documentName} ${versionLabel}.`, userName(req));
+    await client.query('COMMIT');
+    res.status(201).json(mapCapexDocumentVersion(row));
+  } catch (err) {
+    if (client) await client.query('ROLLBACK');
+    next(err);
+  } finally {
+    if (client) client.release();
+  }
+};
+
+exports.createElectronicSignature = async (req, res, next) => {
+  let client;
+  try {
+    const { linkedType, linkedId, signerName, signerRole, decision, signatureMethod, comments } = req.body;
+    if (!signerName || !signerRole) return res.status(400).json({ error: 'signerName and signerRole are required' });
+
+    client = await pool.connect();
+    await client.query('BEGIN');
+    const request = await ensureCapexRequest(client, req.params.id);
+    if (!request) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'CAPEX request not found' });
+    }
+
+    const { rows: [row] } = await client.query(
+      `INSERT INTO capex_electronic_signatures
+       (request_id, linked_type, linked_id, signer_name, signer_role, decision,
+        signature_method, comments, ip_address, user_agent)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
+       RETURNING *`,
+      [
+        req.params.id, linkedType || 'Approval', linkedId || null,
+        signerName, signerRole, decision || 'Signed',
+        signatureMethod || 'System Attestation', comments || '',
+        req.ip || null, req.get?.('user-agent') || null,
+      ]
+    );
+
+    await addAuditLog(client, req.params.id, 'E_SIGNATURE_CAPTURED', `Electronic signature captured from ${signerName}.`, userName(req));
+    await client.query('COMMIT');
+    res.status(201).json(mapCapexElectronicSignature(row));
+  } catch (err) {
+    if (client) await client.query('ROLLBACK');
+    next(err);
+  } finally {
+    if (client) client.release();
+  }
+};
+
+exports.getReportSchedules = async (req, res, next) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT * FROM capex_report_schedules ORDER BY is_active DESC, next_run_date NULLS LAST, id DESC`
+    );
+    res.json(rows.map(mapCapexReportSchedule));
+  } catch (err) { next(err); }
+};
+
+exports.createReportSchedule = async (req, res, next) => {
+  try {
+    const { reportName, reportType, audience, frequency, format, filters, recipients, nextRunDate, isActive } = req.body;
+    if (!reportName || !reportType) return res.status(400).json({ error: 'reportName and reportType are required' });
+
+    const { rows: [row] } = await pool.query(
+      `INSERT INTO capex_report_schedules
+       (report_name, report_type, audience, frequency, format, filters, recipients,
+        next_run_date, is_active, created_by, updated_by)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$10)
+       RETURNING *`,
+      [
+        reportName, reportType, audience || '', frequency || 'Monthly',
+        format || 'PDF', JSON.stringify(filters || {}),
+        Array.isArray(recipients) ? recipients : [],
+        nextRunDate || null, isActive !== false, userName(req),
+      ]
+    );
+    res.status(201).json(mapCapexReportSchedule(row));
+  } catch (err) { next(err); }
+};
+
+exports.getReportExport = async (req, res, next) => {
+  try {
+    const format = String(req.query.format || 'json').toLowerCase();
+    const reportType = req.query.reportType || 'governance';
+    const { rows } = await pool.query(
+      `SELECT r.id, r.title, r.department, r.business_function, r.status,
+              r.estimated_value, p.po_value, fc.actual_spend, a.auc_value,
+              c.capitalized_value, po.open_commitment_value,
+              COUNT(DISTINCT risk.id)::int AS open_risks,
+              COUNT(DISTINCT moa.id)::int AS moa_records
+       FROM capex_requests r
+       LEFT JOIN capex_procurement_tracking p ON p.request_id = r.id
+       LEFT JOIN capex_financial_closure fc ON fc.request_id = r.id
+       LEFT JOIN capex_auc_tracking a ON a.request_id = r.id
+       LEFT JOIN capex_capitalization_tracking c ON c.request_id = r.id
+       LEFT JOIN capex_po_closure_tracking po ON po.request_id = r.id
+       LEFT JOIN capex_risks risk ON risk.request_id = r.id AND risk.status <> 'Closed'
+       LEFT JOIN capex_moa_records moa ON moa.request_id = r.id
+       GROUP BY r.id, p.po_value, fc.actual_spend, a.auc_value, c.capitalized_value, po.open_commitment_value
+       ORDER BY r.created_at DESC`
+    );
+
+    const exportRows = rows.map(r => ({
+      requestId: r.id,
+      title: r.title,
+      department: r.department,
+      businessFunction: r.business_function,
+      status: r.status,
+      approvedBudget: Number(r.estimated_value || 0),
+      committedSpend: r.po_value === null ? 0 : Number(r.po_value),
+      actualSpend: r.actual_spend === null ? 0 : Number(r.actual_spend),
+      aucValue: r.auc_value === null ? 0 : Number(r.auc_value),
+      capitalizedValue: r.capitalized_value === null ? 0 : Number(r.capitalized_value),
+      openCommitmentValue: r.open_commitment_value === null ? 0 : Number(r.open_commitment_value),
+      openRisks: Number(r.open_risks || 0),
+      moaRecords: Number(r.moa_records || 0),
+    }));
+
+    if (format === 'csv' || format === 'xlsx') {
+      const headers = Object.keys(exportRows[0] || {
+        requestId: '', title: '', department: '', businessFunction: '', status: '',
+        approvedBudget: '', committedSpend: '', actualSpend: '', aucValue: '',
+        capitalizedValue: '', openCommitmentValue: '', openRisks: '', moaRecords: '',
+      });
+      const body = exportRows.map(row => headers.map(h => csvCell(row[h])).join(','));
+      res.setHeader('Content-Type', format === 'xlsx' ? 'text/csv' : 'text/csv');
+      res.setHeader('Content-Disposition', `attachment; filename="capex-${reportType}.${format === 'xlsx' ? 'csv' : 'csv'}"`);
+      return res.send([headers.map(csvCell).join(','), ...body].join('\n'));
+    }
+
+    if (format === 'pdf') {
+      res.setHeader('Content-Type', 'application/json');
+      return res.json({
+        reportType,
+        format: 'pdf',
+        status: 'ready_for_pdf_renderer',
+        message: 'PDF export payload is generated; connect a PDF renderer in the frontend or reporting worker.',
+        rows: exportRows,
+      });
+    }
+
+    res.json({ reportType, format: 'json', rows: exportRows });
+  } catch (err) { next(err); }
+};
+
+exports.getDashboardDrilldown = async (req, res, next) => {
+  try {
+    const type = String(req.query.type || 'portfolio');
+    const department = req.query.department || null;
+    const params = [];
+    let where = '';
+    if (department) {
+      params.push(department);
+      where = `WHERE LOWER(r.department) = LOWER($${params.length})`;
+    }
+
+    const queries = {
+      businessUnit:
+        `SELECT r.department,
+                COUNT(*)::int AS projects,
+                COALESCE(SUM(r.estimated_value),0) AS approved_budget,
+                COALESCE(SUM(p.po_value),0) AS commitments,
+                COALESCE(SUM(fc.actual_spend),0) AS actual_spend,
+                COUNT(*) FILTER (WHERE r.status ILIKE '%Delayed%')::int AS delayed_projects
+         FROM capex_requests r
+         LEFT JOIN capex_procurement_tracking p ON p.request_id = r.id
+         LEFT JOIN capex_financial_closure fc ON fc.request_id = r.id
+         ${where}
+         GROUP BY r.department
+         ORDER BY r.department`,
+      aucAging:
+        `SELECT r.id, r.title, r.department, a.auc_value, a.auc_start_date, a.status,
+                CASE
+                  WHEN a.auc_start_date <= CURRENT_DATE - INTERVAL '180 days' THEN '>180'
+                  WHEN a.auc_start_date <= CURRENT_DATE - INTERVAL '90 days' THEN '90-180'
+                  ELSE '<90'
+                END AS aging_bucket
+         FROM capex_auc_tracking a
+         JOIN capex_requests r ON r.id = a.request_id
+         ${where}
+         ORDER BY a.auc_start_date NULLS LAST`,
+      moaCompliance:
+        `SELECT r.id, r.title, r.department, m.moa_number, m.approval_status,
+                m.matrix_validated, m.expiry_date, m.renewal_required,
+                m.matrix_violation_reason
+         FROM capex_moa_records m
+         JOIN capex_requests r ON r.id = m.request_id
+         ${where}
+         ORDER BY m.expiry_date NULLS LAST, m.id DESC`,
+      risks:
+        `SELECT r.id AS request_id, r.title AS project_title, r.department,
+                risk.id, risk.category, risk.title, risk.severity, risk.status, risk.owner, risk.due_date
+         FROM capex_risks risk
+         JOIN capex_requests r ON r.id = risk.request_id
+         ${where}
+         ORDER BY CASE risk.severity WHEN 'Red' THEN 1 WHEN 'Amber' THEN 2 ELSE 3 END, risk.due_date NULLS LAST`,
+      variations:
+        `SELECT r.id AS request_id, r.title, r.department, v.variation_type,
+                v.original_budget, v.revised_budget, v.variation_amount,
+                v.variation_percent, v.moa_approval_required, v.approval_status
+         FROM capex_budget_variations v
+         JOIN capex_requests r ON r.id = v.request_id
+         ${where}
+         ORDER BY v.requested_at DESC`,
+      procurementPerformance:
+        `SELECT r.id AS request_id, r.title, r.department, pp.rfq_issued_at,
+                pp.tender_started_at, pp.tender_completed_at, pp.vendor_response_count,
+                pp.invited_vendor_count, pp.procurement_savings, pp.po_processing_days, pp.cp_owner
+         FROM capex_procurement_performance pp
+         JOIN capex_requests r ON r.id = pp.request_id
+         ${where}
+         ORDER BY pp.updated_at DESC`,
+      decisionGates:
+        `SELECT r.id AS request_id, r.title, r.department, g.gate_key,
+                g.gate_name, g.status, g.reviewer, g.reviewed_at
+         FROM capex_decision_gate_reviews g
+         JOIN capex_requests r ON r.id = g.request_id
+         ${where}
+         ORDER BY r.id, g.id`,
+    };
+
+    const sql = queries[type] || queries.businessUnit;
+    const { rows } = await pool.query(sql, params);
+    res.json({ type: queries[type] ? type : 'businessUnit', rows: rows.map(mapDrilldownRow) });
+  } catch (err) { next(err); }
+};
+
+exports.getGovernanceDashboard = async (req, res, next) => {
+  try {
+    const [
+      portfolio, delivery, auc, capitalization, poClosure,
+      checklist, benefits, risks, moaCompliance, documentControls,
+      scheduledReports, variations, procurementPerformance, decisionGates, alerts,
+    ] = await Promise.all([
+      pool.query(
+        `SELECT
+          COUNT(*)::int AS total_projects,
+          COUNT(*) FILTER (WHERE status NOT IN ('Closed','Rejected'))::int AS active_projects,
+          COUNT(*) FILTER (WHERE status ILIKE '%Delayed%')::int AS delayed_projects,
+          COUNT(*) FILTER (WHERE status = 'Closed')::int AS closed_projects,
+          COALESCE(SUM(estimated_value),0) AS approved_budget,
+          COALESCE(SUM(fc.actual_spend),0) AS actual_spend,
+          COALESCE(SUM(p.po_value),0) AS committed_spend,
+          COALESCE(SUM(COALESCE(fc.actual_spend, p.po_value, estimated_value)),0) AS forecast_spend,
+          COALESCE(SUM(savings),0) AS procurement_savings
+         FROM capex_requests r
+         LEFT JOIN capex_procurement_tracking p ON p.request_id = r.id
+         LEFT JOIN capex_financial_closure fc ON fc.request_id = r.id`
+      ),
+      pool.query(
+        `SELECT
+          COUNT(*)::int AS milestones,
+          COUNT(*) FILTER (WHERE status = 'Completed')::int AS completed_milestones,
+          COUNT(*) FILTER (WHERE planned_date < CURRENT_DATE AND status <> 'Completed')::int AS delayed_milestones
+         FROM capex_project_milestones`
+      ),
+      pool.query(
+        `SELECT
+          COUNT(*)::int AS open_auc_projects,
+          COALESCE(SUM(auc_value),0) AS total_auc_value,
+          COUNT(*) FILTER (WHERE auc_start_date <= CURRENT_DATE - INTERVAL '90 days')::int AS aged_over_90,
+          COUNT(*) FILTER (WHERE auc_start_date <= CURRENT_DATE - INTERVAL '180 days')::int AS aged_over_180,
+          COUNT(*) FILTER (WHERE capitalization_ready = true)::int AS capitalization_ready
+         FROM capex_auc_tracking
+         WHERE status <> 'Capitalized'`
+      ),
+      pool.query(
+        `SELECT
+          COUNT(*) FILTER (WHERE status IN ('Ready','Pending Approval','In Progress'))::int AS pending_capitalizations,
+          COALESCE(SUM(capitalized_value),0) AS capitalized_value,
+          COUNT(*) FILTER (WHERE fixed_asset_registered_at IS NOT NULL)::int AS capitalized_projects,
+          COUNT(*) FILTER (WHERE capitalization_request_date <= CURRENT_DATE - INTERVAL '60 days' AND fixed_asset_registered_at IS NULL)::int AS overdue_capitalizations
+         FROM capex_capitalization_tracking`
+      ),
+      pool.query(
+        `SELECT
+          COUNT(*) FILTER (WHERE closure_status <> 'Closed')::int AS open_pos,
+          COALESCE(SUM(open_commitment_value),0) AS open_commitment_value,
+          COALESCE(SUM(unutilized_commitment),0) AS unutilized_commitment,
+          COUNT(*) FILTER (WHERE closure_due_date < CURRENT_DATE AND closure_status <> 'Closed')::int AS overdue_closures
+         FROM capex_po_closure_tracking`
+      ),
+      pool.query(
+        `SELECT
+          COUNT(*)::int AS checklist_items,
+          COUNT(*) FILTER (WHERE status = 'Completed')::int AS completed_items,
+          COUNT(DISTINCT request_id) FILTER (WHERE status <> 'Completed')::int AS projects_pending_closure
+         FROM capex_closure_checklist_items`
+      ),
+      pool.query(
+        `SELECT
+          COUNT(*)::int AS reviews,
+          COALESCE(AVG(actual_roi),0) AS average_actual_roi,
+          COALESCE(SUM(actual_savings),0) AS actual_savings,
+          COUNT(*) FILTER (WHERE status <> 'Completed')::int AS pending_reviews
+         FROM capex_benefit_reviews`
+      ),
+      pool.query(
+        `SELECT
+          COUNT(*) FILTER (WHERE status <> 'Closed')::int AS open_risks,
+          COUNT(*) FILTER (WHERE severity = 'Red' AND status <> 'Closed')::int AS red_risks,
+          COUNT(*) FILTER (WHERE severity = 'Amber' AND status <> 'Closed')::int AS amber_risks
+         FROM capex_risks`
+      ),
+      pool.query(
+        `SELECT
+          COUNT(*)::int AS total_moa,
+          COUNT(*) FILTER (WHERE approval_status IN ('Approved','Active'))::int AS approved_moa,
+          COUNT(*) FILTER (WHERE matrix_validated = false)::int AS matrix_violations,
+          COUNT(*) FILTER (WHERE expiry_date <= CURRENT_DATE + INTERVAL '60 days')::int AS expiring_soon,
+          COUNT(*) FILTER (WHERE renewal_required = true)::int AS renewals_required
+         FROM capex_moa_records`
+      ),
+      pool.query(
+        `SELECT
+          COUNT(DISTINCT request_id)::int AS projects_with_versions,
+          COUNT(*)::int AS document_versions,
+          COUNT(*) FILTER (WHERE retention_until IS NOT NULL AND retention_until < CURRENT_DATE)::int AS expired_retention_items,
+          (SELECT COUNT(*) FROM capex_electronic_signatures)::int AS electronic_signatures
+         FROM capex_document_versions`
+      ),
+      pool.query(
+        `SELECT
+          COUNT(*) FILTER (WHERE is_active = true)::int AS active_schedules,
+          COUNT(*) FILTER (WHERE is_active = true AND next_run_date <= CURRENT_DATE)::int AS due_schedules
+         FROM capex_report_schedules`
+      ),
+      pool.query(
+        `SELECT
+          COUNT(*)::int AS total_variations,
+          COUNT(*) FILTER (WHERE moa_approval_required = true)::int AS moa_required,
+          COUNT(*) FILTER (WHERE approval_status = 'Approved')::int AS approved_variations,
+          COALESCE(SUM(variation_amount),0) AS net_variation_amount
+         FROM capex_budget_variations`
+      ),
+      pool.query(
+        `SELECT
+          COUNT(*)::int AS tracked_projects,
+          COALESCE(AVG(NULLIF(po_processing_days,0)),0) AS avg_po_processing_days,
+          COALESCE(AVG(CASE WHEN invited_vendor_count > 0 THEN vendor_response_count::numeric / invited_vendor_count * 100 ELSE NULL END),0) AS avg_vendor_response_rate,
+          COALESCE(SUM(procurement_savings),0) AS procurement_savings
+         FROM capex_procurement_performance`
+      ),
+      pool.query(
+        `SELECT
+          COUNT(*)::int AS total_gates,
+          COUNT(*) FILTER (WHERE status = 'Passed')::int AS passed_gates,
+          COUNT(*) FILTER (WHERE status = 'Failed')::int AS failed_gates,
+          COUNT(*) FILTER (WHERE status = 'Pending')::int AS pending_gates
+         FROM capex_decision_gate_reviews`
+      ),
+      pool.query(
+        `SELECT * FROM (
+          SELECT r.id AS request_id, 'Budget Variance' AS alert_type, 'Red' AS severity,
+                 'Budget variance exceeds 10%.' AS message
+          FROM capex_requests r
+          LEFT JOIN capex_financial_closure fc ON fc.request_id = r.id
+          WHERE fc.actual_spend IS NOT NULL AND fc.actual_spend > r.estimated_value * 1.10
+          UNION ALL
+          SELECT request_id, 'AUC Aging', 'Red', 'AUC age exceeds 180 days.'
+          FROM capex_auc_tracking
+          WHERE status <> 'Capitalized' AND auc_start_date <= CURRENT_DATE - INTERVAL '180 days'
+          UNION ALL
+          SELECT request_id, 'Capitalization Overdue', 'Amber', 'Capitalization pending for more than 60 days.'
+          FROM capex_capitalization_tracking
+          WHERE fixed_asset_registered_at IS NULL AND capitalization_request_date <= CURRENT_DATE - INTERVAL '60 days'
+          UNION ALL
+          SELECT request_id, 'PO Closure Overdue', 'Amber', 'PO closure is overdue.'
+          FROM capex_po_closure_tracking
+          WHERE closure_status <> 'Closed' AND closure_due_date < CURRENT_DATE
+          UNION ALL
+          SELECT request_id, 'Project Delay', 'Amber', 'Project milestone is delayed by more than 30 days.'
+          FROM capex_project_milestones
+          WHERE status <> 'Completed' AND planned_date < CURRENT_DATE - INTERVAL '30 days'
+          UNION ALL
+          SELECT request_id, 'Budget Variation Reapproval', 'Red', 'Budget variation exceeds 10% and requires MOA approval.'
+          FROM capex_budget_variations
+          WHERE moa_approval_required = true AND approval_status <> 'Approved'
+          UNION ALL
+          SELECT request_id, 'MOA Matrix Violation', 'Red', 'MOA authority matrix validation failed.'
+          FROM capex_moa_records
+          WHERE matrix_validated = false
+          UNION ALL
+          SELECT request_id, 'MOA Expiry', 'Amber', 'MOA expiry or renewal is due within 60 days.'
+          FROM capex_moa_records
+          WHERE expiry_date <= CURRENT_DATE + INTERVAL '60 days' OR renewal_required = true
+        ) generated
+        ORDER BY severity DESC, request_id`
+      ),
+    ]);
+
+    const p = portfolio.rows[0] || {};
+    const approvedBudget = Number(p.approved_budget || 0);
+    const actualSpend = Number(p.actual_spend || 0);
+    const checklistRow = checklist.rows[0] || {};
+    const checklistItems = Number(checklistRow.checklist_items || 0);
+    const completedItems = Number(checklistRow.completed_items || 0);
+
+    res.json({
+      portfolio: {
+        totalProjects: Number(p.total_projects || 0),
+        activeProjects: Number(p.active_projects || 0),
+        delayedProjects: Number(p.delayed_projects || 0),
+        closedProjects: Number(p.closed_projects || 0),
+        approvedBudget,
+        actualSpend,
+        committedSpend: Number(p.committed_spend || 0),
+        forecastSpend: Number(p.forecast_spend || 0),
+        procurementSavings: Number(p.procurement_savings || 0),
+        budgetUtilizationPercent: approvedBudget ? Math.round((actualSpend / approvedBudget) * 100) : 0,
+      },
+      delivery: {
+        milestones: Number(delivery.rows[0]?.milestones || 0),
+        completedMilestones: Number(delivery.rows[0]?.completed_milestones || 0),
+        delayedMilestones: Number(delivery.rows[0]?.delayed_milestones || 0),
+      },
+      auc: {
+        openProjects: Number(auc.rows[0]?.open_auc_projects || 0),
+        totalValue: Number(auc.rows[0]?.total_auc_value || 0),
+        agedOver90Days: Number(auc.rows[0]?.aged_over_90 || 0),
+        agedOver180Days: Number(auc.rows[0]?.aged_over_180 || 0),
+        capitalizationReady: Number(auc.rows[0]?.capitalization_ready || 0),
+      },
+      capitalization: {
+        pending: Number(capitalization.rows[0]?.pending_capitalizations || 0),
+        capitalizedValue: Number(capitalization.rows[0]?.capitalized_value || 0),
+        capitalizedProjects: Number(capitalization.rows[0]?.capitalized_projects || 0),
+        overdue: Number(capitalization.rows[0]?.overdue_capitalizations || 0),
+      },
+      poClosure: {
+        openPOs: Number(poClosure.rows[0]?.open_pos || 0),
+        openCommitmentValue: Number(poClosure.rows[0]?.open_commitment_value || 0),
+        unutilizedCommitment: Number(poClosure.rows[0]?.unutilized_commitment || 0),
+        overdueClosures: Number(poClosure.rows[0]?.overdue_closures || 0),
+      },
+      closure: {
+        checklistItems,
+        completedItems,
+        readinessPercent: checklistItems ? Math.round((completedItems / checklistItems) * 100) : 0,
+        projectsPendingClosure: Number(checklistRow.projects_pending_closure || 0),
+      },
+      benefits: {
+        reviews: Number(benefits.rows[0]?.reviews || 0),
+        averageActualRoi: Number(benefits.rows[0]?.average_actual_roi || 0),
+        actualSavings: Number(benefits.rows[0]?.actual_savings || 0),
+        pendingReviews: Number(benefits.rows[0]?.pending_reviews || 0),
+      },
+      risk: {
+        openRisks: Number(risks.rows[0]?.open_risks || 0),
+        redRisks: Number(risks.rows[0]?.red_risks || 0),
+        amberRisks: Number(risks.rows[0]?.amber_risks || 0),
+      },
+      moaCompliance: {
+        totalMoa: Number(moaCompliance.rows[0]?.total_moa || 0),
+        approvedMoa: Number(moaCompliance.rows[0]?.approved_moa || 0),
+        matrixViolations: Number(moaCompliance.rows[0]?.matrix_violations || 0),
+        expiringSoon: Number(moaCompliance.rows[0]?.expiring_soon || 0),
+        renewalsRequired: Number(moaCompliance.rows[0]?.renewals_required || 0),
+      },
+      documentControls: {
+        projectsWithVersions: Number(documentControls.rows[0]?.projects_with_versions || 0),
+        documentVersions: Number(documentControls.rows[0]?.document_versions || 0),
+        expiredRetentionItems: Number(documentControls.rows[0]?.expired_retention_items || 0),
+        electronicSignatures: Number(documentControls.rows[0]?.electronic_signatures || 0),
+      },
+      scheduledReporting: {
+        activeSchedules: Number(scheduledReports.rows[0]?.active_schedules || 0),
+        dueSchedules: Number(scheduledReports.rows[0]?.due_schedules || 0),
+      },
+      variationControl: {
+        totalVariations: Number(variations.rows[0]?.total_variations || 0),
+        moaRequired: Number(variations.rows[0]?.moa_required || 0),
+        approvedVariations: Number(variations.rows[0]?.approved_variations || 0),
+        netVariationAmount: Number(variations.rows[0]?.net_variation_amount || 0),
+      },
+      procurementPerformance: {
+        trackedProjects: Number(procurementPerformance.rows[0]?.tracked_projects || 0),
+        averagePoProcessingDays: Number(procurementPerformance.rows[0]?.avg_po_processing_days || 0),
+        averageVendorResponseRate: Number(procurementPerformance.rows[0]?.avg_vendor_response_rate || 0),
+        procurementSavings: Number(procurementPerformance.rows[0]?.procurement_savings || 0),
+      },
+      decisionGates: {
+        totalGates: Number(decisionGates.rows[0]?.total_gates || 0),
+        passedGates: Number(decisionGates.rows[0]?.passed_gates || 0),
+        failedGates: Number(decisionGates.rows[0]?.failed_gates || 0),
+        pendingGates: Number(decisionGates.rows[0]?.pending_gates || 0),
+      },
+      generatedAlerts: alerts.rows.map(r => ({
+        requestId: r.request_id,
+        alertType: r.alert_type,
+        severity: r.severity,
+        message: r.message,
+      })),
+    });
+  } catch (err) { next(err); }
 };
 
 exports.getAuditLogs = async (req, res, next) => {
@@ -1378,5 +2664,292 @@ function mapCapexAttachment(r) {
     retentionUntil: r.retention_until,
     uploadedBy: r.uploaded_by,
     uploadedAt: r.uploaded_at,
+  };
+}
+
+function mapCapexAuc(r) {
+  return {
+    requestId: r.request_id,
+    aucAccount: r.auc_account,
+    aucValue: Number(r.auc_value || 0),
+    aucStartDate: r.auc_start_date,
+    completionConfirmed: r.completion_confirmed,
+    capitalizationReady: r.capitalization_ready,
+    status: r.status,
+    businessOwner: r.business_owner,
+    financeOwner: r.finance_owner,
+    escalationLevel: r.escalation_level,
+    comments: r.comments,
+    updatedBy: r.updated_by,
+    updatedAt: r.updated_at,
+  };
+}
+
+function mapCapexCapitalization(r) {
+  return {
+    requestId: r.request_id,
+    status: r.status,
+    financeVerified: r.finance_verified,
+    capitalizationRequestDate: r.capitalization_request_date,
+    assetMasterNumber: r.asset_master_number,
+    assetCategory: r.asset_category,
+    capitalizedValue: r.capitalized_value === null ? null : Number(r.capitalized_value),
+    capitalizationApprovalDate: r.capitalization_approval_date,
+    fixedAssetRegisteredAt: r.fixed_asset_registered_at,
+    depreciationStartDate: r.depreciation_start_date,
+    comments: r.comments,
+    updatedBy: r.updated_by,
+    updatedAt: r.updated_at,
+  };
+}
+
+function mapCapexPoClosure(r) {
+  return {
+    requestId: r.request_id,
+    finalInvoiceReceived: r.final_invoice_received,
+    vendorConfirmationReceived: r.vendor_confirmation_received,
+    closureStatus: r.closure_status,
+    openCommitmentValue: Number(r.open_commitment_value || 0),
+    unutilizedCommitment: Number(r.unutilized_commitment || 0),
+    closureDueDate: r.closure_due_date,
+    closedAt: r.closed_at,
+    followUpOwner: r.follow_up_owner,
+    comments: r.comments,
+    updatedBy: r.updated_by,
+    updatedAt: r.updated_at,
+  };
+}
+
+function mapCapexClosureChecklistItem(r) {
+  return {
+    id: r.id,
+    requestId: r.request_id,
+    itemKey: r.item_key,
+    label: r.label,
+    responsibleOwner: r.responsible_owner,
+    dueDate: r.due_date,
+    status: r.status,
+    completedAt: r.completed_at,
+    evidenceAttachment: r.evidence_attachment,
+    comments: r.comments,
+    updatedBy: r.updated_by,
+    updatedAt: r.updated_at,
+  };
+}
+
+function mapCapexBenefitReview(r) {
+  return {
+    id: r.id,
+    requestId: r.request_id,
+    reviewPeriodMonths: r.review_period_months,
+    plannedRoi: r.planned_roi === null ? null : Number(r.planned_roi),
+    actualRoi: r.actual_roi === null ? null : Number(r.actual_roi),
+    plannedSavings: r.planned_savings === null ? null : Number(r.planned_savings),
+    actualSavings: r.actual_savings === null ? null : Number(r.actual_savings),
+    benefitScore: r.benefit_score === null ? null : Number(r.benefit_score),
+    status: r.status,
+    reviewedAt: r.reviewed_at,
+    reviewer: r.reviewer,
+    comments: r.comments,
+    createdAt: r.created_at,
+    updatedAt: r.updated_at,
+  };
+}
+
+function mapCapexRisk(r) {
+  return {
+    id: r.id,
+    requestId: r.request_id,
+    category: r.category,
+    title: r.title,
+    severity: r.severity,
+    probability: r.probability,
+    impact: r.impact,
+    mitigationPlan: r.mitigation_plan,
+    owner: r.owner,
+    dueDate: r.due_date,
+    status: r.status,
+    closedAt: r.closed_at,
+    createdBy: r.created_by,
+    createdAt: r.created_at,
+    updatedAt: r.updated_at,
+  };
+}
+
+function mapCapexGovernanceAlert(r) {
+  return {
+    id: r.id,
+    requestId: r.request_id,
+    alertType: r.alert_type,
+    severity: r.severity,
+    message: r.message,
+    assignedTo: r.assigned_to,
+    status: r.status,
+    triggeredAt: r.triggered_at,
+    resolvedAt: r.resolved_at,
+  };
+}
+
+function mapCapexMoaRecord(r) {
+  return {
+    id: r.id,
+    requestId: r.request_id,
+    moaNumber: r.moa_number,
+    title: r.title,
+    approvalAuthority: r.approval_authority,
+    approvalRoute: r.approval_route,
+    approvalStatus: r.approval_status,
+    projectValue: Number(r.project_value || 0),
+    valueBand: r.value_band,
+    matrixValidated: r.matrix_validated,
+    matrixViolationReason: r.matrix_violation_reason,
+    effectiveDate: r.effective_date,
+    expiryDate: r.expiry_date,
+    renewalRequired: r.renewal_required,
+    attachmentId: r.attachment_id,
+    createdBy: r.created_by,
+    createdAt: r.created_at,
+    updatedBy: r.updated_by,
+    updatedAt: r.updated_at,
+    revisions: Array.isArray(r.revisions) ? r.revisions : undefined,
+  };
+}
+
+function mapCapexMoaRevision(r) {
+  return {
+    id: r.id,
+    moaId: r.moa_id,
+    revisionNumber: r.revision_number,
+    changeSummary: r.change_summary,
+    revisedBy: r.revised_by,
+    revisedAt: r.revised_at,
+    attachmentId: r.attachment_id,
+  };
+}
+
+function mapCapexDocumentVersion(r) {
+  return {
+    id: r.id,
+    requestId: r.request_id,
+    attachmentId: r.attachment_id,
+    documentType: r.document_type,
+    documentName: r.document_name,
+    versionLabel: r.version_label,
+    changelog: r.changelog,
+    retentionUntil: r.retention_until,
+    uploadedBy: r.uploaded_by,
+    uploadedAt: r.uploaded_at,
+  };
+}
+
+function mapCapexElectronicSignature(r) {
+  return {
+    id: r.id,
+    requestId: r.request_id,
+    linkedType: r.linked_type,
+    linkedId: r.linked_id,
+    signerName: r.signer_name,
+    signerRole: r.signer_role,
+    decision: r.decision,
+    signatureMethod: r.signature_method,
+    signedAt: r.signed_at,
+    comments: r.comments,
+    ipAddress: r.ip_address,
+    userAgent: r.user_agent,
+  };
+}
+
+function mapCapexReportSchedule(r) {
+  return {
+    id: r.id,
+    reportName: r.report_name,
+    reportType: r.report_type,
+    audience: r.audience,
+    frequency: r.frequency,
+    format: r.format,
+    filters: r.filters || {},
+    recipients: r.recipients || [],
+    nextRunDate: r.next_run_date,
+    isActive: r.is_active,
+    createdBy: r.created_by,
+    createdAt: r.created_at,
+    updatedBy: r.updated_by,
+    updatedAt: r.updated_at,
+  };
+}
+
+function mapDrilldownRow(r) {
+  const out = {};
+  for (const [key, value] of Object.entries(r)) {
+    const camel = key.replace(/_([a-z])/g, (_, c) => c.toUpperCase());
+    out[camel] = typeof value === 'string' && /^-?\d+(\.\d+)?$/.test(value) ? Number(value) : value;
+  }
+  return out;
+}
+
+function mapCapexBudgetVariation(r) {
+  return {
+    id: r.id,
+    requestId: r.request_id,
+    variationType: r.variation_type,
+    originalBudget: Number(r.original_budget || 0),
+    revisedBudget: Number(r.revised_budget || 0),
+    variationAmount: Number(r.variation_amount || 0),
+    variationPercent: Number(r.variation_percent || 0),
+    justification: r.justification,
+    financialImpactAnalysis: r.financial_impact_analysis,
+    fibReviewStatus: r.fib_review_status,
+    moaApprovalRequired: r.moa_approval_required,
+    approvalStatus: r.approval_status,
+    requestedBy: r.requested_by,
+    requestedAt: r.requested_at,
+    approvedBy: r.approved_by,
+    approvedAt: r.approved_at,
+  };
+}
+
+function mapCapexProcurementPerformance(r) {
+  return {
+    requestId: r.request_id,
+    rfqIssuedAt: r.rfq_issued_at,
+    tenderStartedAt: r.tender_started_at,
+    tenderCompletedAt: r.tender_completed_at,
+    vendorResponseCount: r.vendor_response_count,
+    invitedVendorCount: r.invited_vendor_count,
+    awardedValue: r.awarded_value === null ? null : Number(r.awarded_value),
+    budgetEstimate: r.budget_estimate === null ? null : Number(r.budget_estimate),
+    procurementSavings: r.procurement_savings === null ? null : Number(r.procurement_savings),
+    poProcessingDays: r.po_processing_days,
+    cpOwner: r.cp_owner,
+    updatedBy: r.updated_by,
+    updatedAt: r.updated_at,
+  };
+}
+
+function mapCapexDecisionGate(r) {
+  return {
+    id: r.id,
+    requestId: r.request_id,
+    gateKey: r.gate_key,
+    gateName: r.gate_name,
+    status: r.status,
+    reviewer: r.reviewer,
+    reviewedAt: r.reviewed_at,
+    comments: r.comments,
+    evidence: r.evidence,
+    updatedAt: r.updated_at,
+  };
+}
+
+function mapCapexEscalationPolicy(r) {
+  return {
+    id: r.id,
+    policyKey: r.policy_key,
+    triggerLabel: r.trigger_label,
+    thresholdValue: r.threshold_value === null ? null : Number(r.threshold_value),
+    thresholdUnit: r.threshold_unit,
+    severity: r.severity,
+    escalationTarget: r.escalation_target,
+    isActive: r.is_active,
   };
 }

@@ -68,11 +68,46 @@ const mockAdminConfig = {
   departments: mockDepts,
 };
 
+const mockGovernance = {
+  portfolio: { approvedBudget: 1800000, forecastSpend: 1500000, totalProjects: 4, budgetUtilizationPercent: 72 },
+  auc: { totalValue: 320000, agedOver180Days: 1 },
+  risk: { redRisks: 2 },
+  generatedAlerts: [{ requestId: 'CAPEX-1', alertType: 'Budget Variance', severity: 'Red', message: 'Budget variance exceeds 10%.' }],
+  capitalization: { pending: 3 },
+  poClosure: { openCommitmentValue: 125000 },
+  closure: { readinessPercent: 64 },
+  moaCompliance: { matrixViolations: 1 },
+  documentControls: { documentVersions: 5, electronicSignatures: 3 },
+  variationControl: { totalVariations: 2 },
+  decisionGates: { passedGates: 4, totalGates: 8 },
+};
+
+const mockProcessRef = {
+  businessUnits: [{ id: 1, name: 'Aviation' }, { id: 2, name: 'Mobility B2C' }],
+  projectTypes: [{ id: 1, typeName: 'Asset Integrity', example: 'Tank replacement' }],
+  escalationPolicies: [{ id: 1, triggerLabel: 'Budget variance greater than 10%', thresholdValue: 10, thresholdUnit: 'percent', escalationTarget: 'Project Owner' }],
+  decisionGates: Array.from({ length: 8 }, (_, i) => ({ gateKey: `gate_${i + 1}`, gateName: `Gate ${i + 1}` })),
+  approvalRoutes: [{ valueBand: 'LOW', range: '<= OMR 25,000', route: 'Project Lead + GM' }],
+};
+
+const mockSchedules = [
+  { id: 1, reportName: 'Monthly CAPEX Governance Pack', reportType: 'governance', frequency: 'Monthly', format: 'PDF', nextRunDate: '2026-04-01' },
+];
+
+const mockDrilldown = {
+  type: 'businessUnit',
+  rows: [{ department: 'Aviation', projects: 2, approvedBudget: 500000, commitments: 120000 }],
+};
+
 // Routes all fetch calls to the correct mock response
 function makeFetchMock(depts = mockDepts) {
   return jest.fn().mockImplementation((url, options) => {
     const method = options?.method || 'GET';
 
+    if (url.includes('dashboard/governance')) return Promise.resolve({ ok: true, json: async () => mockGovernance });
+    if (url.includes('dashboard/drilldown')) return Promise.resolve({ ok: true, json: async () => mockDrilldown });
+    if (url.includes('process-reference')) return Promise.resolve({ ok: true, json: async () => mockProcessRef });
+    if (url.includes('report-schedules')) return Promise.resolve({ ok: true, json: async () => method === 'POST' ? mockSchedules[0] : mockSchedules });
     if (url.includes('admin-config')) return Promise.resolve({ ok: true, json: async () => method === 'PATCH' ? mockAdminConfig.thresholds : mockAdminConfig });
     if (url.includes('departments'))  return Promise.resolve({ ok: true, json: async () => depts });
     if (url.includes('sync-status'))  return Promise.resolve({ ok: true, json: async () => mockSync });
@@ -186,7 +221,7 @@ describe('Tab navigation', () => {
   test('shows CAPEX tab buttons', async () => {
     renderDashboard();
     await waitForLoad();
-    ['Overview', 'Departments', 'GSAP Sync', 'Manual Entries', 'Requests', 'Admin Config', 'Initiations'].forEach((label) => {
+    ['Overview', 'Departments', 'GSAP Sync', 'Manual Entries', 'Requests', 'Governance', 'Admin Config', 'Initiations'].forEach((label) => {
       expect(screen.getByRole('button', { name: label })).toBeInTheDocument();
     });
   });
@@ -216,6 +251,16 @@ describe('Tab navigation', () => {
     await waitForLoad();
     fireEvent.click(screen.getByRole('button', { name: 'Initiations' }));
     expect(screen.getByText(/\+ New Initiation/i)).toBeInTheDocument();
+  });
+
+  test('clicking Governance tab shows executive controls', async () => {
+    renderDashboard();
+    await waitForLoad();
+    fireEvent.click(screen.getByRole('button', { name: 'Governance' }));
+    expect(screen.getByText('CAPEX Governance')).toBeInTheDocument();
+    expect(screen.getByText('Executive Control Summary')).toBeInTheDocument();
+    expect(screen.getByText('Process Reference')).toBeInTheDocument();
+    expect(screen.getByText('Monthly CAPEX Governance Pack')).toBeInTheDocument();
   });
 });
 
