@@ -12,7 +12,10 @@
     "video:capex": "playwright test e2e/capex-rbac-video.spec.cjs",
     "video:capex:headed": "playwright test e2e/capex-rbac-video.spec.cjs --headed",
     "video:capex:voiceover": "node scripts/capexVoiceover.cjs",
-    "video:capex:narrated": "npm run video:capex && npm run video:capex:voiceover"
+    "video:capex:narrated": "npm run video:capex && npm run video:capex:voiceover",
+    "video:capex:training": "playwright test e2e/capex-role-training.spec.cjs",
+    "video:capex:training:voiceover": "node scripts/capexRoleTrainingVoiceover.cjs",
+    "video:capex:training:narrated": "npm run video:capex:training && npm run video:capex:training:voiceover"
   },
   "dependencies": {
     "axios": "^1.13.6",
