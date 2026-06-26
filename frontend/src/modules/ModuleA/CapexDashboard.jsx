@@ -94,7 +94,7 @@ function DataTable({ columns, rows, emptyMsg = 'No data available.' }) {
             <tr key={i} style={i % 2 === 0 ? {} : { background: 'var(--fill-quaternary)' }}>
               {columns.map((c) => (
                 <td key={c.key} style={s.td}>
-                  {c.render ? c.render(row[c.key], row) : row[c.key]}
+                  {c.render ? c.render(row[c.field || c.key], row) : row[c.field || c.key]}
                 </td>
               ))}
             </tr>
@@ -935,7 +935,7 @@ export default function CapexDashboard() {
             <DataTable
               columns={[
                 { key: 'id',              label: 'Entry ID' },
-                canView('capex.tracking.manual-entry.entry_type') && { key: 'entryType', label: 'Type', render: (v) => <StatusBadge status={v === 'Actual' ? 'Posted' : v === 'PO Commitment' ? 'Open' : 'Under Review'} /> },
+                canView('capex.tracking.manual-entry.entry_type') && { key: 'entryTypeStatus', field: 'entryType', label: 'Type', render: (v) => <StatusBadge status={v === 'Actual' ? 'Posted' : v === 'PO Commitment' ? 'Open' : 'Under Review'} /> },
                 canView('capex.tracking.manual-entry.entry_type') && { key: 'entryType', label: 'Entry Type' },
                 canView('capex.tracking.manual-entry.department')       && { key: 'department',      label: 'Department' },
                 canView('capex.tracking.manual-entry.period')           && { key: 'period',          label: 'Period' },

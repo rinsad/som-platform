@@ -5,6 +5,8 @@ node_modules
 build
 dist
 coverage
+frontend/playwright-report/
+frontend/test-results/
 *.log
 ~$*
 som_platform_backup_20260428_210052.sql

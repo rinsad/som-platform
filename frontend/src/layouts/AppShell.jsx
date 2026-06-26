@@ -3,7 +3,10 @@ import { Outlet, useNavigate } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import Sidebar from '../components/Sidebar';
 
-const API = import.meta.env.VITE_API_URL || '/api';
+const API = (() => {
+  const base = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '');
+  return base === '/api' ? '' : base;
+})();
 
 export default function AppShell() {
   const navigate = useNavigate();

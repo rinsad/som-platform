@@ -44,29 +44,28 @@ function App() {
 
         {/* Public portal — home page at /, no auth required. Must come first so
             React Router resolves / here instead of the authenticated group. */}
-        <Route path="/" element={<PublicShell />}>
-          <Route index element={<IntraPortal />} />
-          <Route path="intra-portal-preview" element={<IntraPortalPreview />} />
+        <Route element={<PublicShell />}>
+          <Route path="/" element={<IntraPortal />} />
+          <Route path="/intra-portal-preview" element={<IntraPortalPreview />} />
         </Route>
 
         {/* Authenticated app — /dashboard, /capex, etc. */}
         <Route
-          path="/"
           element={
             <RequireAuth>
               <AppShell />
             </RequireAuth>
           }
         >
-          <Route path="dashboard"              element={<Dashboard />} />
-          <Route path="capex"                  element={<RequirePerm permKey="capex"><CapexDashboard /></RequirePerm>} />
-          <Route path="purchase-requests"      element={<RequirePerm permKey="purchase-requests"><PurchaseRequestList /></RequirePerm>} />
-          <Route path="purchase-requests/new"  element={<RequirePerm permKey="purchase-requests"><NewPurchaseRequest /></RequirePerm>} />
-          <Route path="purchase-requests/:id"  element={<RequirePerm permKey="purchase-requests"><PRDetail /></RequirePerm>} />
-          <Route path="assets"                 element={<RequirePerm permKey="assets"><AssetRegistry /></RequirePerm>} />
-          <Route path="admin/users"                      element={<RequireAdmin><UserManagement /></RequireAdmin>} />
-          <Route path="admin/users/:id/permissions"   element={<RequireAdmin><PermissionsPage /></RequireAdmin>} />
-          <Route path="admin/knowledge"               element={<RequireAdmin><KBManagement /></RequireAdmin>} />
+          <Route path="/dashboard"              element={<Dashboard />} />
+          <Route path="/capex"                  element={<RequirePerm permKey="capex"><CapexDashboard /></RequirePerm>} />
+          <Route path="/purchase-requests"      element={<RequirePerm permKey="purchase-requests"><PurchaseRequestList /></RequirePerm>} />
+          <Route path="/purchase-requests/new"  element={<RequirePerm permKey="purchase-requests"><NewPurchaseRequest /></RequirePerm>} />
+          <Route path="/purchase-requests/:id"  element={<RequirePerm permKey="purchase-requests"><PRDetail /></RequirePerm>} />
+          <Route path="/assets"                 element={<RequirePerm permKey="assets"><AssetRegistry /></RequirePerm>} />
+          <Route path="/admin/users"                      element={<RequireAdmin><UserManagement /></RequireAdmin>} />
+          <Route path="/admin/users/:id/permissions"   element={<RequireAdmin><PermissionsPage /></RequireAdmin>} />
+          <Route path="/admin/knowledge"               element={<RequireAdmin><KBManagement /></RequireAdmin>} />
         </Route>
 
         <Route path="*" element={<Navigate to="/" replace />} />
