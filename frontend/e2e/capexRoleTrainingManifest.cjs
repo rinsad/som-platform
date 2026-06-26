@@ -2,6 +2,23 @@ const roleTraining = [
   {
     role: 'Project Owner',
     slug: 'project-owner',
+    completeWorkflows: [
+      {
+        id: '00-complete-project-owner-workflow',
+        title: 'Complete Project Owner CAPEX workflow',
+        narration: [
+          'Project Owner complete workflow. This training video follows the role from login through request creation, execution tracking, document controls, risk capture, and closure controls.',
+          'The Project Owner starts in CAPEX planning, reviews the available workspace, and opens the Requests area where new CAPEX work is initiated.',
+          'The user creates a CAPEX request with scope, budget holder, estimated value, urgency, HSSE and worker welfare risk, expected savings, ROI, and supplier quotations.',
+          'After submission, the request appears in the CAPEX request register with value band, status, and approval routing.',
+          'The user opens the request details to review scope, quotations, attachments, and the approval workflow.',
+          'The Project Owner can manage execution by adding delivery milestones, payment percentage, payment amount, evidence file name, and marking the milestone complete.',
+          'The role can also maintain document controls by saving a document version and capturing a signer name and role for the evidence trail.',
+          'The Project Owner can add operational risks with category, severity, mitigation plan, and can update PO closure and closure checklist items where the role is allowed.',
+          'The workflow ends by showing audit history, demonstrating that each action leaves a traceable record for governance and handover to the next role.',
+        ].join(' '),
+      },
+    ],
     useCases: [
       {
         id: '01-create-capex-request',
