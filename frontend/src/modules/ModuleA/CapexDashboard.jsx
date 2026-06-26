@@ -44,25 +44,37 @@ function meterColor(pct) {
 
 function StatusBadge({ status }) {
   const map = {
-    success:              { bg: 'rgba(52,211,153,0.12)',  color: '#34d399' },
-    error:                { bg: 'rgba(220,38,38,0.12)',   color: '#ff6b6b' },
-    Posted:               { bg: 'rgba(52,211,153,0.12)',  color: '#34d399' },
-    Approved:             { bg: 'rgba(52,211,153,0.12)',  color: '#34d399' },
-    'Under Review':       { bg: 'rgba(251,191,36,0.12)',  color: '#fbbf24' },
-    'Pending Approval':   { bg: 'rgba(251,191,36,0.12)',  color: '#fbbf24' },
-    'Partially Delivered':{ bg: 'rgba(107,159,255,0.15)', color: '#6b9fff' },
-    Open:                 { bg: 'rgba(107,159,255,0.15)', color: '#6b9fff' },
-    High:                 { bg: 'rgba(220,38,38,0.12)',   color: '#ff6b6b' },
-    Medium:               { bg: 'rgba(251,191,36,0.12)',  color: '#fbbf24' },
-    Low:                  { bg: 'rgba(52,211,153,0.12)',  color: '#34d399' },
+    success:              { bg: '#E7F6EF', color: '#176B43', border: '#B8E2CD' },
+    error:                { bg: '#FDECEC', color: '#A91F23', border: '#F4B8BB' },
+    Posted:               { bg: '#E7F6EF', color: '#176B43', border: '#B8E2CD' },
+    Approved:             { bg: '#E7F6EF', color: '#176B43', border: '#B8E2CD' },
+    Completed:            { bg: '#E7F6EF', color: '#176B43', border: '#B8E2CD' },
+    Complete:             { bg: '#E7F6EF', color: '#176B43', border: '#B8E2CD' },
+    Signed:               { bg: '#E7F6EF', color: '#176B43', border: '#B8E2CD' },
+    'Under Review':       { bg: '#FFF7D1', color: '#805B00', border: '#F1D36A' },
+    'Pending Approval':   { bg: '#FFF7D1', color: '#805B00', border: '#F1D36A' },
+    Pending:              { bg: '#FFF7D1', color: '#805B00', border: '#F1D36A' },
+    Draft:                { bg: '#EEF2F7', color: '#4B5C6B', border: '#D6DEE8' },
+    'Partially Delivered':{ bg: '#E9F1FB', color: '#225C94', border: '#BDD3EA' },
+    Open:                 { bg: '#E9F1FB', color: '#225C94', border: '#BDD3EA' },
+    High:                 { bg: '#FDECEC', color: '#A91F23', border: '#F4B8BB' },
+    Red:                  { bg: '#FDECEC', color: '#A91F23', border: '#F4B8BB' },
+    Medium:               { bg: '#FFF7D1', color: '#805B00', border: '#F1D36A' },
+    Amber:                { bg: '#FFF7D1', color: '#805B00', border: '#F1D36A' },
+    Low:                  { bg: '#E7F6EF', color: '#176B43', border: '#B8E2CD' },
+    Green:                { bg: '#E7F6EF', color: '#176B43', border: '#B8E2CD' },
+    Rejected:             { bg: '#FDECEC', color: '#A91F23', border: '#F4B8BB' },
+    'Returned for Correction': { bg: '#FFF7D1', color: '#805B00', border: '#F1D36A' },
   };
-  const style = map[status] || { bg: 'var(--fill-tertiary)', color: 'var(--label-secondary)' };
+  const style = map[status] || { bg: '#EEF2F7', color: '#4B5C6B', border: '#D6DEE8' };
   return (
     <span style={{
-      display: 'inline-block',
+      display: 'inline-flex', alignItems: 'center',
       background: style.bg, color: style.color,
+      border: `1px solid ${style.border}`,
       borderRadius: 'var(--radius-full)',
-      padding: '2px 10px', fontSize: 12, fontWeight: 600,
+      padding: '3px 10px', fontSize: 12, fontWeight: 800,
+      lineHeight: 1.2, whiteSpace: 'nowrap',
     }}>
       {status}
     </span>
@@ -71,7 +83,7 @@ function StatusBadge({ status }) {
 
 function SummaryCard({ label, value, color, sub }) {
   return (
-    <div style={s.card}>
+    <div style={{ ...s.card, borderTop: `3px solid ${color || 'var(--shell-red)'}` }}>
       <p style={s.cardLabel}>{label}</p>
       <p style={{ ...s.cardValue, color }}>{value}</p>
       {sub && <p style={s.cardSub}>{sub}</p>}
@@ -91,7 +103,7 @@ function DataTable({ columns, rows, emptyMsg = 'No data available.' }) {
         </thead>
         <tbody>
           {rows.map((row, i) => (
-            <tr key={i} style={i % 2 === 0 ? {} : { background: 'var(--fill-quaternary)' }}>
+            <tr key={i} style={i % 2 === 0 ? {} : { background: '#FAFBFC' }}>
               {columns.map((c) => (
                 <td key={c.key} style={s.td}>
                   {c.render ? c.render(row[c.field || c.key], row) : row[c.field || c.key]}
@@ -628,7 +640,7 @@ export default function CapexDashboard() {
 
   // ── Render ──────────────────────────────────────────────────────────────────
   return (
-    <div>
+    <div style={s.experience}>
       {showBudgetUpload && (
         <CapexBudgetUploadModal
           onClose={() => setShowBudgetUpload(false)}
@@ -649,8 +661,12 @@ export default function CapexDashboard() {
       {/* Page header */}
       <div style={s.pageHeader}>
         <div>
-          <h1 style={s.heading}>Capex Planning</h1>
-          <p style={s.subheading}>FY 2026 — Budget vs Actual Tracking</p>
+          <div style={s.brandRow}>
+            <span style={s.brandMark}>SOM</span>
+            <span style={s.brandText}>Shell Oman Marketing</span>
+          </div>
+          <h1 style={s.heading}>CAPEX Control Center</h1>
+          <p style={s.subheading}>FY 2026 portfolio control, approval routing, procurement tracking, and closure assurance.</p>
         </div>
         <div style={s.headerRight}>
           <div style={s.syncBadge}>
@@ -658,6 +674,25 @@ export default function CapexDashboard() {
             GSAP Synced · {lastSynced}
           </div>
           <button style={s.refreshBtn} onClick={fetchAll}>Refresh</button>
+        </div>
+      </div>
+
+      <div style={s.commandBar}>
+        <div style={s.commandItem}>
+          <span style={s.commandLabel}>Portfolio Health</span>
+          <strong style={s.commandValue}>{overallPct}% utilization</strong>
+        </div>
+        <div style={s.commandItem}>
+          <span style={s.commandLabel}>Active Requests</span>
+          <strong style={s.commandValue}>{capexRequests.length}</strong>
+        </div>
+        <div style={s.commandItem}>
+          <span style={s.commandLabel}>Governance Alerts</span>
+          <strong style={s.commandValue}>{governance?.generatedAlerts?.length || 0}</strong>
+        </div>
+        <div style={s.commandItem}>
+          <span style={s.commandLabel}>Open AUC</span>
+          <strong style={s.commandValue}>{fmtOMR(governance?.auc?.totalValue || 0)}</strong>
         </div>
       </div>
 
@@ -976,7 +1011,7 @@ export default function CapexDashboard() {
             />
           )}
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1.1fr 0.9fr', gap: 20, alignItems: 'flex-start' }}>
+          <div style={s.requestWorkspace}>
             <div style={s.section}>
               <DataTable
                 columns={[
@@ -996,22 +1031,33 @@ export default function CapexDashboard() {
               />
             </div>
 
-            <div style={s.section}>
+            <div style={{ ...s.section, ...s.requestDetailPanel }}>
               {!selectedRequest ? (
                 <p style={{ color: 'var(--label-secondary)', fontSize: 14 }}>Select a request to view workflow details.</p>
               ) : (
                 <div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'flex-start', marginBottom: 16 }}>
+                  <div style={s.requestHero}>
                     <div>
-                      <h3 style={{ margin: 0, fontSize: 17, color: 'var(--label)' }}>{selectedRequest.title}</h3>
-                      <p style={{ margin: '4px 0 0', fontSize: 12, color: 'var(--label-secondary)' }}>
+                      <span style={s.detailEyebrow}>Selected Request</span>
+                      <h3 style={s.requestTitle}>{selectedRequest.title}</h3>
+                      <p style={s.requestMeta}>
                         {selectedRequest.id} - {selectedRequest.department} - {fmtOMR(selectedRequest.estimatedValue)}
                       </p>
                     </div>
                     <StatusBadge status={selectedRequest.status} />
                   </div>
 
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 16 }}>
+                  <div style={s.workflowRibbon}>
+                    {(selectedRequest.approvalSteps || []).slice(0, 5).map((step) => (
+                      <div key={step.id} style={s.workflowStep}>
+                        <span style={s.workflowOrder}>{step.stepOrder}</span>
+                        <span style={s.workflowLabel}>{step.label}</span>
+                        <StatusBadge status={step.status} />
+                      </div>
+                    ))}
+                  </div>
+
+                  <div style={s.detailStats}>
                     <MiniInfo label="Value Band" value={selectedRequest.valueBand} />
                     <MiniInfo label="Quotes" value={`${selectedRequest.quotations?.length || 0} / 3`} />
                     <MiniInfo label="HSSE Risk" value={selectedRequest.hsseRisk} />
@@ -1538,6 +1584,13 @@ function MiniInfo({ label, value }) {
 }
 
 const s = {
+  experience: {
+    background: '#F4F6F8',
+    border: '1px solid #E0E5EB',
+    borderRadius: 8,
+    padding: 20,
+    minHeight: 'calc(100vh - 120px)',
+  },
   center: {
     display: 'flex', flexDirection: 'column',
     alignItems: 'center', justifyContent: 'center', minHeight: 300,
@@ -1559,68 +1612,140 @@ const s = {
   },
 
   pageHeader: {
-    display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20,
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    gap: 20,
+    background: '#FFFFFF',
+    border: '1px solid #E0E5EB',
+    borderLeft: '5px solid var(--shell-red)',
+    borderRadius: 8,
+    padding: '22px 24px',
+    marginBottom: 14,
+    boxShadow: '0 1px 2px rgba(15,23,42,0.05)',
   },
-  heading:    { margin: 0, fontSize: 26, fontWeight: 700, color: 'var(--label)' },
-  subheading: { margin: '4px 0 0', fontSize: 14, color: 'var(--label-secondary)' },
+  brandRow: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 10,
+    marginBottom: 10,
+  },
+  brandMark: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    height: 28,
+    minWidth: 46,
+    padding: '0 9px',
+    background: 'var(--shell-yellow)',
+    border: '1px solid #D9B800',
+    borderRadius: 4,
+    color: '#2B2B2B',
+    fontSize: 12,
+    fontWeight: 900,
+  },
+  brandText: {
+    color: '#4B5563',
+    fontSize: 12,
+    fontWeight: 800,
+    textTransform: 'uppercase',
+  },
+  heading:    { margin: 0, fontSize: 28, fontWeight: 800, color: '#1F2933' },
+  subheading: { margin: '6px 0 0', fontSize: 14, color: '#5B6773', maxWidth: 760 },
   headerRight:{ display: 'flex', alignItems: 'center', gap: 12 },
   syncBadge: {
     display: 'flex', alignItems: 'center', gap: 7,
-    background: 'var(--surface)', border: '1px solid var(--separator-clear)',
-    borderRadius: 'var(--radius-full)', padding: '6px 14px',
-    fontSize: 12, fontWeight: 500, color: 'var(--label-secondary)',
-    boxShadow: 'var(--shadow-xs)',
+    background: '#F9FAFB', border: '1px solid #D9DEE5',
+    borderRadius: 999, padding: '7px 12px',
+    fontSize: 12, fontWeight: 700, color: '#4B5563',
   },
   syncDot: { width: 7, height: 7, borderRadius: '50%', flexShrink: 0 },
   refreshBtn: {
-    padding: '7px 16px', background: 'var(--surface)',
-    border: '1px solid var(--separator)', borderRadius: 'var(--radius-sm)',
-    fontSize: 13, fontWeight: 600, cursor: 'pointer', color: 'var(--label-secondary)',
-    boxShadow: 'var(--shadow-xs)',
+    padding: '8px 16px', background: '#FFFFFF',
+    border: '1px solid #C8D0D9', borderRadius: 6,
+    fontSize: 13, fontWeight: 800, cursor: 'pointer', color: '#344054',
+  },
+  commandBar: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(4, minmax(0, 1fr))',
+    gap: 12,
+    marginBottom: 14,
+  },
+  commandItem: {
+    background: '#FFFFFF',
+    border: '1px solid #E0E5EB',
+    borderRadius: 8,
+    padding: '13px 16px',
+    boxShadow: '0 1px 2px rgba(15,23,42,0.04)',
+  },
+  commandLabel: {
+    display: 'block',
+    color: '#687586',
+    fontSize: 11,
+    fontWeight: 800,
+    textTransform: 'uppercase',
+  },
+  commandValue: {
+    display: 'block',
+    color: '#1F2933',
+    fontSize: 15,
+    marginTop: 2,
   },
 
   tabBar: {
-    display: 'flex', gap: 4,
-    background: 'var(--surface)', borderRadius: 'var(--radius-lg)',
-    padding: 6, marginBottom: 24,
-    boxShadow: 'var(--shadow-card)', width: 'fit-content',
+    display: 'flex',
+    flexWrap: 'wrap',
+    gap: 2,
+    background: '#FFFFFF',
+    border: '1px solid #D9DEE5',
+    borderRadius: 8,
+    padding: 4,
+    marginBottom: 18,
+    boxShadow: '0 1px 2px rgba(15,23,42,0.05)',
   },
   tabBtn: {
-    padding: '8px 20px', border: 'none',
-    borderRadius: 'var(--radius-md)', cursor: 'pointer',
-    fontSize: 13, fontWeight: 500, color: 'var(--label-secondary)',
+    padding: '9px 16px', border: 'none',
+    borderRadius: 6, cursor: 'pointer',
+    fontSize: 13, fontWeight: 800, color: '#5B6773',
     background: 'transparent', transition: 'all var(--transition-fast)',
   },
   tabBtnActive: {
     background: 'var(--shell-red)', color: '#fff',
-    fontWeight: 600, boxShadow: 'var(--shadow-sm)',
+    fontWeight: 900, boxShadow: '0 1px 2px rgba(0,0,0,0.14)',
   },
   tabBtnDisabled: {
     opacity: 0.4, cursor: 'not-allowed',
   },
 
   cardRow: {
-    display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, marginBottom: 24,
+    display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 14, marginBottom: 18,
   },
   card: {
-    background: 'var(--surface)', borderRadius: 'var(--radius-xl)',
-    padding: '20px 24px', boxShadow: 'var(--shadow-card)',
+    background: '#FFFFFF',
+    border: '1px solid #E0E5EB',
+    borderRadius: 8,
+    padding: '18px 18px',
+    boxShadow: '0 1px 2px rgba(15,23,42,0.05)',
   },
   cardLabel: {
     margin: '0 0 6px', fontSize: 11, fontWeight: 600,
     color: 'var(--label-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px',
   },
-  cardValue: { margin: 0, fontSize: 24, fontWeight: 700 },
+  cardValue: { margin: 0, fontSize: 24, fontWeight: 850 },
   cardSub:   { margin: '4px 0 0', fontSize: 12, color: 'var(--label-secondary)' },
 
   section: {
-    background: 'var(--surface)', borderRadius: 'var(--radius-xl)',
-    padding: '24px', marginBottom: 20, boxShadow: 'var(--shadow-card)',
+    background: '#FFFFFF',
+    border: '1px solid #E0E5EB',
+    borderRadius: 8,
+    padding: '22px',
+    marginBottom: 18,
+    boxShadow: '0 1px 2px rgba(15,23,42,0.05)',
   },
   sectionHead: {
     display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20,
   },
-  sectionTitle: { margin: '0 0 16px', fontSize: 15, fontWeight: 700, color: 'var(--label)' },
+  sectionTitle: { margin: '0 0 16px', fontSize: 16, fontWeight: 850, color: '#1F2933' },
 
   meterTrack: {
     height: 10, background: 'var(--gray-200)',
@@ -1649,30 +1774,30 @@ const s = {
 
   tabActionRow: {
     display: 'flex', justifyContent: 'space-between',
-    alignItems: 'flex-start', marginBottom: 20,
+    alignItems: 'flex-start', gap: 18, marginBottom: 16,
   },
-  tabSubtitle: { margin: '4px 0 0', fontSize: 13, color: 'var(--label-secondary)' },
+  tabSubtitle: { margin: '4px 0 0', fontSize: 13, color: '#5B6773' },
   primaryBtn: {
-    padding: '9px 22px', background: 'var(--shell-red)',
-    border: 'none', borderRadius: 'var(--radius-sm)',
-    fontSize: 14, fontWeight: 600, color: '#fff', cursor: 'pointer',
-    boxShadow: 'var(--shadow-sm)', flexShrink: 0,
+    padding: '9px 18px', background: 'var(--shell-red)',
+    border: '1px solid #B8161B', borderRadius: 6,
+    fontSize: 13, fontWeight: 850, color: '#fff', cursor: 'pointer',
+    boxShadow: '0 1px 2px rgba(15,23,42,0.08)', flexShrink: 0,
   },
   secondaryBtn: {
-    padding: '9px 14px', background: 'var(--surface)',
-    border: '1px solid var(--separator)', borderRadius: 'var(--radius-sm)',
-    fontSize: 13, fontWeight: 700, color: 'var(--label-secondary)', cursor: 'pointer',
-    boxShadow: 'var(--shadow-xs)', flexShrink: 0,
+    padding: '9px 14px', background: '#FFFFFF',
+    border: '1px solid #C8D0D9', borderRadius: 6,
+    fontSize: 13, fontWeight: 800, color: '#344054', cursor: 'pointer',
+    boxShadow: '0 1px 2px rgba(15,23,42,0.04)', flexShrink: 0,
   },
   warnBtn: {
-    padding: '9px 14px', background: 'rgba(251,191,36,0.14)',
-    border: '1px solid rgba(251,191,36,0.30)', borderRadius: 'var(--radius-sm)',
-    fontSize: 13, fontWeight: 700, color: '#fbbf24', cursor: 'pointer',
+    padding: '9px 14px', background: '#FFF7D1',
+    border: '1px solid #F1D36A', borderRadius: 6,
+    fontSize: 13, fontWeight: 800, color: '#805B00', cursor: 'pointer',
   },
   dangerBtn: {
-    padding: '9px 14px', background: 'rgba(220,38,38,0.12)',
-    border: '1px solid rgba(220,38,38,0.30)', borderRadius: 'var(--radius-sm)',
-    fontSize: 13, fontWeight: 700, color: '#ff6b6b', cursor: 'pointer',
+    padding: '9px 14px', background: '#FDECEC',
+    border: '1px solid #F4B8BB', borderRadius: 6,
+    fontSize: 13, fontWeight: 800, color: '#A91F23', cursor: 'pointer',
   },
   linkBtn: {
     background: 'transparent', border: 'none', padding: 0,
@@ -1680,34 +1805,34 @@ const s = {
     textAlign: 'left', font: 'inherit',
   },
   miniInfo: {
-    background: 'var(--bg)', border: '1px solid var(--separator-clear)',
-    borderRadius: 'var(--radius-sm)', padding: '10px 12px',
+    background: '#F8FAFC', border: '1px solid #E0E5EB',
+    borderRadius: 6, padding: '11px 12px',
   },
   miniLabel: {
     display: 'block', fontSize: 10, fontWeight: 700,
     color: 'var(--label-secondary)', textTransform: 'uppercase', letterSpacing: '0.4px',
   },
   miniValue: { display: 'block', marginTop: 4, fontSize: 13, color: 'var(--label)' },
-  detailTitle: { margin: '16px 0 8px', fontSize: 12, fontWeight: 800, color: 'var(--label-secondary)', textTransform: 'uppercase', letterSpacing: '0.4px' },
+  detailTitle: { margin: '18px 0 8px', fontSize: 12, fontWeight: 850, color: '#5B6773', textTransform: 'uppercase', letterSpacing: '0.4px' },
   detailText: { margin: 0, fontSize: 13, color: 'var(--label)', lineHeight: 1.55 },
   compactRow: {
     display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12,
-    background: 'var(--bg)', border: '1px solid var(--separator-clear)',
-    borderRadius: 'var(--radius-sm)', padding: '9px 12px', fontSize: 13,
+    background: '#F8FAFC', border: '1px solid #E0E5EB',
+    borderRadius: 6, padding: '10px 12px', fontSize: 13,
   },
   lifecycleGrid: {
     display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
     gap: 8, marginBottom: 12,
   },
   compactInput: {
-    border: '1px solid var(--separator)', borderRadius: 'var(--radius-sm)',
-    padding: '8px 10px', fontSize: 12, color: 'var(--label)',
-    background: 'var(--bg)', fontFamily: 'inherit', minWidth: 0,
+    border: '1px solid #C8D0D9', borderRadius: 6,
+    padding: '9px 10px', fontSize: 12, color: '#1F2933',
+    background: '#FFFFFF', fontFamily: 'inherit', minWidth: 0,
   },
   miniBtn: {
-    padding: '5px 8px', border: '1px solid var(--separator)',
-    borderRadius: 'var(--radius-sm)', background: 'var(--surface)',
-    color: 'var(--label-secondary)', fontSize: 11, fontWeight: 700, cursor: 'pointer',
+    padding: '5px 8px', border: '1px solid #C8D0D9',
+    borderRadius: 6, background: '#FFFFFF',
+    color: '#344054', fontSize: 11, fontWeight: 800, cursor: 'pointer',
   },
   inlineLink: {
     color: 'var(--shell-red)', fontSize: 12, fontWeight: 700,
@@ -1721,16 +1846,100 @@ const s = {
     fontSize: 12, fontWeight: 700, color: 'var(--label-secondary)',
   },
 
-  tableWrap: { overflowX: 'auto' },
-  table: { width: '100%', borderCollapse: 'collapse', fontSize: 13 },
+  requestWorkspace: {
+    display: 'grid',
+    gridTemplateColumns: 'minmax(460px, 1.05fr) minmax(440px, 0.95fr)',
+    gap: 18,
+    alignItems: 'flex-start',
+  },
+  requestDetailPanel: {
+    position: 'sticky',
+    top: 18,
+    maxHeight: 'calc(100vh - 120px)',
+    overflow: 'auto',
+  },
+  requestHero: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    gap: 12,
+    alignItems: 'flex-start',
+    background: '#F8FAFC',
+    border: '1px solid #E0E5EB',
+    borderRadius: 8,
+    padding: 14,
+    marginBottom: 12,
+  },
+  detailEyebrow: {
+    display: 'block',
+    fontSize: 10,
+    fontWeight: 900,
+    color: '#6B7280',
+    textTransform: 'uppercase',
+    marginBottom: 3,
+  },
+  requestTitle: {
+    margin: 0,
+    fontSize: 18,
+    color: '#1F2933',
+    fontWeight: 850,
+  },
+  requestMeta: {
+    margin: '4px 0 0',
+    fontSize: 12,
+    color: '#5B6773',
+  },
+  workflowRibbon: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
+    gap: 8,
+    marginBottom: 12,
+  },
+  workflowStep: {
+    minHeight: 74,
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 6,
+    justifyContent: 'space-between',
+    background: '#FFFFFF',
+    border: '1px solid #E0E5EB',
+    borderRadius: 8,
+    padding: 10,
+  },
+  workflowOrder: {
+    width: 22,
+    height: 22,
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 999,
+    background: 'var(--shell-red)',
+    color: '#FFFFFF',
+    fontSize: 11,
+    fontWeight: 900,
+  },
+  workflowLabel: {
+    color: '#344054',
+    fontSize: 12,
+    fontWeight: 800,
+    lineHeight: 1.25,
+  },
+  detailStats: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+    gap: 10,
+    marginBottom: 16,
+  },
+  tableWrap: { overflowX: 'auto', border: '1px solid #E0E5EB', borderRadius: 8 },
+  table: { width: '100%', borderCollapse: 'collapse', fontSize: 13, background: '#FFFFFF' },
   th: {
-    padding: '10px 14px', textAlign: 'left',
-    fontSize: 11, fontWeight: 700, color: 'var(--label-secondary)',
+    padding: '11px 14px', textAlign: 'left',
+    fontSize: 11, fontWeight: 850, color: '#5B6773',
     textTransform: 'uppercase', letterSpacing: '0.4px',
-    borderBottom: '1px solid var(--separator-clear)', whiteSpace: 'nowrap',
+    borderBottom: '1px solid #D9DEE5', whiteSpace: 'nowrap',
+    background: '#F8FAFC',
   },
   td: {
-    padding: '11px 14px', borderBottom: '1px solid var(--separator-clear)',
-    color: 'var(--label)', verticalAlign: 'middle',
+    padding: '12px 14px', borderBottom: '1px solid #E9EDF2',
+    color: '#1F2933', verticalAlign: 'middle',
   },
 };
