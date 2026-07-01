@@ -14,4 +14,5 @@ extra/
 
 # Local Netlify folder
 .netlify
-frontend/.env.production 
+frontend/.env.production
+start.bat
