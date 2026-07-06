@@ -1,4 +1,7 @@
-const API = import.meta.env.VITE_API_URL || '/api';
+const API = (() => {
+  const base = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '');
+  return base === '/api' ? '' : base;
+})();
 
 function authHeaders() {
   return {

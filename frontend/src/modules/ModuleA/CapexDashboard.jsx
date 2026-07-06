@@ -6,6 +6,7 @@ import {
   getDepartments, getSyncStatus, getGsapData,
   getInitiations, createInitiation,
   getCapexRequests, getCapexRequest, createCapexRequest, decideCapexRequest,
+  updateCapexRequest, resubmitCapexRequest, delegateCapexStep, decideCapexBudgetVariation,
   updateCapexProcurement, createCapexMilestone, updateCapexMilestone,
   saveCapexFinancialClosure, getCapexAuditLogs, getCapexReportCsvUrl,
   getCapexGovernanceDashboard, getCapexDashboardDrilldown, getCapexProcessReference,
@@ -64,7 +65,8 @@ function StatusBadge({ status }) {
     Low:                  { bg: '#E7F6EF', color: '#176B43', border: '#B8E2CD' },
     Green:                { bg: '#E7F6EF', color: '#176B43', border: '#B8E2CD' },
     Rejected:             { bg: '#FDECEC', color: '#A91F23', border: '#F4B8BB' },
-    'Returned for Correction': { bg: '#FFF7D1', color: '#805B00', border: '#F1D36A' },
+    'Returned for correction': { bg: '#FFF7D1', color: '#805B00', border: '#F1D36A' },
+    Superseded:           { bg: '#EEF2F7', color: '#4B5C6B', border: '#D6DEE8' },
   };
   const style = map[status] || { bg: '#EEF2F7', color: '#4B5C6B', border: '#D6DEE8' };
   return (
@@ -175,8 +177,12 @@ export default function CapexDashboard() {
   const [variationForm,  setVariationForm]  = useState({ variationType: 'Variation', originalBudget: '', revisedBudget: '', justification: '', financialImpactAnalysis: '', fibReviewStatus: 'Pending' });
   const [procPerfForm,   setProcPerfForm]   = useState({ rfqIssuedAt: '', tenderStartedAt: '', tenderCompletedAt: '', vendorResponseCount: '', invitedVendorCount: '', budgetEstimate: '', awardedValue: '', poProcessingDays: '', cpOwner: '' });
   const [docVersionForm, setDocVersionForm] = useState({ documentType: 'MOA', documentName: '', versionLabel: 'v1', changelog: '', retentionUntil: '' });
-  const [signatureForm,  setSignatureForm]  = useState({ linkedType: 'MOA', linkedId: '', signerName: '', signerRole: '', decision: 'Signed' });
+  const [signatureForm,  setSignatureForm]  = useState({ linkedType: 'MOA', linkedId: '', decision: 'Signed' });
   const [scheduleForm,   setScheduleForm]   = useState({ reportName: 'Monthly CAPEX Governance Pack', reportType: 'governance', audience: 'CEO/CFO', frequency: 'Monthly', format: 'PDF', recipients: '', nextRunDate: '' });
+  const [returnedEditForm, setReturnedEditForm] = useState({ title: '', estimatedValue: '', acvPoValue: '', scopeDetails: '', fewerThan3Justification: '', savings: '' });
+  const [delegateTo,     setDelegateTo]     = useState('');
+
+  const currentUser = (() => { try { return JSON.parse(localStorage.getItem('som_user') || '{}'); } catch { return {}; } })();
 
   const overviewChartRef = useRef(null);
   const overviewChartInst = useRef(null);
@@ -279,6 +285,14 @@ export default function CapexDashboard() {
       poAttachmentName: selectedRequest.procurement?.poAttachmentName || '',
       poReleasedAfterJobDone: !!selectedRequest.procurement?.poReleasedAfterJobDone,
     });
+    setReturnedEditForm({
+      title: selectedRequest.title || '',
+      estimatedValue: selectedRequest.estimatedValue ?? '',
+      acvPoValue: selectedRequest.acvPoValue ?? '',
+      scopeDetails: selectedRequest.scopeDetails || '',
+      fewerThan3Justification: selectedRequest.fewerThan3Justification || '',
+      savings: selectedRequest.savings ?? '',
+    });
     setClosureForm({
       actualSpend: selectedRequest.financialClosure?.actualSpend || '',
       finalRoi: selectedRequest.financialClosure?.finalRoi || '',
@@ -376,10 +390,60 @@ export default function CapexDashboard() {
     if (!selectedRequest) return;
     const comment = decision === 'APPROVED' ? '' : window.prompt('Comment required for this action') || '';
     if (decision !== 'APPROVED' && !comment.trim()) return;
-    const updated = await decideCapexRequest(selectedRequest.id, decision, comment);
-    setSelectedRequest(updated);
-    const requests = await getCapexRequests();
-    setCapexRequests(requests);
+    try {
+      const updated = await decideCapexRequest(selectedRequest.id, decision, comment);
+      setSelectedRequest(updated);
+      const requests = await getCapexRequests();
+      setCapexRequests(requests);
+    } catch (err) {
+      window.alert(err.message || 'Decision failed.');
+    }
+  }
+
+  async function handleSaveReturnedEdit() {
+    if (!selectedRequest) return;
+    try {
+      const updated = await updateCapexRequest(selectedRequest.id, returnedEditForm);
+      setSelectedRequest(updated);
+      setUploadToast('Request changes saved.');
+    } catch (err) {
+      window.alert(err.message || 'Failed to save changes.');
+    }
+  }
+
+  async function handleResubmitRequest() {
+    if (!selectedRequest) return;
+    try {
+      const updated = await resubmitCapexRequest(selectedRequest.id);
+      setSelectedRequest(updated);
+      const requests = await getCapexRequests();
+      setCapexRequests(requests);
+      setUploadToast('Request resubmitted for approval.');
+    } catch (err) {
+      window.alert(err.message || 'Failed to resubmit request.');
+    }
+  }
+
+  async function handleDelegateStep() {
+    if (!selectedRequest?.currentStepId || !delegateTo.trim()) return;
+    try {
+      await delegateCapexStep(selectedRequest.id, selectedRequest.currentStepId, delegateTo.trim());
+      setDelegateTo('');
+      await refreshSelectedRequest();
+      setUploadToast('Approval step delegated.');
+    } catch (err) {
+      window.alert(err.message || 'Failed to delegate step.');
+    }
+  }
+
+  async function handleVariationDecision(variationId, decision) {
+    if (!selectedRequest) return;
+    try {
+      await decideCapexBudgetVariation(selectedRequest.id, variationId, decision);
+      await refreshSelectedRequest();
+    } catch (err) {
+      window.alert(err.message || 'Failed to decide variation.');
+    }
   }
 
   async function handleSaveProcurement() {
@@ -400,7 +464,7 @@ export default function CapexDashboard() {
     if (!selectedRequest) return;
     await updateCapexMilestone(selectedRequest.id, milestone.id, {
       actualDate: milestone.actualDate || new Date().toISOString().slice(0, 10),
-      status: 'Complete',
+      status: 'Completed',
     });
     await refreshSelectedRequest();
   }
@@ -481,7 +545,7 @@ export default function CapexDashboard() {
 
   async function handleDecisionGate(gate, status = 'Passed') {
     if (!selectedRequest) return;
-    await updateCapexDecisionGate(selectedRequest.id, gate.gateKey, { status, reviewer: JSON.parse(localStorage.getItem('som_user') || '{}')?.fullName || 'Current user' });
+    await updateCapexDecisionGate(selectedRequest.id, gate.gateKey, { status });
     await refreshSelectedRequest();
     await refreshGovernance();
   }
@@ -495,9 +559,9 @@ export default function CapexDashboard() {
   }
 
   async function handleCreateSignature() {
-    if (!selectedRequest || !signatureForm.signerName.trim()) return;
+    if (!selectedRequest) return;
     await createCapexSignature(selectedRequest.id, signatureForm);
-    setSignatureForm({ linkedType: 'MOA', linkedId: '', signerName: '', signerRole: '', decision: 'Signed' });
+    setSignatureForm({ linkedType: 'MOA', linkedId: '', decision: 'Signed' });
     await refreshSelectedRequest();
     await refreshGovernance();
   }
@@ -1105,23 +1169,63 @@ export default function CapexDashboard() {
 
                   <h4 style={s.detailTitle}>Approval Workflow</h4>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                    {(selectedRequest.approvalSteps || []).map((step) => (
+                    {(selectedRequest.approvalSteps || []).filter((step) => step.status !== 'Superseded').map((step) => (
                       <div key={step.id} style={s.compactRow}>
-                        <span>{step.stepOrder}. {step.label}</span>
+                        <span>
+                          {step.stepOrder}. {step.label}
+                          {step.assignedTo ? ` — assigned to ${step.assignedTo}` : ''}
+                        </span>
                         <StatusBadge status={step.status} />
                       </div>
                     ))}
                   </div>
 
-                  {canEdit('capex.approvals') &&
-                   selectedRequest.status !== 'Approved for Procurement' &&
-                   selectedRequest.status !== 'Rejected' &&
-                   selectedRequest.status !== 'Returned for Correction' && (
-                    <div style={{ display: 'flex', gap: 8, marginTop: 18 }}>
-                      <button style={s.primaryBtn} onClick={() => handleCapexDecision('APPROVED')}>Approve Step</button>
-                      <button style={s.warnBtn} onClick={() => handleCapexDecision('RETURNED')}>Return</button>
-                      <button style={s.dangerBtn} onClick={() => handleCapexDecision('REJECTED')}>Reject</button>
-                    </div>
+                  {canEdit('capex.approvals') && selectedRequest.currentStepId && (
+                    <>
+                      <div style={{ display: 'flex', gap: 8, marginTop: 18 }}>
+                        <button style={s.primaryBtn} onClick={() => handleCapexDecision('APPROVED')}>Approve Step</button>
+                        <button style={s.warnBtn} onClick={() => handleCapexDecision('RETURNED')}>Return</button>
+                        <button style={s.dangerBtn} onClick={() => handleCapexDecision('REJECTED')}>Reject</button>
+                      </div>
+                      <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
+                        <input
+                          style={{ ...s.compactInput, flex: 1 }}
+                          placeholder="Delegate current step to (name or email)"
+                          value={delegateTo}
+                          onChange={e => setDelegateTo(e.target.value)}
+                        />
+                        <button style={s.warnBtn} onClick={handleDelegateStep} disabled={!delegateTo.trim()}>Delegate</button>
+                      </div>
+                    </>
+                  )}
+
+                  {selectedRequest.status === 'Returned for correction' &&
+                   (currentUser.role === 'Admin' ||
+                    (selectedRequest.requesterId && selectedRequest.requesterId === currentUser.id)) && (
+                    <>
+                      <h4 style={s.detailTitle}>Correct &amp; Resubmit</h4>
+                      <p style={s.detailText}>
+                        This request was returned for correction. Update the details, save, then resubmit for approval.
+                      </p>
+                      <div style={s.lifecycleGrid}>
+                        <input style={s.compactInput} placeholder="Title" value={returnedEditForm.title}
+                          onChange={e => setReturnedEditForm(p => ({ ...p, title: e.target.value }))} />
+                        <input style={s.compactInput} type="number" placeholder="Estimated value (OMR)" value={returnedEditForm.estimatedValue}
+                          onChange={e => setReturnedEditForm(p => ({ ...p, estimatedValue: e.target.value }))} />
+                        <input style={s.compactInput} type="number" placeholder="ACV / PO value (OMR)" value={returnedEditForm.acvPoValue ?? ''}
+                          onChange={e => setReturnedEditForm(p => ({ ...p, acvPoValue: e.target.value }))} />
+                        <input style={s.compactInput} type="number" placeholder="Savings (OMR)" value={returnedEditForm.savings ?? ''}
+                          onChange={e => setReturnedEditForm(p => ({ ...p, savings: e.target.value }))} />
+                        <input style={{ ...s.compactInput, gridColumn: '1 / -1' }} placeholder="Scope details" value={returnedEditForm.scopeDetails}
+                          onChange={e => setReturnedEditForm(p => ({ ...p, scopeDetails: e.target.value }))} />
+                        <input style={{ ...s.compactInput, gridColumn: '1 / -1' }} placeholder="Justification if fewer than 3 quotations" value={returnedEditForm.fewerThan3Justification}
+                          onChange={e => setReturnedEditForm(p => ({ ...p, fewerThan3Justification: e.target.value }))} />
+                      </div>
+                      <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
+                        <button style={s.warnBtn} onClick={handleSaveReturnedEdit}>Save Changes</button>
+                        <button style={s.primaryBtn} onClick={handleResubmitRequest}>Resubmit for Approval</button>
+                      </div>
+                    </>
                   )}
 
                   <h4 style={s.detailTitle}>Procurement Tracking</h4>
@@ -1160,7 +1264,7 @@ export default function CapexDashboard() {
                         <span>{m.stageName} - {m.milestoneName}</span>
                         <span style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                           <StatusBadge status={m.status} />
-                          {canEdit('capex.requests') && m.status !== 'Complete' && <button style={s.miniBtn} onClick={() => handleCompleteMilestone(m)}>Complete</button>}
+                          {canEdit('capex.requests') && m.status !== 'Completed' && <button style={s.miniBtn} onClick={() => handleCompleteMilestone(m)}>Complete</button>}
                         </span>
                       </div>
                     ))}
@@ -1267,6 +1371,27 @@ export default function CapexDashboard() {
                   </div>
 
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 12 }}>
+                    {(selectedRequest.budgetVariations || []).map(v => (
+                      <div key={v.id} style={s.compactRow}>
+                        <span>
+                          {v.variationType}: {fmtOMR(Number(v.originalBudget || 0))} → {fmtOMR(Number(v.revisedBudget || 0))}
+                          {' '}({Number(v.variationPercent || 0).toFixed(1)}%){v.moaApprovalRequired ? ' · MOA required' : ''}
+                          {' '}· requested by {v.requestedBy}
+                        </span>
+                        <span style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                          <StatusBadge status={v.approvalStatus} />
+                          {canEdit('capex.approvals') && v.approvalStatus === 'Pending' && (
+                            <>
+                              <button style={s.miniBtn} onClick={() => handleVariationDecision(v.id, 'Approved')}>Approve</button>
+                              <button style={s.miniBtn} onClick={() => handleVariationDecision(v.id, 'Rejected')}>Reject</button>
+                            </>
+                          )}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 12 }}>
                     {(selectedRequest.decisionGates || []).map(gate => (
                       <div key={gate.gateKey} style={s.compactRow}>
                         <span>{gate.gateName}</span>
@@ -1321,8 +1446,17 @@ export default function CapexDashboard() {
                     {canCreate('capex.documents') && <button style={s.primaryBtn} onClick={handleCreateDocumentVersion}>Save Version</button>}
                   </div>
                   <div style={s.lifecycleGrid}>
-                    <input style={s.compactInput} placeholder="Signer name" value={signatureForm.signerName} onChange={e => setSignatureForm(p => ({ ...p, signerName: e.target.value }))} />
-                    <input style={s.compactInput} placeholder="Signer role" value={signatureForm.signerRole} onChange={e => setSignatureForm(p => ({ ...p, signerRole: e.target.value }))} />
+                    <select style={s.compactInput} value={signatureForm.linkedType} onChange={e => setSignatureForm(p => ({ ...p, linkedType: e.target.value }))}>
+                      <option value="MOA">MOA</option>
+                      <option value="Approval">Approval</option>
+                      <option value="Closure">Closure</option>
+                    </select>
+                    <input style={s.compactInput} placeholder="Linked ID (optional)" value={signatureForm.linkedId} onChange={e => setSignatureForm(p => ({ ...p, linkedId: e.target.value }))} />
+                    <select style={s.compactInput} value={signatureForm.decision} onChange={e => setSignatureForm(p => ({ ...p, decision: e.target.value }))}>
+                      <option value="Signed">Signed</option>
+                      <option value="Approved">Approved</option>
+                      <option value="Acknowledged">Acknowledged</option>
+                    </select>
                     {canCreate('capex.documents') && <button style={s.primaryBtn} onClick={handleCreateSignature}>Capture Signature</button>}
                   </div>
 

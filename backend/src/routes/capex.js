@@ -23,6 +23,11 @@ router.get('/moa', verifyToken, requirePermission('capex.moa'), capexController.
 router.get('/dashboard/governance', verifyToken, requirePermission('capex.governance.dashboard'), capexController.getGovernanceDashboard);
 router.get('/dashboard/drilldown', verifyToken, requirePermission('capex.governance.dashboard'), capexController.getDashboardDrilldown);
 router.get('/requests/:id',    verifyToken, requirePermission('capex.requests'), capexController.getRequestById);
+router.patch('/requests/:id',  verifyToken, requirePermission('capex.requests', 'can_edit'), capexController.updateRequest);
+router.post('/requests/:id/resubmit', verifyToken, requirePermission('capex.requests', 'can_edit'), capexController.resubmitRequest);
+router.patch('/requests/:id/steps/:stepId/delegate', verifyToken, requirePermission('capex.approvals', 'can_edit'), capexController.delegateStep);
+router.patch('/requests/:id/steps/:stepId/escalate', verifyToken, requirePermission('capex.approvals', 'can_edit'), capexController.escalateStep);
+router.patch('/requests/:id/budget-variations/:variationId/decision', verifyToken, requirePermission('capex.approvals', 'can_edit'), capexController.decideBudgetVariation);
 router.post('/requests/:id/attachments', verifyToken, requirePermission('capex.documents', 'can_create'), capexController.attachmentUploadMiddleware, capexController.uploadAttachment);
 router.get('/requests/:id/attachments/:attachmentId/download', verifyToken, requirePermission('capex.documents'), capexController.downloadAttachment);
 router.patch('/requests/:id/decision', verifyToken, requirePermission('capex.approvals', 'can_edit'), capexController.decideRequest);

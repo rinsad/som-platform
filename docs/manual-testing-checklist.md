@@ -61,10 +61,18 @@ Start with `video.project-owner@shell.om` using password `Video@SOM2026!`.
 | Requests | Open Requests tab | Request register loads | Not run |
 | New request | Create a CAPEX request with title, budget holder, estimated value, risks, ROI, and supplier quotations | Request submits and appears in register | Not run |
 | Request detail | Open created request | Detail panel opens with workflow, execution, documents, risk, closure, audit | Not run |
+| Approval authority | Decide a pending request with an unassigned step while workflow `allowed_user_roles` is empty | Decision succeeds and audit history contains `AUTHORITY_UNVERIFIED` | Not run |
+| Approval denial | Configure an approval step with `allowed_user_roles`, then decide as a user outside the allowed roles | Decision is blocked with 403 | Not run |
+| Returned correction | Return a request for correction, edit it as requester/Admin, then resubmit | Old pending steps are superseded, new approval steps are appended, history is preserved | Not run |
+| Procurement gate | Try to edit procurement before approval completes | API/UI blocks with 409 until request reaches `Approved` | Not run |
 | Milestone | Add milestone and mark complete | Milestone persists and status updates | Not run |
 | Documents | Save document version and signature | Entries appear in document section | Not run |
+| Signature identity | Capture a document signature while entering no signer name/role | Signature signer name and role come from authenticated user | Not run |
 | Risk | Add risk and mitigation | Risk appears and persists | Not run |
 | PO closure | Save closure values | Saved values remain after refresh | Not run |
+| Financial closure gate | Try to close with incomplete checklist items, open PO closure, or a missing CAPEX form attachment | Close is blocked; checklist failures list incomplete item labels | Not run |
+| Financial closure success | Complete all closure checklist items, mark PO closure `Closed`, upload matching CAPEX form attachment, then close | Request status becomes `Closed` | Not run |
+| Budget variation | Create a variation while sending approval fields in the payload | Variation is created as `Pending`; approval requires the separate decision action | Not run |
 | Audit | Review audit history | New actions appear in audit log | Not run |
 
 ## Pass 4: CapEx Role-Based Access
@@ -88,9 +96,12 @@ Use seeded video users and verify each role only sees/actions what it should.
 | --- | --- | --- | --- |
 | List | Open `/purchase-requests` | Existing PRs load | Not run |
 | Create | Open `/purchase-requests/new`, submit valid request | New PR appears in list | Not run |
+| Quote rule | Submit with fewer than 3 quotes and no justification | Request is blocked; adding justification allows submit | Not run |
 | Detail | Open PR detail | Details, documents, workflow load | Not run |
-| Approve | Approve PR where allowed | Status/workflow updates | Not run |
-| Documents | Upload or attach document | Document appears and can be retrieved | Not run |
+| Sequential approval | Approve a MEDIUM PR once, then again | First approval advances current step but keeps `PENDING_APPROVAL`; second approval reaches `APPROVED` | Not run |
+| Terminal approval guard | Try to approve an already approved PR | API/UI blocks with 409 | Not run |
+| Return/resubmit | Return a PR, edit the draft, then resubmit | Status returns to `PENDING_APPROVAL`; approval history is preserved with `RESUBMITTED` appended | Not run |
+| Documents | Upload or attach document | Document appears and can be downloaded with stored bytes | Not run |
 
 ## Pass 6: Assets
 
@@ -119,8 +130,12 @@ Use seeded video users and verify each role only sees/actions what it should.
 Run these after fixes:
 
 1. `npm test` in `backend`.
-2. `npm test` in `frontend`.
-3. `npm run lint` in `frontend`.
+2. `npx vitest run` in `frontend`.
+3. `npm run lint` in `frontend`, if lint script exists for the branch.
 4. `npm run build` in `frontend`.
 5. Manually retest the exact failed workflow.
 
+Known current automated-test baseline during CAPEX hardening:
+
+- Backend `npm test`: 3 pre-existing failures in `tests/portal.test.js` for role-based app visibility.
+- Frontend `npx vitest run`: 5 pre-existing failures across Login, ManualEntryModal, and AssetRegistry.

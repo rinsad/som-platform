@@ -41,12 +41,50 @@ export function getInitiations() {
   return request('/api/capex/initiations');
 }
 
-export function getCapexRequests() {
-  return request('/api/capex/requests');
+export function getCapexRequests({ status } = {}) {
+  const qs = Array.isArray(status) && status.length
+    ? `?status=${encodeURIComponent(status.join(','))}`
+    : '';
+  return request(`/api/capex/requests${qs}`);
 }
 
 export function getCapexRequest(id) {
   return request(`/api/capex/requests/${encodeURIComponent(id)}`);
+}
+
+export function updateCapexRequest(id, data) {
+  return request(`/api/capex/requests/${encodeURIComponent(id)}`, {
+    method: 'PATCH',
+    body: JSON.stringify(data),
+  });
+}
+
+export function resubmitCapexRequest(id) {
+  return request(`/api/capex/requests/${encodeURIComponent(id)}/resubmit`, {
+    method: 'POST',
+    body: JSON.stringify({}),
+  });
+}
+
+export function delegateCapexStep(id, stepId, delegateTo) {
+  return request(`/api/capex/requests/${encodeURIComponent(id)}/steps/${encodeURIComponent(stepId)}/delegate`, {
+    method: 'PATCH',
+    body: JSON.stringify({ delegateTo }),
+  });
+}
+
+export function escalateCapexStep(id, stepId, reason) {
+  return request(`/api/capex/requests/${encodeURIComponent(id)}/steps/${encodeURIComponent(stepId)}/escalate`, {
+    method: 'PATCH',
+    body: JSON.stringify({ reason }),
+  });
+}
+
+export function decideCapexBudgetVariation(id, variationId, decision, comment = '') {
+  return request(`/api/capex/requests/${encodeURIComponent(id)}/budget-variations/${encodeURIComponent(variationId)}/decision`, {
+    method: 'PATCH',
+    body: JSON.stringify({ decision, comment }),
+  });
 }
 
 export function createCapexRequest(data) {
@@ -301,7 +339,6 @@ export function getBudgetUploads() {
 }
 
 export async function uploadCapexBudget(formData) {
-  const API = import.meta.env.VITE_API_URL || '/api';
   const r = await fetch(`${API}/api/capex/budget-upload`, {
     method: 'POST',
     headers: { Authorization: `Bearer ${localStorage.getItem('som_token')}` },

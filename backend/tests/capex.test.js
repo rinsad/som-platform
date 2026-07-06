@@ -1,6 +1,7 @@
 const request = require('supertest');
 const jwt = require('jsonwebtoken');
 const app = require('../src/index');
+const pool = require('../src/database/db');
 const { getRolePermissionPreset } = require('../src/config/capexRolePermissions');
 
 const token = jwt.sign(
@@ -18,6 +19,79 @@ const limitedToken = jwt.sign(
 );
 
 const limitedAuth = { Authorization: `Bearer ${limitedToken}` };
+
+const approverUserId = '00000000-0000-0000-0000-0000000000a7';
+const approverToken = jwt.sign(
+  { id: approverUserId, email: 'phase7.approver@shell.om', full_name: 'Phase 7 Approver', role: 'Finance Manager', department: 'Finance' },
+  process.env.JWT_SECRET || 'som-super-secret-key-2026',
+  { expiresIn: '1h' }
+);
+const approverAuth = { Authorization: `Bearer ${approverToken}` };
+
+async function seedApproverPermission() {
+  await pool.query(
+    `INSERT INTO som_users (id, employee_id, full_name, email, password_hash, role, department)
+     VALUES ($1, 'P7A', 'Phase 7 Approver', 'phase7.approver@shell.om', 'test-only', 'Finance Manager', 'Finance')
+     ON CONFLICT (id) DO UPDATE SET full_name = EXCLUDED.full_name, role = EXCLUDED.role, department = EXCLUDED.department`,
+    [approverUserId]
+  );
+  await pool.query(
+    `INSERT INTO som_permissions (user_id, level, resource_key, can_view, can_create, can_edit, can_delete)
+     VALUES ($1, 'page', 'capex.approvals', true, false, true, false)
+     ON CONFLICT (user_id, resource_key) DO UPDATE SET can_view = true, can_edit = true`,
+    [approverUserId]
+  );
+  await pool.query(
+    `INSERT INTO som_permissions (user_id, level, resource_key, can_view, can_create, can_edit, can_delete)
+     VALUES ($1, 'page', 'capex.documents', true, false, false, false)
+     ON CONFLICT (user_id, resource_key) DO UPDATE SET can_view = true`,
+    [approverUserId]
+  );
+}
+
+async function createCapex(overrides = {}) {
+  const stamp = `${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+  const res = await request(app)
+    .post('/api/capex/requests')
+    .set(auth)
+    .send({
+      title: `Phase 7 CAPEX ${stamp}`,
+      department: 'Aviation',
+      businessFunction: 'Aviation',
+      budgetHolder: 'Budget Holder',
+      estimatedValue: 18000,
+      scopeDetails: 'Phase 7 hardening test request.',
+      hsseRisk: 'Low',
+      workerWelfareRisk: 'Low',
+      quotations: [
+        { supplierName: 'Supplier A', quoteValue: 10000, isSelected: true, attachmentName: 'a.pdf' },
+        { supplierName: 'Supplier B', quoteValue: 12000, attachmentName: 'b.pdf' },
+        { supplierName: 'Supplier C', quoteValue: 14000, attachmentName: 'c.pdf' },
+      ],
+      ...overrides,
+    });
+  if (res.statusCode !== 201) throw new Error(`createCapex failed: ${res.statusCode} ${JSON.stringify(res.body)}`);
+  return res.body;
+}
+
+beforeAll(async () => {
+  await seedApproverPermission();
+});
+
+// Walk a request through every pending approval step (as Admin) until it
+// reaches the 'Approved' state, so procurement/execution gating is satisfied.
+async function approveAll(requestId) {
+  for (let i = 0; i < 12; i += 1) {
+    const detail = await request(app).get(`/api/capex/requests/${requestId}`).set(auth);
+    if (detail.body.status === 'Approved' || !detail.body.currentStepId) return detail.body;
+    const decided = await request(app)
+      .patch(`/api/capex/requests/${requestId}/decision`)
+      .set(auth)
+      .send({ decision: 'APPROVED' });
+    if (decided.statusCode !== 200) throw new Error(`approve step failed: ${decided.statusCode} ${JSON.stringify(decided.body)}`);
+  }
+  throw new Error('approveAll exceeded step limit');
+}
 
 describe('GET /api/capex/summary', () => {
   test('returns 200 with 6 departments', async () => {
@@ -90,6 +164,63 @@ describe('GET /api/capex/department/:name', () => {
   });
 });
 
+describe('CAPEX approval and gating hardening', () => {
+  test('decision on a terminal request returns 400', async () => {
+    const created = await createCapex();
+    const rejected = await request(app)
+      .patch(`/api/capex/requests/${created.id}/decision`)
+      .set(auth)
+      .send({ decision: 'REJECTED', comment: 'No longer required.' });
+    expect(rejected.statusCode).toBe(200);
+    expect(rejected.body.status).toBe('Rejected');
+
+    const secondDecision = await request(app)
+      .patch(`/api/capex/requests/${created.id}/decision`)
+      .set(auth)
+      .send({ decision: 'APPROVED' });
+    expect(secondDecision.statusCode).toBe(400);
+  });
+
+  test('configured authority matrix denies roles outside allowed_user_roles', async () => {
+    const created = await createCapex();
+    const detail = await request(app).get(`/api/capex/requests/${created.id}`).set(auth);
+    const role = detail.body.approvalSteps.find(step => step.id === detail.body.currentStepId).approverRole;
+
+    try {
+      await pool.query(
+        `UPDATE capex_workflow_config SET allowed_user_roles = ARRAY['CFO']::text[] WHERE approver_role = $1`,
+        [role]
+      );
+      const denied = await request(app)
+        .patch(`/api/capex/requests/${created.id}/decision`)
+        .set(approverAuth)
+        .send({ decision: 'APPROVED' });
+      expect(denied.statusCode).toBe(403);
+    } finally {
+      await pool.query(`UPDATE capex_workflow_config SET allowed_user_roles = '{}'::text[] WHERE approver_role = $1`, [role]);
+    }
+  });
+
+  test('empty authority matrix permits decision and audit-flags AUTHORITY_UNVERIFIED', async () => {
+    const created = await createCapex();
+    const detail = await request(app).get(`/api/capex/requests/${created.id}`).set(auth);
+    const role = detail.body.approvalSteps.find(step => step.id === detail.body.currentStepId).approverRole;
+    await pool.query(`UPDATE capex_workflow_config SET allowed_user_roles = '{}'::text[] WHERE approver_role = $1`, [role]);
+
+    const decided = await request(app)
+      .patch(`/api/capex/requests/${created.id}/decision`)
+      .set(approverAuth)
+      .send({ decision: 'APPROVED' });
+    expect(decided.statusCode).toBe(200);
+
+    const { rows } = await pool.query(
+      `SELECT event_type FROM capex_audit_logs WHERE request_id = $1 AND event_type = 'AUTHORITY_UNVERIFIED'`,
+      [created.id]
+    );
+    expect(rows).toHaveLength(1);
+  });
+});
+
 describe('CAPEX request lifecycle rules', () => {
   let requestId;
 
@@ -114,8 +245,21 @@ describe('CAPEX request lifecycle rules', () => {
       });
 
     expect(res.statusCode).toBe(201);
-    expect(res.body.status).toBe('Pending Line Manager Endorsement');
+    expect(res.body.status).toBe('Pending line manager endorsement');
     requestId = res.body.id;
+  });
+
+  test('blocks procurement editing before approval completes', async () => {
+    const res = await request(app)
+      .patch(`/api/capex/requests/${requestId}/procurement`)
+      .set(auth)
+      .send({ vendorRegistrationStatus: 'Pending' });
+    expect(res.statusCode).toBe(409);
+  });
+
+  test('walks the approval chain to Approved', async () => {
+    const approved = await approveAll(requestId);
+    expect(approved.status).toBe('Approved');
   });
 
   test('blocks PO uploaded state without mandatory PO fields', async () => {
@@ -226,6 +370,13 @@ describe('CAPEX request lifecycle rules', () => {
     expect(checklistLabels).toContain('Lessons learned captured');
     expect(checklistLabels).toContain('Retention release completed');
 
+    const blockedClosure = await request(app)
+      .patch(`/api/capex/requests/${requestId}/financial-closure`)
+      .set(auth)
+      .send({ actualSpend: 14900, capexFormAttachment: 'scope.txt', closeRequest: true });
+    expect(blockedClosure.statusCode).toBe(409);
+    expect(blockedClosure.body.incompleteItems.length).toBeGreaterThan(0);
+
     const checklistItem = detailBeforeChecklist.body.closureChecklist[0];
     const checklist = await request(app)
       .patch(`/api/capex/requests/${requestId}/closure-checklist/${checklistItem.id}`)
@@ -307,7 +458,8 @@ describe('CAPEX request lifecycle rules', () => {
         decision: 'Signed',
       });
     expect(signature.statusCode).toBe(201);
-    expect(signature.body.signerRole).toBe('Business GM');
+    expect(signature.body.signerName).toBe('admin@shell.om');
+    expect(signature.body.signerRole).toBe('Admin');
 
     const schedule = await request(app)
       .post('/api/capex/report-schedules')
@@ -343,9 +495,13 @@ describe('CAPEX request lifecycle rules', () => {
         justification: 'Additional electrical scope discovered.',
         financialImpactAnalysis: 'Variance is manageable within portfolio.',
         fibReviewStatus: 'Reviewed',
+        approvalStatus: 'Approved',
+        approvedBy: 'Self Approver',
       });
     expect(variation.statusCode).toBe(201);
     expect(variation.body.moaApprovalRequired).toBe(true);
+    expect(variation.body.approvalStatus).toBe('Pending');
+    expect(variation.body.approvedBy).toBeFalsy();
 
     const procurementPerformance = await request(app)
       .patch(`/api/capex/requests/${requestId}/procurement-performance`)

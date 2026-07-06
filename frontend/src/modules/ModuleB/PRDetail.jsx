@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { getPRById, approvePR, getDocuments, uploadDocument } from '../../services/prService';
+import { getPRById, approvePR, updatePR, resubmitPR, getDocuments, uploadDocumentFile, downloadDocument } from '../../services/prService';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function fmtOMR(v) {
@@ -30,6 +30,11 @@ const DECISION_COLOR = { APPROVED: '#34d399', REJECTED: '#ff6b6b', RETURNED: '#f
 
 const DOC_TYPE_ICON = { Quote: '📋', Scope: '📐', Technical: '⚙️', Document: '📄' };
 
+const DEPARTMENTS = [
+  'Admin', 'Finance', 'HR', 'Infrastructure',
+  'IT', 'Logistics', 'Operations', 'QHSE', 'Retail',
+];
+
 function Badge({ text, style }) {
   return (
     <span style={{
@@ -45,18 +50,22 @@ function Badge({ text, style }) {
 }
 
 // ── Approval Timeline ─────────────────────────────────────────────────────────
-function ApprovalTimeline({ workflow = [], history = [], status }) {
-  // Map each workflow step to its history entry (if completed)
-  const steps = workflow.map((step, i) => {
-    const done = history[i];
-    return { ...step, done };
-  });
+function ApprovalTimeline({ workflow = [], history = [], status, currentStepIndex = 0 }) {
+  // Completion is driven by currentStepIndex (the backend's source of truth),
+  // not positional history mapping — history also holds RETURNED/RESUBMITTED
+  // entries that would misalign a positional map. Per-step detail comes from
+  // the APPROVED decisions in order.
+  const approvals = history.filter((h) => h.decision === 'APPROVED');
+  const steps = workflow.map((step, i) => ({
+    ...step,
+    done: i < currentStepIndex ? (approvals[i] || { decision: 'APPROVED' }) : null,
+  }));
 
   return (
     <div style={tl.wrap}>
       {steps.map((step, i) => {
         const isComplete = !!step.done;
-        const isCurrent  = !isComplete && steps.slice(0, i).every((s) => s.done);
+        const isCurrent  = !isComplete && i === currentStepIndex && status === 'PENDING_APPROVAL';
         const isPending  = !isComplete && !isCurrent;
         const decision   = step.done?.decision;
 
@@ -159,21 +168,22 @@ function DocumentRepository({ prId, canUpload }) {
     setUploadErr('');
     try {
       for (const f of Array.from(files)) {
-        const type = f.name.toLowerCase().includes('quote') ? 'Quote'
-          : f.name.toLowerCase().includes('scope') ? 'Scope'
-          : f.name.toLowerCase().includes('tech')  ? 'Technical'
-          : 'Document';
-        const created = await uploadDocument(prId, {
-          name: f.name,
-          type,
-          size: f.size > 1048576 ? `${(f.size / 1048576).toFixed(1)} MB` : `${Math.round(f.size / 1024)} KB`,
-        });
+        // Real multipart upload — the server stores the file bytes.
+        const created = await uploadDocumentFile(prId, f);
         setDocs((prev) => [...prev, created]);
       }
-    } catch {
-      setUploadErr('Upload failed. Please try again.');
+    } catch (err) {
+      setUploadErr(err.message || 'Upload failed. Please try again.');
     } finally {
       setUploading(false);
+    }
+  };
+
+  const handleDownload = async (d) => {
+    try {
+      await downloadDocument(prId, d.id, d.name);
+    } catch (err) {
+      setUploadErr(err.message || 'Download failed.');
     }
   };
 
@@ -224,6 +234,9 @@ function DocumentRepository({ prId, canUpload }) {
                 <p style={doc.name}>{d.name}</p>
                 <p style={doc.sub}>{d.type} · {d.size} · Uploaded by {d.uploadedBy} on {d.uploadedAt}</p>
               </div>
+              {d.hasFile !== false && (
+                <button style={doc.downloadBtn} onClick={() => handleDownload(d)}>Download</button>
+              )}
               <Badge text={d.type} style={{
                 bg: 'rgba(107,159,255,0.12)', color: '#6b9fff', border: 'rgba(107,159,255,0.25)',
               }} />
@@ -241,6 +254,11 @@ const doc = {
     padding: '7px 16px', background: 'var(--shell-navy)',
     color: '#fff', borderRadius: 'var(--radius-sm)',
     fontSize: 13, fontWeight: 600,
+  },
+  downloadBtn: {
+    cursor: 'pointer', padding: '5px 12px', background: 'var(--fill-tertiary)',
+    border: '1px solid var(--separator)', borderRadius: 'var(--radius-sm)',
+    fontSize: 12, fontWeight: 600, color: 'var(--label-secondary)', flexShrink: 0,
   },
   list: { display: 'flex', flexDirection: 'column', gap: 10 },
   item: {
@@ -323,6 +341,153 @@ const ap = {
   returnBtn: { background: 'rgba(180,83,9,0.15)', color: '#fbbf24', border: '1px solid rgba(180,83,9,0.30)' },
 };
 
+function buildDraftForm(pr) {
+  const items = pr.lineItems?.length
+    ? pr.lineItems.map((item) => ({
+        id: Date.now() + Math.random(),
+        description: item.description || '',
+        quantity: item.quantity ?? '',
+        unitPrice: item.unitPrice ?? '',
+      }))
+    : [{ id: Date.now(), description: '', quantity: '', unitPrice: '' }];
+
+  return {
+    title: pr.title || '',
+    department: pr.department || '',
+    description: pr.description || '',
+    justification: pr.justification || '',
+    quoteCount: pr.quoteCount || 0,
+    lineItems: items,
+  };
+}
+
+function DraftEditor({ pr, onCancel, onSaved }) {
+  const [form, setForm] = useState(() => buildDraftForm(pr));
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+
+  const totalValue = form.lineItems.reduce((sum, item) => {
+    const qty = parseFloat(item.quantity) || 0;
+    const unit = parseFloat(item.unitPrice) || 0;
+    return sum + qty * unit;
+  }, 0);
+
+  const updateField = (field, value) => setForm((prev) => ({ ...prev, [field]: value }));
+  const updateLine = (id, field, value) => setForm((prev) => ({
+    ...prev,
+    lineItems: prev.lineItems.map((item) => item.id === id ? { ...item, [field]: value } : item),
+  }));
+  const addLine = () => setForm((prev) => ({
+    ...prev,
+    lineItems: [...prev.lineItems, { id: Date.now() + Math.random(), description: '', quantity: '', unitPrice: '' }],
+  }));
+  const removeLine = (id) => setForm((prev) => ({
+    ...prev,
+    lineItems: prev.lineItems.length > 1 ? prev.lineItems.filter((item) => item.id !== id) : prev.lineItems,
+  }));
+
+  const save = async (e) => {
+    e.preventDefault();
+    setSaving(true);
+    setError('');
+
+    const payload = {
+      title: form.title,
+      department: form.department,
+      description: form.description,
+      quoteCount: Number(form.quoteCount) || 0,
+      justification: form.justification,
+      totalValue,
+      lineItems: form.lineItems.map((item) => {
+        const quantity = parseFloat(item.quantity) || 0;
+        const unitPrice = parseFloat(item.unitPrice) || 0;
+        return {
+          description: item.description,
+          quantity,
+          unitPrice,
+          lineTotal: quantity * unitPrice,
+        };
+      }),
+    };
+
+    try {
+      const updated = await updatePR(pr.id, payload);
+      onSaved(updated);
+    } catch (err) {
+      setError(err.message || 'Failed to save draft.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <form style={s.card} onSubmit={save}>
+      <div style={s.cardTitleRow}>
+        <h2 style={s.cardTitle}>Edit Returned Draft</h2>
+        <button type="button" style={s.secondaryBtn} onClick={onCancel}>Cancel</button>
+      </div>
+
+      <div style={s.formGrid}>
+        <label style={s.formLabel}>PR Title</label>
+        <input style={s.input} value={form.title} onChange={(e) => updateField('title', e.target.value)} required />
+
+        <label style={s.formLabel}>Department</label>
+        <select style={s.input} value={form.department} onChange={(e) => updateField('department', e.target.value)} required>
+          <option value="">Select department...</option>
+          {DEPARTMENTS.map((dept) => <option key={dept} value={dept}>{dept}</option>)}
+        </select>
+
+        <label style={s.formLabel}>Description</label>
+        <textarea style={s.textarea} rows={3} value={form.description} onChange={(e) => updateField('description', e.target.value)} />
+
+        <label style={s.formLabel}>Quote Count</label>
+        <input style={s.input} type="number" min="0" value={form.quoteCount} onChange={(e) => updateField('quoteCount', e.target.value)} />
+
+        <label style={s.formLabel}>Justification</label>
+        <textarea style={s.textarea} rows={3} value={form.justification} onChange={(e) => updateField('justification', e.target.value)} />
+      </div>
+
+      <div style={s.divider} />
+      <div style={s.cardTitleRow}>
+        <h3 style={s.subTitle}>Line Items</h3>
+        <button type="button" style={s.secondaryBtn} onClick={addLine}>+ Add Row</button>
+      </div>
+      <div style={s.tableWrap}>
+        <table style={s.table}>
+          <thead>
+            <tr>
+              {['Description', 'Qty', 'Unit Price', 'Line Total', ''].map((h) => <th key={h} style={s.th}>{h}</th>)}
+            </tr>
+          </thead>
+          <tbody>
+            {form.lineItems.map((item) => {
+              const quantity = parseFloat(item.quantity) || 0;
+              const unitPrice = parseFloat(item.unitPrice) || 0;
+              return (
+                <tr key={item.id}>
+                  <td style={s.td}><input style={s.cellInput} value={item.description} onChange={(e) => updateLine(item.id, 'description', e.target.value)} /></td>
+                  <td style={s.td}><input style={s.cellInput} type="number" min="0" value={item.quantity} onChange={(e) => updateLine(item.id, 'quantity', e.target.value)} /></td>
+                  <td style={s.td}><input style={s.cellInput} type="number" min="0" step="0.01" value={item.unitPrice} onChange={(e) => updateLine(item.id, 'unitPrice', e.target.value)} /></td>
+                  <td style={{ ...s.td, textAlign: 'right', fontWeight: 700 }}>{fmtOMR(quantity * unitPrice)}</td>
+                  <td style={{ ...s.td, textAlign: 'center' }}>
+                    <button type="button" style={s.iconBtn} onClick={() => removeLine(item.id)}>x</button>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+
+      <div style={s.draftTotal}>Total: {fmtOMR(totalValue)}</div>
+      {error && <div style={s.inlineError}>{error}</div>}
+      <button type="submit" disabled={saving} style={{ ...s.saveBtn, ...(saving ? s.disabledBtn : {}) }}>
+        {saving ? 'Saving...' : 'Save Draft Changes'}
+      </button>
+    </form>
+  );
+}
+
 // ── Main Component ────────────────────────────────────────────────────────────
 const TABS = [
   { id: 'details',  label: 'Details' },
@@ -337,6 +502,9 @@ export default function PRDetail() {
   const [loading,  setLoading]  = useState(true);
   const [error,    setError]    = useState('');
   const [activeTab,setActiveTab]= useState('details');
+  const [editingDraft, setEditingDraft] = useState(false);
+  const [resubmitting, setResubmitting] = useState(false);
+  const [draftActionError, setDraftActionError] = useState('');
 
   const user = (() => { try { return JSON.parse(localStorage.getItem('som_user') || '{}'); } catch { return {}; } })();
   const canApprove = pr?.status === 'PENDING_APPROVAL' &&
@@ -348,6 +516,23 @@ export default function PRDetail() {
       .then((data) => { setPR(data); setLoading(false); })
       .catch(() => { setError('Failed to load purchase request.'); setLoading(false); });
   }, [id]);
+
+  const isDraft = pr?.status === 'DRAFT';
+
+  const handleResubmit = async () => {
+    setResubmitting(true);
+    setDraftActionError('');
+    try {
+      const updated = await resubmitPR(pr.id);
+      setPR(updated);
+      setEditingDraft(false);
+      setActiveTab('approval');
+    } catch (err) {
+      setDraftActionError(err.message || 'Failed to resubmit purchase request.');
+    } finally {
+      setResubmitting(false);
+    }
+  };
 
   if (loading) return (
     <div style={s.center} data-testid="pr-loading">
@@ -390,6 +575,32 @@ export default function PRDetail() {
         </div>
       )}
 
+      {isDraft && (
+        <div style={s.draftBanner}>
+          <div>
+            <strong>Returned for revision.</strong> Update the draft, attach any missing documents, then resubmit it for approval.
+            {draftActionError && <p style={s.draftError}>{draftActionError}</p>}
+          </div>
+          <div style={s.draftActionRow}>
+            <button
+              type="button"
+              style={s.secondaryBtn}
+              onClick={() => { setActiveTab('details'); setEditingDraft(true); }}
+            >
+              Edit Draft
+            </button>
+            <button
+              type="button"
+              style={{ ...s.saveBtn, ...(resubmitting ? s.disabledBtn : {}) }}
+              disabled={resubmitting}
+              onClick={handleResubmit}
+            >
+              {resubmitting ? 'Resubmitting...' : 'Resubmit for Approval'}
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Tab bar */}
       <div style={s.tabBar}>
         {TABS.map((t) => (
@@ -408,7 +619,15 @@ export default function PRDetail() {
         <div style={s.main}>
 
           {/* Details tab */}
-          {activeTab === 'details' && (
+          {activeTab === 'details' && editingDraft && isDraft && (
+            <DraftEditor
+              pr={pr}
+              onCancel={() => setEditingDraft(false)}
+              onSaved={(updated) => { setPR(updated); setEditingDraft(false); }}
+            />
+          )}
+
+          {activeTab === 'details' && (!editingDraft || !isDraft) && (
             <div style={s.card}>
               <h2 style={s.cardTitle}>Request Information</h2>
               <div style={s.infoGrid}>
@@ -486,6 +705,7 @@ export default function PRDetail() {
                 workflow={pr.workflow || []}
                 history={pr.approvalHistory || []}
                 status={pr.status}
+                currentStepIndex={pr.currentStepIndex || 0}
               />
               {canApprove && (
                 <>
@@ -613,15 +833,30 @@ const s = {
 
   card:      { background: 'var(--surface)', borderRadius: 'var(--radius-xl)', padding: 28, boxShadow: 'var(--shadow-card)' },
   cardTitle: { margin: '0 0 20px', fontSize: 15, fontWeight: 700, color: 'var(--label)' },
+  cardTitleRow: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 16 },
   subTitle:  { margin: '16px 0 8px', fontSize: 13, fontWeight: 700, color: 'var(--label-secondary)', textTransform: 'uppercase', letterSpacing: '0.4px' },
   divider:   { height: 1, background: 'var(--separator-clear)', margin: '20px 0' },
   infoGrid:  { display: 'grid', gridTemplateColumns: '140px 1fr', gap: '0 16px' },
   descText:  { margin: 0, fontSize: 14, color: 'var(--label)', lineHeight: 1.6 },
+  formGrid:  { display: 'grid', gridTemplateColumns: '140px 1fr', gap: '12px 16px', alignItems: 'start' },
+  formLabel: { fontSize: 12, fontWeight: 700, color: 'var(--label-secondary)', textTransform: 'uppercase', letterSpacing: '0.4px', paddingTop: 10 },
+  input:     { width: '100%', border: '1px solid var(--separator)', borderRadius: 'var(--radius-sm)', padding: '9px 12px', fontSize: 13, fontFamily: 'inherit', background: 'var(--surface)', color: 'var(--label)' },
+  textarea:  { width: '100%', border: '1px solid var(--separator)', borderRadius: 'var(--radius-sm)', padding: '9px 12px', fontSize: 13, fontFamily: 'inherit', resize: 'vertical', background: 'var(--surface)', color: 'var(--label)' },
 
   tableWrap: { overflowX: 'auto' },
   table:     { width: '100%', borderCollapse: 'collapse', fontSize: 13 },
   th:        { padding: '9px 12px', textAlign: 'left', fontSize: 11, fontWeight: 700, color: 'var(--label-secondary)', textTransform: 'uppercase', letterSpacing: '0.4px', borderBottom: '1px solid var(--separator-clear)', whiteSpace: 'nowrap' },
   td:        { padding: '10px 12px', borderBottom: '1px solid var(--separator-clear)', color: 'var(--label)' },
+  cellInput: { width: '100%', minWidth: 90, border: '1px solid var(--separator)', borderRadius: 'var(--radius-sm)', padding: '7px 9px', fontSize: 13, fontFamily: 'inherit', background: 'var(--surface)', color: 'var(--label)' },
+  iconBtn:   { border: '1px solid var(--separator)', borderRadius: 6, background: 'var(--surface)', color: 'var(--label-secondary)', cursor: 'pointer', padding: '3px 8px', fontWeight: 700 },
+  draftTotal:{ marginTop: 14, textAlign: 'right', fontSize: 15, fontWeight: 700, color: 'var(--label)' },
+  inlineError:{ marginTop: 12, background: 'rgba(220,38,38,0.12)', border: '1px solid rgba(220,38,38,0.30)', color: '#ff6b6b', padding: '10px 14px', borderRadius: 'var(--radius-sm)', fontSize: 13 },
+  saveBtn:   { padding: '9px 14px', background: 'var(--shell-red)', color: '#fff', border: 'none', borderRadius: 'var(--radius-sm)', fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' },
+  secondaryBtn:{ padding: '8px 13px', background: 'var(--surface)', border: '1px solid var(--separator)', borderRadius: 'var(--radius-sm)', color: 'var(--label)', fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' },
+  disabledBtn:{ opacity: 0.6, cursor: 'not-allowed' },
+  draftBanner:{ display: 'flex', justifyContent: 'space-between', gap: 16, alignItems: 'center', background: 'rgba(251,191,36,0.10)', border: '1px solid rgba(251,191,36,0.25)', borderRadius: 'var(--radius-sm)', padding: '14px 16px', marginBottom: 16, color: '#fbbf24', fontSize: 13 },
+  draftActionRow:{ display: 'flex', gap: 8, flexShrink: 0 },
+  draftError:{ margin: '6px 0 0', color: '#ff6b6b', fontSize: 12 },
 
   sideCard:  { background: 'var(--surface)', borderRadius: 'var(--radius-lg)', padding: '16px 18px', boxShadow: 'var(--shadow-card)' },
   sideLabel: { margin: '0 0 8px', fontSize: 11, fontWeight: 700, color: 'var(--label-secondary)', textTransform: 'uppercase', letterSpacing: '0.4px' },

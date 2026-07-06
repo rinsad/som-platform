@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { createPR } from '../../services/prService';
+import { createPR, uploadDocumentFile } from '../../services/prService';
 
 const DEPARTMENTS = [
   'Admin', 'Finance', 'HR', 'Infrastructure',
@@ -65,6 +65,10 @@ export default function NewPurchaseRequest() {
   // ── Submit ──────────────────────────────────────────────────────────────────
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (needsJustification && !justification.trim()) {
+      setSubmitError('Justification is required when fewer than 3 quotes are attached.');
+      return;
+    }
     setSubmitting(true);
     setSubmitError('');
 
@@ -85,11 +89,14 @@ export default function NewPurchaseRequest() {
     };
 
     try {
-      await createPR(payload);
+      const created = await createPR(payload);
+      // Upload the attached quote files against the new PR (previously discarded).
+      for (const f of quotes) {
+        try { await uploadDocumentFile(created.id, f, 'Quote'); } catch { /* continue */ }
+      }
       navigate('/purchase-requests');
     } catch (err) {
       setSubmitError(err.message || 'Something went wrong. Please try again.');
-    } finally {
       setSubmitting(false);
     }
   };
