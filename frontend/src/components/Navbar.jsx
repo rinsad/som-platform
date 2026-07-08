@@ -215,26 +215,7 @@ export default function Navbar({ user, onLogout, showDashboardLink = false, vari
   return (
     <header style={styles.navbar}>
       <div style={styles.inner}>
-        <a href="/" style={styles.brand} aria-label="Shell Oman Marketing home">
-          <span style={styles.logoMark}>
-            <img src="/logo.png" alt="Shell Oman Marketing" style={styles.logoImg} />
-          </span>
-          <span>
-            <span style={styles.brandName}>Shell Oman Marketing</span>
-            <span style={styles.brandSub}>{isPublic ? 'Employee Intraportal' : 'Enterprise Platform'}</span>
-          </span>
-        </a>
-
-        {isPublic && (
-          <nav className="som-public-nav" style={styles.navLinks} aria-label="Primary">
-            <a href="#about" style={styles.navText}>About Shell</a>
-            <a href="#departments" style={styles.navText}>Business</a>
-            <a href="#hr-online" style={styles.navText}>HR Online</a>
-            <a href="#employee-services" style={styles.navText}>People</a>
-            <a href="#knowledge" style={styles.navText}>Knowledge</a>
-          </nav>
-        )}
-
+        <span style={styles.topbarSpacer} />
         <div style={styles.right}>
           {user ? (
             <>
@@ -303,16 +284,24 @@ const base = {
 
 const appStyles = {
   ...base,
+  inner: {
+    ...base.inner,
+    maxWidth: 'none',
+    margin: 0,
+  },
+  topbarSpacer: {
+    flex: 1,
+    minWidth: 0,
+  },
   navbar: {
-    minHeight: 66,
+    minHeight: 96,
     background: '#fff',
     borderTop: '5px solid #FFD500',
     borderBottom: '1px solid #e5e5e5',
     display: 'flex',
     alignItems: 'center',
-    padding: '0 24px',
-    position: 'sticky',
-    top: 0,
+    padding: '0 34px',
+    flexShrink: 0,
     zIndex: 100,
     boxShadow: '0 1px 0 rgba(0,0,0,0.02)',
   },

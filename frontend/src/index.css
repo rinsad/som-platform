@@ -133,3 +133,21 @@ input, textarea, select { font-family: inherit; }
   height: 1px;
   background: var(--separator-clear);
 }
+
+/* ── CAPEX request register: clickable rows ──────────────────────────────── */
+.capex-req-row {
+  cursor: pointer;
+  transition: background var(--transition-fast);
+}
+.capex-req-row:hover {
+  background: #EEF3F9 !important;
+}
+.capex-req-row:hover .capex-req-title {
+  color: var(--shell-red);
+}
+
+/* ── CAPEX detail: section sub-navigation ────────────────────────────────── */
+.capex-subnav-btn:hover {
+  background: #F1F5F9;
+  color: var(--shell-red);
+}

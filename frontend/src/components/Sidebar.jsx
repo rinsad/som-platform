@@ -32,6 +32,16 @@ export default function Sidebar() {
 
   return (
     <aside style={s.sidebar}>
+      <a href="/dashboard" style={s.brand} aria-label="Shell Oman Marketing dashboard">
+        <span style={s.logoMark}>
+          <img src="/logo.png" alt="Shell Oman Marketing" style={s.logoImg} />
+        </span>
+        <span>
+          <strong style={s.brandName}>Shell Oman Marketing</strong>
+          <span style={s.brandSub}>Enterprise Platform</span>
+        </span>
+      </a>
+
       <div style={s.titleBlock}>
         <span style={s.titleAccent} />
         <div>
@@ -83,8 +93,8 @@ export default function Sidebar() {
 
 const s = {
   sidebar: {
-    width: 244,
-    minHeight: '100%',
+    width: 304,
+    height: '100vh',
     background: '#fff',
     borderRight: '1px solid #e5e5e5',
     display: 'flex',
@@ -92,11 +102,47 @@ const s = {
     flexShrink: 0,
     boxShadow: '1px 0 0 rgba(0,0,0,0.02)',
   },
+  brand: {
+    minHeight: 100,
+    padding: '24px 22px 20px',
+    display: 'flex',
+    alignItems: 'center',
+    gap: 12,
+    color: '#111',
+    textDecoration: 'none',
+    borderTop: '5px solid #FFD500',
+    borderBottom: '1px solid #f0f0f0',
+  },
+  logoMark: {
+    width: 42,
+    height: 42,
+    flexShrink: 0,
+    display: 'block',
+  },
+  logoImg: {
+    width: '100%',
+    height: '100%',
+    objectFit: 'contain',
+    display: 'block',
+  },
+  brandName: {
+    display: 'block',
+    color: '#111',
+    fontSize: 16,
+    lineHeight: 1.16,
+    fontWeight: 800,
+  },
+  brandSub: {
+    display: 'block',
+    color: '#666',
+    fontSize: 12,
+    marginTop: 2,
+  },
   titleBlock: {
     display: 'flex',
     alignItems: 'center',
     gap: 10,
-    padding: '18px 18px 12px',
+    padding: '24px 22px 18px',
     borderBottom: '1px solid #f0f0f0',
   },
   titleAccent: {
@@ -120,10 +166,11 @@ const s = {
   },
   nav: {
     flex: 1,
-    padding: '18px 12px',
+    padding: '24px 14px',
     display: 'flex',
     flexDirection: 'column',
     gap: 10,
+    overflowY: 'auto',
   },
   section: {
     marginBottom: 12,

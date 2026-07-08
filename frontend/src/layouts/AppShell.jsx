@@ -41,14 +41,14 @@ export default function AppShell() {
 
   return (
     <div style={s.root}>
-      <Navbar user={user} onLogout={handleLogout} />
-      <div style={s.body}>
-        <Sidebar />
-        <main style={s.main}>
-          <div style={s.content}>
+      <Sidebar />
+      <div style={s.workspace}>
+        <Navbar user={user} onLogout={handleLogout} />
+        <div style={s.mainScroll}>
+          <main style={s.main}>
             <Outlet />
-          </div>
-        </main>
+          </main>
+        </div>
       </div>
     </div>
   );
@@ -57,26 +57,29 @@ export default function AppShell() {
 const s = {
   root: {
     display: 'flex',
-    flexDirection: 'column',
     height: '100vh',
     overflow: 'hidden',
     background: '#f7f7f7',
     color: '#222',
   },
-  body: {
+  workspace: {
     display: 'flex',
+    flexDirection: 'column',
     flex: 1,
+    minWidth: 0,
+    height: '100vh',
     overflow: 'hidden',
   },
-  main: {
+  mainScroll: {
     flex: 1,
     overflowY: 'auto',
     background: 'linear-gradient(180deg, #fff8cc 0, #f7f7f7 190px)',
   },
-  content: {
-    padding: '32px',
-    maxWidth: '1200px',
+  main: {
+    padding: '40px 32px',
+    maxWidth: '1450px',
     margin: '0 auto',
+    width: '100%',
     animation: 'fadeIn 0.25s var(--ease)',
   },
 };

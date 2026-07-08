@@ -185,9 +185,10 @@ async function saveDocumentVersionAndSignature(page) {
 async function addRiskAndClosureControls(page) {
   await page.getByRole('heading', { name: 'Procurement Performance, Benefits & Risk' }).scrollIntoViewIfNeeded();
   await showChapter(page, 'Add Risk', 'The Project Owner can record project risks with severity and mitigation so the governance dashboard has current risk information.');
+  await page.getByRole('button', { name: '+ Add risk' }).click();
   await page.getByPlaceholder('Risk title').fill('Delivery schedule pressure');
   await page.getByPlaceholder('Mitigation plan').fill('Weekly supplier expediting and site-readiness checks.');
-  await page.getByRole('button', { name: 'Add Risk' }).click();
+  await page.getByRole('button', { name: 'Add Risk', exact: true }).click();
   await page.waitForTimeout(1_000);
 
   await page.getByRole('heading', { name: 'AUC, Capitalization & PO Closure' }).scrollIntoViewIfNeeded();

@@ -166,9 +166,10 @@ async function saveDocumentVersionAndSignature(page) {
 }
 
 async function addRiskAndClosureControls(page) {
+  await page.getByRole('button', { name: '+ Add risk' }).click();
   await page.getByPlaceholder('Risk title').fill('Delivery schedule pressure');
   await page.getByPlaceholder('Mitigation plan').fill('Weekly supplier expediting and site-readiness checks.');
-  await page.getByRole('button', { name: 'Add Risk' }).click();
+  await page.getByRole('button', { name: 'Add Risk', exact: true }).click();
   await page.waitForTimeout(800);
 
   await page.getByPlaceholder('Open commitment').fill('42500');

@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { DEPT_NAMES } from '../../services/capexService';
+import Modal from '../../components/Modal';
 
 function emptyQuote(selected = false) {
   return {
@@ -101,15 +102,12 @@ export default function CapexRequestForm({ onSubmit, onCancel }) {
   }
 
   return (
-    <div style={s.wrap}>
-      <div style={s.header}>
-        <div>
-          <h3 style={s.title}>New CAPEX Request</h3>
-          <p style={s.subtitle}>Capture governance, quotation, risk, and budget details for approval routing.</p>
-        </div>
-        <button type="button" onClick={onCancel} style={s.secondaryBtn}>Close</button>
-      </div>
-
+    <Modal
+      title="New CAPEX Request"
+      subtitle="Capture governance, quotation, risk, and budget details for approval routing."
+      onClose={onCancel}
+      maxWidth={920}
+    >
       {error && <div style={s.error}>{error}</div>}
 
       <form onSubmit={handleSubmit}>
@@ -214,7 +212,7 @@ export default function CapexRequestForm({ onSubmit, onCancel }) {
           <button type="submit" style={s.primaryBtn} disabled={saving}>{saving ? 'Submitting...' : 'Submit CAPEX Request'}</button>
         </div>
       </form>
-    </div>
+    </Modal>
   );
 }
 
@@ -228,18 +226,6 @@ function Field({ label, children, wide }) {
 }
 
 const s = {
-  wrap: {
-    background: '#FFFFFF',
-    border: '1px solid #E0E5EB',
-    borderLeft: '5px solid var(--shell-red)',
-    borderRadius: 8,
-    boxShadow: '0 1px 2px rgba(15,23,42,0.05)',
-    padding: 24,
-    marginBottom: 18,
-  },
-  header: { display: 'flex', justifyContent: 'space-between', gap: 16, alignItems: 'flex-start', marginBottom: 18 },
-  title: { margin: 0, fontSize: 18, fontWeight: 850, color: '#1F2933' },
-  subtitle: { margin: '4px 0 0', fontSize: 13, color: '#5B6773' },
   grid3: { display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 14, marginBottom: 14 },
   field: { display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 14 },
   label: { fontSize: 11, fontWeight: 850, color: '#5B6773', textTransform: 'uppercase', letterSpacing: '0.3px' },
