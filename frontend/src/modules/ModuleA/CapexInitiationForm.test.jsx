@@ -27,17 +27,19 @@ describe('CapexInitiationForm — rendering', () => {
     expect(screen.getByLabelText(/Priority/i)).toBeInTheDocument();
   });
 
-  test('renders project type selector with all options', () => {
+  test('renders project type selector with all options', async () => {
+    const user = userEvent.setup();
     renderForm();
-    const select = screen.getByLabelText(/Project Type/i);
-    const options = Array.from(select.options).map((o) => o.value);
+    await user.click(screen.getByLabelText(/Project Type/i));
+    const options = screen.getAllByRole('option').map((o) => o.textContent);
     expect(options).toEqual(['New', 'Replacement', 'Upgrade', 'Expansion']);
   });
 
-  test('renders priority selector with High, Medium, Low', () => {
+  test('renders priority selector with High, Medium, Low', async () => {
+    const user = userEvent.setup();
     renderForm();
-    const select = screen.getByLabelText(/Priority/i);
-    const options = Array.from(select.options).map((o) => o.value);
+    await user.click(screen.getByLabelText(/Priority/i));
+    const options = screen.getAllByRole('option').map((o) => o.textContent);
     expect(options).toEqual(['High', 'Medium', 'Low']);
   });
 
@@ -103,14 +105,20 @@ describe('CapexInitiationForm — interactions', () => {
   });
 
   test('calls onSubmit with correct data on valid form', async () => {
-    const user = userEvent.setup();
+    // delay:null removes user-event's inter-event delay; Radix Select's
+    // portal/scroll work makes the default 5s timeout tight for this many
+    // interactions in jsdom.
+    const user = userEvent.setup({ delay: null });
     const { onSubmit } = renderForm();
 
     await user.type(screen.getByPlaceholderText(/Solar Panel/i), 'EV Charging Hub');
-    await user.selectOptions(screen.getByLabelText(/Department \*/i), 'Finance & Operations');
-    await user.selectOptions(screen.getByLabelText(/Project Type/i), 'Upgrade');
+    await user.click(screen.getByLabelText(/Department \*/i));
+    await user.click(screen.getByRole('option', { name: 'Finance & Operations' }));
+    await user.click(screen.getByLabelText(/Project Type/i));
+    await user.click(screen.getByRole('option', { name: 'Upgrade' }));
     await user.type(screen.getByLabelText(/Estimated Budget/i), '150000');
-    await user.selectOptions(screen.getByLabelText(/Priority/i), 'High');
+    await user.click(screen.getByLabelText(/Priority/i));
+    await user.click(screen.getByRole('option', { name: 'High' }));
     await user.type(screen.getByPlaceholderText(/Finance, QHSE/i), 'Finance, IT');
     await user.type(screen.getByPlaceholderText(/Brief description/i), 'Install EV chargers');
     await user.type(screen.getByPlaceholderText(/Strategic rationale/i), 'Market opportunity');
@@ -130,7 +138,7 @@ describe('CapexInitiationForm — interactions', () => {
         justification: 'Market opportunity',
       })
     );
-  });
+  }, 15000);
 
   test('shows submitting state while onSubmit is pending', async () => {
     const user = userEvent.setup();

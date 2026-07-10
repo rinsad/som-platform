@@ -156,7 +156,7 @@ exports.updateUser = async (req, res, next) => {
   }
 };
 
-// ── Deactivate / delete user ─────────────────────────────────────────────────
+// ── Deactivate / reactivate / delete user ────────────────────────────────────
 exports.deactivateUser = async (req, res, next) => {
   try {
     const { id } = req.params;
@@ -166,6 +166,20 @@ exports.deactivateUser = async (req, res, next) => {
     );
     if (rows.length === 0) return res.status(404).json({ error: 'User not found' });
     res.json({ message: 'User deactivated' });
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.reactivateUser = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { rows } = await pool.query(
+      `UPDATE som_users SET is_active = true WHERE id=$1 RETURNING id`,
+      [id]
+    );
+    if (rows.length === 0) return res.status(404).json({ error: 'User not found' });
+    res.json({ message: 'User reactivated' });
   } catch (err) {
     next(err);
   }

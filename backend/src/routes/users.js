@@ -12,6 +12,7 @@ router.get('/:id',       ctrl.getUser);
 router.post('/',         ctrl.createUser);
 router.put('/:id',       ctrl.updateUser);
 router.patch('/:id/deactivate', ctrl.deactivateUser);
+router.patch('/:id/reactivate', ctrl.reactivateUser);
 router.delete('/:id',    ctrl.deleteUser);
 
 module.exports = router;

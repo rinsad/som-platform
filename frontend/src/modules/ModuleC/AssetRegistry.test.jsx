@@ -41,15 +41,15 @@ afterEach(() => { localStorage.clear(); jest.clearAllMocks(); });
 
 test('renders asset rows after fetch', async () => {
   render(<AssetRegistry />);
-  await waitFor(() =>
-    expect(screen.getByText('Generator Unit')).toBeInTheDocument()
-  );
+  fireEvent.click(await screen.findByRole('button', { name: /Table/i }));
+  expect(await screen.findByText('Generator Unit')).toBeInTheDocument();
   expect(screen.getAllByTestId('asset-row')).toHaveLength(2);
 });
 
 test('search bar filters assets by name', async () => {
   render(<AssetRegistry />);
-  await waitFor(() => screen.getByText('Generator Unit'));
+  fireEvent.click(await screen.findByRole('button', { name: /Table/i }));
+  await screen.findByText('Generator Unit');
   fireEvent.change(screen.getByTestId('search-assets'),
     { target: { value: 'HVAC' } });
   expect(screen.queryByText('Generator Unit')).not.toBeInTheDocument();

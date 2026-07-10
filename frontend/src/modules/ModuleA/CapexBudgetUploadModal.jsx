@@ -66,7 +66,7 @@ export default function CapexBudgetUploadModal({ onClose, onSuccess }) {
               Bulk-load the initial authorised CAPEX budget for the fiscal year.
             </p>
           </div>
-          <button onClick={onClose} style={s.closeBtn}>×</button>
+          <button type="button" onClick={onClose} style={s.closeBtn}>×</button>
         </div>
 
         {/* Sample download */}
@@ -142,7 +142,7 @@ export default function CapexBudgetUploadModal({ onClose, onSuccess }) {
           )}
 
           {preview !== null && preview.length === 0 && (
-            <div style={{ fontSize: 12.5, color: '#fbbf24', background: 'rgba(251,191,36,0.10)', borderRadius: 8, padding: '8px 12px', border: '1px solid rgba(251,191,36,0.25)' }}>
+            <div style={{ fontSize: 12.5, color: 'var(--warning)', background: 'var(--warning-bg)', borderRadius: 'var(--radius-md)', padding: '8px 12px', border: '1px solid var(--warning)' }}>
               No valid rows found. Ensure the CSV has department and total_budget columns.
             </div>
           )}
@@ -174,7 +174,7 @@ const s = {
     zIndex: 9999, backdropFilter: 'blur(4px)',
   },
   modal: {
-    background: 'var(--surface)', borderRadius: 20, padding: '28px 26px',
+    background: 'var(--surface)', borderRadius: 'var(--radius-md)', padding: '28px 26px',
     width: '100%', maxWidth: 560, maxHeight: '85vh', overflowY: 'auto',
     boxShadow: '0 32px 80px rgba(0,0,0,0.50)',
     border: '1px solid var(--gray-200)', animation: 'fadeIn 0.2s ease',
@@ -185,9 +185,9 @@ const s = {
   },
   sampleLink: {
     display: 'inline-flex', alignItems: 'center', gap: 6,
-    fontSize: 13, fontWeight: 600, color: '#DD1D21',
+    fontSize: 13, fontWeight: 600, color: 'var(--shell-red)',
     background: 'rgba(221,29,33,0.07)', border: '1px solid rgba(221,29,33,0.20)',
-    borderRadius: 8, padding: '7px 14px', textDecoration: 'none',
+    borderRadius: 'var(--radius-md)', padding: '7px 14px', textDecoration: 'none',
   },
   field: { display: 'flex', flexDirection: 'column', gap: 5 },
   label: {
@@ -195,13 +195,13 @@ const s = {
     textTransform: 'uppercase', letterSpacing: '0.4px',
   },
   input: {
-    padding: '10px 12px', fontSize: 14, borderRadius: 10,
+    padding: '10px 12px', fontSize: 14, borderRadius: 'var(--radius-md)',
     border: '1px solid var(--gray-200)', background: 'var(--gray-50)',
     color: 'var(--gray-900)', fontFamily: 'inherit', outline: 'none', width: '100%',
   },
   previewBox: {
     background: 'var(--gray-50)', border: '1px solid var(--gray-200)',
-    borderRadius: 10, padding: '12px 14px',
+    borderRadius: 'var(--radius-md)', padding: '12px 14px',
   },
   th: {
     padding: '6px 10px', textAlign: 'left', fontSize: 11, fontWeight: 700,
@@ -213,26 +213,26 @@ const s = {
     borderBottom: '1px solid var(--gray-100)',
   },
   errorBox: {
-    fontSize: 12.5, color: '#ff6b6b',
-    background: 'rgba(220,38,38,0.10)', borderRadius: 8, padding: '8px 12px',
-    border: '1px solid rgba(220,38,38,0.25)',
+    fontSize: 12.5, color: 'var(--danger)',
+    background: 'var(--danger-bg)', borderRadius: 'var(--radius-md)', padding: '8px 12px',
+    border: '1px solid var(--danger)',
   },
   cancelBtn: {
     flex: 1, padding: '11px', fontSize: 14, fontWeight: 600,
-    borderRadius: 10, border: '1px solid var(--gray-200)',
+    borderRadius: 'var(--radius-md)', border: '1px solid var(--gray-200)',
     background: 'var(--surface)', color: 'var(--gray-600)',
     cursor: 'pointer', fontFamily: 'inherit',
   },
   submitBtn: {
     flex: 1, padding: '11px', fontSize: 14, fontWeight: 600,
-    borderRadius: 10, border: 'none', background: '#DD1D21',
+    borderRadius: 'var(--radius-md)', border: 'none', background: 'var(--shell-red)',
     color: '#fff', cursor: 'pointer', fontFamily: 'inherit',
     display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
     boxShadow: '0 2px 8px rgba(221,29,33,0.30)',
   },
   spinner: {
     width: 14, height: 14,
-    border: '2px solid rgba(255,255,255,0.3)', borderTopColor: '#fff',
+    border: '2px solid var(--gray-300)', borderTopColor: '#fff',
     borderRadius: '50%', animation: 'spin 0.75s linear infinite',
     display: 'inline-block',
   },

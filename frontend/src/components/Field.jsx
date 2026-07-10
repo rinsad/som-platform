@@ -12,5 +12,5 @@ export default function Field({ label, full, children }) {
 
 const s = {
   wrap: { display: 'flex', flexDirection: 'column', gap: 6, minWidth: 0 },
-  label: { fontSize: 12, fontWeight: 700, color: '#4B5563' },
+  label: { fontSize: 12, fontWeight: 700, color: 'var(--gray-600)' },
 };

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getAllPRs } from '../../services/prService';
+import Badge from '../../components/Badge';
 
 const TABS = [
   { label: 'All',      value: 'ALL' },
@@ -8,19 +9,6 @@ const TABS = [
   { label: 'Approved', value: 'APPROVED' },
   { label: 'Rejected', value: 'REJECTED' },
 ];
-
-const TIER_STYLE = {
-  LOW:    { background: 'rgba(52,211,153,0.12)',  color: '#34d399', border: 'rgba(52,211,153,0.30)' },
-  MEDIUM: { background: 'rgba(251,191,36,0.12)',  color: '#fbbf24', border: 'rgba(251,191,36,0.30)' },
-  HIGH:   { background: 'rgba(220,38,38,0.12)',   color: '#ff6b6b', border: 'rgba(220,38,38,0.30)' },
-};
-
-const STATUS_STYLE = {
-  DRAFT:            { background: 'rgba(255,255,255,0.07)',  color: 'rgba(255,255,255,0.45)', border: 'rgba(255,255,255,0.15)' },
-  PENDING_APPROVAL: { background: 'rgba(107,159,255,0.15)', color: '#6b9fff',                border: 'rgba(107,159,255,0.30)' },
-  APPROVED:         { background: 'rgba(52,211,153,0.12)',  color: '#34d399',                border: 'rgba(52,211,153,0.30)' },
-  REJECTED:         { background: 'rgba(220,38,38,0.12)',   color: '#ff6b6b',                border: 'rgba(220,38,38,0.30)' },
-};
 
 const STATUS_LABEL = {
   DRAFT: 'Draft',
@@ -31,25 +19,6 @@ const STATUS_LABEL = {
 
 function fmtValue(v) {
   return 'OMR ' + Number(v).toLocaleString('en-GB');
-}
-
-function Badge({ text, style }) {
-  return (
-    <span style={{
-      display: 'inline-flex',
-      alignItems: 'center',
-      padding: '3px 10px',
-      borderRadius: '9999px',
-      fontSize: '12px',
-      fontWeight: '600',
-      border: `1px solid ${style.border}`,
-      background: style.background,
-      color: style.color,
-      letterSpacing: '0.1px',
-    }}>
-      {text}
-    </span>
-  );
 }
 
 export default function PurchaseRequestList() {
@@ -90,7 +59,7 @@ export default function PurchaseRequestList() {
   if (error) return (
     <div style={s.center}>
       <div style={s.errorBox}>{error}</div>
-      <button onClick={fetchPRs} style={s.retryBtn}>Retry</button>
+      <button type="button" onClick={fetchPRs} style={s.retryBtn}>Retry</button>
     </div>
   );
 
@@ -102,7 +71,7 @@ export default function PurchaseRequestList() {
           <h1 style={s.heading}>Purchase Requests</h1>
           <p style={s.subheading}>Manage and track procurement approvals</p>
         </div>
-        <button style={s.newBtn} onClick={() => navigate('/purchase-requests/new')}>
+        <button type="button" style={s.newBtn} onClick={() => navigate('/purchase-requests/new')}>
           + New Request
         </button>
       </div>
@@ -128,7 +97,7 @@ export default function PurchaseRequestList() {
               : prs.filter((p) => p.status === tab.value).length;
             const active = activeTab === tab.value;
             return (
-              <button
+              <button type="button"
                 key={tab.value}
                 onClick={() => setActiveTab(tab.value)}
                 style={{ ...s.tab, ...(active ? s.tabActive : {}) }}
@@ -176,19 +145,16 @@ export default function PurchaseRequestList() {
                       <span style={s.value}>{fmtValue(pr.totalValue)}</span>
                     </td>
                     <td style={s.td}>
-                      <Badge text={pr.tier} style={TIER_STYLE[pr.tier] || TIER_STYLE.LOW} />
+                      <Badge status={pr.tier} />
                     </td>
                     <td style={s.td}>
-                      <Badge
-                        text={STATUS_LABEL[pr.status] || pr.status}
-                        style={STATUS_STYLE[pr.status] || STATUS_STYLE.DRAFT}
-                      />
+                      <Badge status={STATUS_LABEL[pr.status] || pr.status} />
                     </td>
                     <td style={s.td}>
                       <span style={s.date}>{pr.createdAt}</span>
                     </td>
                     <td style={s.td}>
-                      <button
+                      <button type="button"
                         style={s.viewBtn}
                         onClick={() => navigate(`/purchase-requests/${pr.id}`)}
                       >
@@ -215,24 +181,24 @@ const s = {
   page: { animation: 'fadeIn 0.25s ease' },
 
   center: { display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '300px', gap: '12px' },
-  spinner: { width: '36px', height: '36px', border: '3px solid rgba(255,255,255,0.12)', borderTopColor: '#DD1D21', borderRadius: '50%', animation: 'spin 0.8s linear infinite' },
+  spinner: { width: '36px', height: '36px', border: '3px solid var(--gray-200)', borderTopColor: 'var(--shell-red)', borderRadius: '50%', animation: 'spin 0.8s linear infinite' },
   spinnerText: { color: 'var(--gray-500)', fontSize: '14px' },
-  errorBox: { background: 'rgba(220,38,38,0.12)', border: '1px solid rgba(220,38,38,0.30)', color: '#ff6b6b', padding: '12px 20px', borderRadius: '10px', fontSize: '14px' },
-  retryBtn: { padding: '8px 20px', background: '#DD1D21', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: '600', fontSize: '14px', fontFamily: 'inherit' },
+  errorBox: { background: 'var(--danger-bg)', border: '1px solid var(--danger)', color: 'var(--danger-text)', padding: '12px 20px', borderRadius: 'var(--radius-md)', fontSize: '14px' },
+  retryBtn: { padding: '8px 20px', background: 'var(--shell-red)', color: '#fff', border: '1px solid var(--shell-red-dark)', borderRadius: 'var(--radius-sm)', cursor: 'pointer', fontWeight: '600', fontSize: '14px', fontFamily: 'inherit' },
 
   pageHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '20px' },
-  heading: { fontSize: '24px', fontWeight: '700', color: 'var(--gray-900)', letterSpacing: '-0.4px', marginBottom: '4px' },
+  heading: { fontSize: '24px', fontWeight: '800', color: 'var(--gray-900)', letterSpacing: '-0.4px', marginBottom: '4px' },
   subheading: { fontSize: '14px', color: 'var(--gray-500)' },
   newBtn: {
     padding: '9px 18px',
-    background: 'linear-gradient(135deg, #DD1D21, #b91c1c)',
+    background: 'var(--shell-red)',
     color: '#fff',
-    border: 'none',
-    borderRadius: '9px',
+    border: '1px solid var(--shell-red-dark)',
+    borderRadius: 'var(--radius-sm)',
     fontSize: '13.5px',
-    fontWeight: '600',
+    fontWeight: '800',
     cursor: 'pointer',
-    boxShadow: '0 2px 8px rgba(221,29,33,0.3)',
+    boxShadow: 'var(--shadow-xs)',
     fontFamily: 'inherit',
     transition: 'opacity 0.15s',
   },
@@ -241,41 +207,50 @@ const s = {
     display: 'flex',
     alignItems: 'center',
     gap: '10px',
-    background: 'rgba(251,191,36,0.10)',
-    border: '1px solid rgba(251,191,36,0.25)',
-    borderRadius: '10px',
+    background: 'var(--warning-bg)',
+    border: '1px solid var(--warning)',
+    borderRadius: 'var(--radius-md)',
     padding: '12px 16px',
     marginBottom: '16px',
     fontSize: '13.5px',
-    color: '#92400e',
+    color: 'var(--warning-text)',
     fontWeight: '500',
   },
   warningIcon: { fontSize: '16px' },
 
-  card: { background: 'var(--surface)', border: '1px solid var(--gray-200)', borderRadius: '14px', boxShadow: 'var(--shadow-sm)', overflow: 'hidden' },
+  card: { background: 'var(--surface)', border: '1px solid var(--gray-200)', borderRadius: 'var(--radius-md)', boxShadow: 'var(--shadow-sm)', overflow: 'hidden' },
 
-  tabs: { display: 'flex', gap: '2px', padding: '12px 16px', borderBottom: '1px solid var(--gray-100)', background: 'var(--gray-50)' },
+  tabs: {
+    display: 'flex',
+    flexWrap: 'wrap',
+    gap: 2,
+    padding: 4,
+    margin: '12px 16px',
+    background: '#FFFFFF',
+    border: '1px solid var(--separator)',
+    borderRadius: 'var(--radius-md)',
+    boxShadow: '0 1px 2px rgba(15,23,42,0.05)',
+  },
   tab: {
     display: 'flex',
     alignItems: 'center',
     gap: '6px',
-    padding: '6px 14px',
-    borderRadius: '8px',
+    padding: '9px 16px',
+    borderRadius: 'var(--radius-sm)',
     border: 'none',
     background: 'transparent',
-    fontSize: '13.5px',
-    fontWeight: '500',
-    color: 'var(--gray-500)',
+    fontSize: '13px',
+    fontWeight: '800',
+    color: 'var(--label-secondary)',
     cursor: 'pointer',
     fontFamily: 'inherit',
-    transition: 'all 0.15s',
-    borderBottom: '2px solid transparent',
+    transition: 'all var(--transition-fast)',
   },
   tabActive: {
-    color: '#DD1D21',
-    background: 'rgba(255,255,255,0.10)',
-    borderBottom: '2px solid #DD1D21',
-    boxShadow: 'var(--shadow-xs)',
+    color: '#fff',
+    background: 'var(--shell-red)',
+    fontWeight: '900',
+    boxShadow: '0 1px 2px rgba(0,0,0,0.14)',
   },
   tabCount: {
     background: 'var(--gray-200)',
@@ -283,11 +258,11 @@ const s = {
     fontSize: '11px',
     fontWeight: '700',
     padding: '1px 7px',
-    borderRadius: '9999px',
+    borderRadius: 'var(--radius-pill)',
   },
   tabCountActive: {
-    background: 'rgba(221,29,33,0.20)',
-    color: '#ff6b6b',
+    background: 'rgba(255,255,255,0.25)',
+    color: '#fff',
   },
 
   tableWrap: { overflowX: 'auto' },
@@ -296,17 +271,17 @@ const s = {
     padding: '11px 16px',
     textAlign: 'left',
     fontSize: '11px',
-    fontWeight: '600',
-    color: 'var(--gray-400)',
+    fontWeight: '850',
+    color: 'var(--label-secondary)',
     textTransform: 'uppercase',
     letterSpacing: '0.6px',
-    borderBottom: '1px solid var(--gray-100)',
-    background: 'var(--surface)',
+    borderBottom: '1px solid var(--separator)',
+    background: 'var(--gray-50)',
     whiteSpace: 'nowrap',
   },
   tr: { transition: 'background 0.1s' },
-  trAlt: { background: 'rgba(255,255,255,0.025)' },
-  td: { padding: '13px 16px', borderBottom: '1px solid rgba(255,255,255,0.06)', verticalAlign: 'middle' },
+  trAlt: { background: 'var(--gray-50)' },
+  td: { padding: '13px 16px', borderBottom: '1px solid var(--gray-100)', verticalAlign: 'middle' },
 
   prTitle: { fontSize: '13.5px', fontWeight: '600', color: 'var(--gray-800)', marginBottom: '2px' },
   prId:    { fontSize: '11px', color: 'var(--gray-400)', fontWeight: '500' },
@@ -316,12 +291,12 @@ const s = {
 
   viewBtn: {
     padding: '5px 13px',
-    background: 'rgba(107,159,255,0.15)',
-    border: '1px solid rgba(107,159,255,0.25)',
-    borderRadius: '7px',
+    background: '#FFFFFF',
+    border: '1px solid var(--gray-300)',
+    borderRadius: 'var(--radius-sm)',
     fontSize: '12.5px',
-    fontWeight: '600',
-    color: '#6b9fff',
+    fontWeight: '800',
+    color: 'var(--gray-700)',
     cursor: 'pointer',
     fontFamily: 'inherit',
     transition: 'all 0.15s',

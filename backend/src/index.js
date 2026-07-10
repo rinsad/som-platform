@@ -6,7 +6,13 @@ dotenv.config();
 
 const app = express();
 
-app.use(cors());
+// Restrict browser origins when CORS_ORIGIN is set (comma-separated allowlist);
+// left unset it stays open, preserving current local/dev behaviour.
+const corsOrigins = (process.env.CORS_ORIGIN || '')
+  .split(',')
+  .map((o) => o.trim())
+  .filter(Boolean);
+app.use(cors(corsOrigins.length ? { origin: corsOrigins } : undefined));
 app.use(express.json());
 
 // Health check

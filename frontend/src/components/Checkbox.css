@@ -1,0 +1,86 @@
+/* Brand-styled checkbox (Checkbox.jsx). The real <input> is visually hidden
+   but still receives focus and clicks (the whole <label> toggles it); the
+   adjacent box is the visual control. */
+.som-checkbox {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--label);
+}
+
+.som-checkbox--disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+/* Overlay the real input on top of the visual box (not display:none, so it
+   still receives focus and clicks). Pinned inside the position:relative label
+   so focusing it never scroll-jumps the page. */
+.som-checkbox-input {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.som-checkbox-box {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  border: 1.5px solid var(--gray-300);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: #fff;
+  transition: background 0.12s ease, border-color 0.12s ease;
+}
+
+/* Fill driven by the native input state (instant, no React round-trip). */
+.som-checkbox-input:checked + .som-checkbox-box,
+.som-checkbox-input:indeterminate + .som-checkbox-box {
+  background: var(--shell-red);
+  border-color: var(--shell-red);
+}
+
+.som-checkbox:hover .som-checkbox-input:not(:checked):not(:indeterminate) + .som-checkbox-box {
+  border-color: var(--shell-red);
+}
+
+.som-checkbox-input:focus-visible + .som-checkbox-box {
+  outline: 2px solid var(--shell-red);
+  outline-offset: 2px;
+}
+
+/* Marks overlap dead-center so neither offsets the other; visibility is toggled
+   per input state below. */
+.som-checkbox-check,
+.som-checkbox-dash {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  opacity: 0;
+}
+.som-checkbox-input:checked + .som-checkbox-box .som-checkbox-check {
+  opacity: 1;
+}
+.som-checkbox-input:indeterminate + .som-checkbox-box .som-checkbox-check {
+  opacity: 0;
+}
+.som-checkbox-input:indeterminate + .som-checkbox-box .som-checkbox-dash {
+  opacity: 1;
+}
+
+.som-checkbox-label {
+  line-height: 1.3;
+}

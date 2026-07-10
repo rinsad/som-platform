@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { PERMISSION_TREE } from '../../services/usersService';
+import Checkbox from '../../components/Checkbox';
 
 const ACTIONS = ['can_view', 'can_create', 'can_edit', 'can_delete'];
 const ACTION_LABELS = { can_view: 'View', can_create: 'Create', can_edit: 'Edit', can_delete: 'Delete' };
@@ -77,12 +78,12 @@ export default function PermissionsPanel({ permissions, onChange }) {
               </button>
               <div style={s.checkboxRow}>
                 {ACTIONS.map(action => (
-                  <input
+                  <Checkbox
                     key={action}
-                    type="checkbox"
                     style={s.checkbox}
                     checked={!!perm(app.key)[action]}
-                    onChange={e => cascadeApp(app, action, e.target.checked)}
+                    onChange={c => cascadeApp(app, action, c)}
+                    aria-label={`${app.label} ${action}`}
                   />
                 ))}
               </div>
@@ -105,12 +106,12 @@ export default function PermissionsPanel({ permissions, onChange }) {
                     </button>
                     <div style={s.checkboxRow}>
                       {ACTIONS.map(action => (
-                        <input
+                        <Checkbox
                           key={action}
-                          type="checkbox"
                           style={s.checkbox}
                           checked={!!perm(mod.key)[action]}
-                          onChange={e => cascadeMod(mod, action, e.target.checked)}
+                          onChange={c => cascadeMod(mod, action, c)}
+                          aria-label={`${mod.label} ${action}`}
                         />
                       ))}
                     </div>
@@ -133,12 +134,12 @@ export default function PermissionsPanel({ permissions, onChange }) {
                           </button>
                           <div style={s.checkboxRow}>
                             {ACTIONS.map(action => (
-                              <input
+                              <Checkbox
                                 key={action}
-                                type="checkbox"
                                 style={s.checkbox}
                                 checked={!!perm(page.key)[action]}
-                                onChange={e => cascadePage(page, action, e.target.checked)}
+                                onChange={c => cascadePage(page, action, c)}
+                                aria-label={`${page.label} ${action}`}
                               />
                             ))}
                           </div>
@@ -154,12 +155,12 @@ export default function PermissionsPanel({ permissions, onChange }) {
                             </div>
                             <div style={s.checkboxRow}>
                               {ACTIONS.map(action => (
-                                <input
+                                <Checkbox
                                   key={action}
-                                  type="checkbox"
                                   style={s.checkbox}
                                   checked={!!perm(field.key)[action]}
-                                  onChange={e => toggle(field.key, 'field', action, e.target.checked)}
+                                  onChange={c => toggle(field.key, 'field', action, c)}
+                                  aria-label={`${field.label} ${action}`}
                                 />
                               ))}
                             </div>
@@ -180,8 +181,8 @@ export default function PermissionsPanel({ permissions, onChange }) {
 
 const s = {
   root: {
-    border: '1px solid #e1e1e1',
-    borderRadius: '4px',
+    border: '1px solid var(--gray-200)',
+    borderRadius: 'var(--radius-xs)',
     overflow: 'hidden',
     background: '#fff',
     boxShadow: 'var(--shadow-sm)',
@@ -191,13 +192,13 @@ const s = {
     alignItems: 'center',
     justifyContent: 'space-between',
     padding: '10px 14px',
-    background: '#fff8cc',
-    borderBottom: '1px solid #ffe889',
+    background: 'var(--bg-tertiary)',
+    borderBottom: '1px solid var(--accent-amber-line)',
   },
   headerTitle: {
     fontSize: '12px',
     fontWeight: '700',
-    color: '#8a5d00',
+    color: 'var(--accent-amber-text)',
     textTransform: 'uppercase',
     letterSpacing: '0.6px',
   },
@@ -210,19 +211,19 @@ const s = {
     textAlign: 'center',
     fontSize: '11px',
     fontWeight: '600',
-    color: '#777',
+    color: 'var(--label-tertiary)',
     textTransform: 'uppercase',
     letterSpacing: '0.4px',
   },
   appBlock: {
-    borderBottom: '1px solid #f0f0f0',
+    borderBottom: '1px solid var(--gray-100)',
   },
   appRow: {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'space-between',
     padding: '8px 14px',
-    background: '#fafafa',
+    background: 'var(--gray-50)',
     cursor: 'default',
   },
   modRow: {
@@ -231,21 +232,21 @@ const s = {
     justifyContent: 'space-between',
     padding: '7px 14px 7px 32px',
     background: '#fff',
-    borderTop: '1px solid #f0f0f0',
+    borderTop: '1px solid var(--gray-100)',
   },
   pageRow: {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'space-between',
     padding: '6px 14px 6px 52px',
-    borderTop: '1px solid #f0f0f0',
+    borderTop: '1px solid var(--gray-100)',
   },
   fieldRow: {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'space-between',
     padding: '5px 14px 5px 72px',
-    borderTop: '1px solid #f0f0f0',
+    borderTop: '1px solid var(--gray-100)',
   },
   toggleBtn: {
     display: 'flex',
@@ -259,29 +260,29 @@ const s = {
   },
   chevron: {
     fontSize: '9px',
-    color: '#777',
+    color: 'var(--label-tertiary)',
     display: 'inline-block',
     transition: 'transform 0.15s ease',
     flexShrink: 0,
   },
   appIcon: {
     fontSize: '14px',
-    color: '#DD1D21',
+    color: 'var(--shell-red)',
   },
   appLabel: {
     fontSize: '13px',
     fontWeight: '600',
-    color: '#222',
+    color: 'var(--label)',
   },
   modLabel: {
     fontSize: '13px',
     fontWeight: '500',
-    color: '#333',
+    color: 'var(--gray-700)',
   },
   pageLabel: {
     fontSize: '12px',
     fontWeight: '400',
-    color: '#4f4f4f',
+    color: 'var(--gray-600)',
   },
   fieldLabelWrap: {
     display: 'flex',
@@ -291,29 +292,29 @@ const s = {
   },
   fieldDot: {
     fontSize: '16px',
-    color: '#a3a3a3',
+    color: 'var(--label-quaternary)',
     lineHeight: 1,
     marginTop: '-2px',
   },
   fieldLabel: {
     fontSize: '12px',
-    color: '#666',
+    color: 'var(--gray-500)',
   },
   levelBadge: (level) => ({
     fontSize: '9px',
     fontWeight: '600',
     padding: '1px 5px',
-    borderRadius: '4px',
+    borderRadius: 'var(--radius-xs)',
     textTransform: 'uppercase',
     letterSpacing: '0.4px',
-    background: level === 'application' ? '#fff1f1'
-              : level === 'module'      ? '#fff8cc'
-              : level === 'page'        ? '#f4f4f4'
-              : '#fafafa',
-    color: level === 'application' ? '#DD1D21'
-         : level === 'module'      ? '#8a5d00'
-         : level === 'page'        ? '#525252'
-         : '#777',
+    background: level === 'application' ? 'var(--accent-red-bg)'
+              : level === 'module'      ? 'var(--bg-tertiary)'
+              : level === 'page'        ? 'var(--fill-tertiary)'
+              : 'var(--gray-50)',
+    color: level === 'application' ? 'var(--shell-red)'
+         : level === 'module'      ? 'var(--accent-amber-text)'
+         : level === 'page'        ? 'var(--gray-600)'
+         : 'var(--label-tertiary)',
   }),
   checkboxRow: {
     display: 'flex',
@@ -323,6 +324,6 @@ const s = {
   checkbox: {
     width: '64px',
     cursor: 'pointer',
-    accentColor: '#DD1D21',
+    accentColor: 'var(--shell-red)',
   },
 };

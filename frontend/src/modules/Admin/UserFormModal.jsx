@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { USER_ROLES } from '../../services/usersService';
+import BrandSelect from '../../components/SelectField';
 
 const DEPARTMENTS = ['IT', 'Operations', 'Finance', 'Retail', 'HR', 'Legal', 'Commercial', 'Engineering', 'Procurement', 'Internal Audit', 'Assets', 'HSSE'];
 
@@ -57,7 +58,7 @@ export default function UserFormModal({ user, onSave, onClose }) {
         {/* Header */}
         <div style={s.header}>
           <h2 style={s.title}>{isEdit ? 'Edit User' : 'Create New User'}</h2>
-          <button style={s.closeBtn} onClick={onClose}>✕</button>
+          <button type="button" style={s.closeBtn} onClick={onClose}>✕</button>
         </div>
 
         <form onSubmit={handleSubmit} style={s.form}>
@@ -129,13 +130,22 @@ function Field({ label, name, type = 'text', value, onChange, placeholder, requi
   );
 }
 
+// Sentinel so an empty-string ("— none —") choice stays selectable — Radix
+// Select items require non-empty values.
+const NONE = '__none__';
+
 function SelectField({ label, name, value, onChange, options }) {
   return (
     <div style={s.fieldWrap}>
       <label style={s.label}>{label}</label>
-      <select style={{ ...s.input, cursor: 'pointer' }} name={name} value={value} onChange={onChange}>
-        {options.map(o => <option key={o} value={o}>{o || '— none —'}</option>)}
-      </select>
+      <BrandSelect
+        name={name}
+        value={value === '' ? NONE : value}
+        onChange={(v) => onChange({ target: { name, value: v === NONE ? '' : v } })}
+        options={options.map(o => ({ value: o === '' ? NONE : o, label: o || '— none —' }))}
+        style={{ ...s.input, cursor: 'pointer' }}
+        aria-label={label}
+      />
     </div>
   );
 }
@@ -150,8 +160,8 @@ const s = {
   },
   modal: {
     background: '#fff',
-    border: '1px solid #e1e1e1',
-    borderRadius: '4px',
+    border: '1px solid var(--gray-200)',
+    borderRadius: 'var(--radius-xs)',
     width: '100%',
     maxWidth: '760px',
     maxHeight: '90vh',
@@ -170,17 +180,17 @@ const s = {
   title: {
     fontSize: '18px',
     fontWeight: '800',
-    color: '#222',
+    color: 'var(--label)',
     margin: 0,
   },
   closeBtn: {
     background: 'none',
     border: 'none',
-    color: '#777',
+    color: 'var(--label-tertiary)',
     fontSize: '18px',
     cursor: 'pointer',
     padding: '4px 8px',
-    borderRadius: '6px',
+    borderRadius: 'var(--radius-sm)',
     lineHeight: 1,
   },
   form: {
@@ -211,17 +221,17 @@ const s = {
   label: {
     fontSize: '12px',
     fontWeight: '800',
-    color: '#666',
+    color: 'var(--gray-500)',
     textTransform: 'uppercase',
     letterSpacing: '0.4px',
   },
   input: {
-    background: '#fafafa',
-    border: '1px solid #d8d8d8',
-    borderRadius: '4px',
+    background: 'var(--gray-50)',
+    border: '1px solid var(--separator)',
+    borderRadius: 'var(--radius-xs)',
     padding: '9px 12px',
     fontSize: '14px',
-    color: '#222',
+    color: 'var(--label)',
     outline: 'none',
     width: '100%',
     boxSizing: 'border-box',
@@ -229,10 +239,10 @@ const s = {
   error: {
     margin: '0 24px',
     padding: '10px 14px',
-    background: '#fff1f1',
-    border: '1px solid #ffd3d3',
-    borderRadius: '4px',
-    color: '#DD1D21',
+    background: 'var(--accent-red-bg)',
+    border: '1px solid var(--accent-red-line)',
+    borderRadius: 'var(--radius-xs)',
+    color: 'var(--shell-red)',
     fontSize: '13px',
     flexShrink: 0,
   },
@@ -242,7 +252,7 @@ const s = {
     justifyContent: 'space-between',
     gap: '10px',
     padding: '16px 24px',
-    borderTop: '1px solid #e1e1e1',
+    borderTop: '1px solid var(--gray-200)',
     flexShrink: 0,
   },
   footerRight: {
@@ -251,29 +261,29 @@ const s = {
   },
   permBtn: {
     padding: '9px 18px',
-    borderRadius: '4px',
-    border: '1px solid #ffd3d3',
-    background: '#fff1f1',
-    color: '#DD1D21',
+    borderRadius: 'var(--radius-xs)',
+    border: '1px solid var(--accent-red-line)',
+    background: 'var(--accent-red-bg)',
+    color: 'var(--shell-red)',
     fontSize: '13px',
     fontWeight: '800',
     cursor: 'pointer',
   },
   cancelBtn: {
     padding: '9px 20px',
-    borderRadius: '4px',
-    border: '1px solid #d8d8d8',
+    borderRadius: 'var(--radius-xs)',
+    border: '1px solid var(--separator)',
     background: '#fff',
-    color: '#333',
+    color: 'var(--gray-700)',
     fontSize: '13px',
     fontWeight: '800',
     cursor: 'pointer',
   },
   saveBtn: {
     padding: '9px 24px',
-    borderRadius: '4px',
+    borderRadius: 'var(--radius-xs)',
     border: 'none',
-    background: '#DD1D21',
+    background: 'var(--shell-red)',
     color: '#fff',
     fontSize: '13px',
     fontWeight: '800',

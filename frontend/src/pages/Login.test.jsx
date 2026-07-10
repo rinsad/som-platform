@@ -60,7 +60,9 @@ test('saves token to localStorage on success', async () => {
 test('button is disabled while loading', async () => {
   fetch.mockImplementation(() => new Promise(() => {})); // never resolves
 
-  renderLogin();
-  fireEvent.click(screen.getByRole('button', { name: /sign in/i }));
-  expect(screen.getByRole('button', { name: /sign in|signing in/i })).toBeDisabled();
+  const { container } = renderLogin();
+  fireEvent.submit(container.querySelector('form'));
+  await waitFor(() =>
+    expect(container.querySelector('button[type="submit"]')).toBeDisabled()
+  );
 });

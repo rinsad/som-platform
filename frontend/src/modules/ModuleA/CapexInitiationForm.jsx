@@ -1,5 +1,7 @@
 import { useState } from 'react';
 import { DEPT_NAMES } from '../../services/capexService';
+import DateField from '../../components/DateField';
+import SelectField from '../../components/SelectField';
 
 export default function CapexInitiationForm({ onSubmit, onCancel }) {
   const [form, setForm] = useState({
@@ -46,7 +48,7 @@ export default function CapexInitiationForm({ onSubmit, onCancel }) {
           <h3 style={s.formTitle}>New Capex Initiation</h3>
           <p style={s.formSubtitle}>Capture the initial requirement and parties involved for review and budget approval.</p>
         </div>
-        <button style={s.cancelBtn} onClick={onCancel}>Discard</button>
+        <button type="button" style={s.cancelBtn} onClick={onCancel}>Discard</button>
       </div>
 
       {error && <div style={s.errorBox}>{error}</div>}
@@ -65,9 +67,7 @@ export default function CapexInitiationForm({ onSubmit, onCancel }) {
         <div style={s.row}>
           <div style={s.field}>
             <label htmlFor="ci-department" style={s.label}>Department *</label>
-            <select id="ci-department" style={s.input} value={form.department} onChange={(e) => set('department', e.target.value)}>
-              {DEPT_NAMES.map((d) => <option key={d}>{d}</option>)}
-            </select>
+            <SelectField id="ci-department" style={s.input} value={form.department} onChange={(v) => set('department', v)} options={DEPT_NAMES} aria-label="Department" />
           </div>
           <div style={s.field}>
             <label htmlFor="ci-initiator" style={s.label}>Initiator / Sponsor</label>
@@ -76,9 +76,7 @@ export default function CapexInitiationForm({ onSubmit, onCancel }) {
           </div>
           <div style={s.field}>
             <label htmlFor="ci-projectType" style={s.label}>Project Type</label>
-            <select id="ci-projectType" style={s.input} value={form.projectType} onChange={(e) => set('projectType', e.target.value)}>
-              {['New', 'Replacement', 'Upgrade', 'Expansion'].map((t) => <option key={t}>{t}</option>)}
-            </select>
+            <SelectField id="ci-projectType" style={s.input} value={form.projectType} onChange={(v) => set('projectType', v)} options={['New', 'Replacement', 'Upgrade', 'Expansion']} aria-label="Project Type" />
           </div>
         </div>
 
@@ -91,17 +89,15 @@ export default function CapexInitiationForm({ onSubmit, onCancel }) {
           </div>
           <div style={s.field}>
             <label htmlFor="ci-priority" style={s.label}>Priority</label>
-            <select id="ci-priority" style={s.input} value={form.priority} onChange={(e) => set('priority', e.target.value)}>
-              {['High', 'Medium', 'Low'].map((p) => <option key={p}>{p}</option>)}
-            </select>
+            <SelectField id="ci-priority" style={s.input} value={form.priority} onChange={(v) => set('priority', v)} options={['High', 'Medium', 'Low']} aria-label="Priority" />
           </div>
           <div style={s.field}>
             <label style={s.label}>Proposed Start Date</label>
-            <input style={s.input} type="date" value={form.startDate} onChange={(e) => set('startDate', e.target.value)} />
+            <DateField style={s.input} value={form.startDate} onChange={(v) => set('startDate', v)} />
           </div>
           <div style={s.field}>
             <label style={s.label}>Proposed End Date</label>
-            <input style={s.input} type="date" value={form.endDate} onChange={(e) => set('endDate', e.target.value)} />
+            <DateField style={s.input} value={form.endDate} onChange={(v) => set('endDate', v)} />
           </div>
         </div>
 
@@ -159,8 +155,8 @@ const s = {
   formTitle:    { margin: 0, fontSize: 17, fontWeight: 700, color: 'var(--shell-navy)' },
   formSubtitle: { margin: '4px 0 0', fontSize: 13, color: 'var(--label-secondary)' },
   errorBox: {
-    background: 'rgba(220,38,38,0.12)', border: '1px solid rgba(220,38,38,0.30)',
-    color: '#ff6b6b', borderRadius: 'var(--radius-sm)',
+    background: 'var(--danger-bg)', border: '1px solid var(--danger)',
+    color: 'var(--danger)', borderRadius: 'var(--radius-sm)',
     padding: '10px 14px', marginBottom: 16, fontSize: 13,
   },
   row: {

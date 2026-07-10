@@ -155,7 +155,7 @@ describe('createInitiation', () => {
 
   test('throws on non-ok response', async () => {
     global.fetch = makeFetch({ error: 'Bad Request' }, false);
-    await expect(createInitiation(payload)).rejects.toThrow('API error');
+    await expect(createInitiation(payload)).rejects.toThrow('Bad Request');
   });
 });
 
@@ -200,7 +200,7 @@ describe('createManualEntry', () => {
 
   test('throws on non-ok response', async () => {
     global.fetch = makeFetch({ error: 'Bad Request' }, false);
-    await expect(createManualEntry(payload)).rejects.toThrow('API error');
+    await expect(createManualEntry(payload)).rejects.toThrow('Bad Request');
   });
 });
 

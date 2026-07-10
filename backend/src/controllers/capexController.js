@@ -347,11 +347,14 @@ exports.createInitiation = async (req, res, next) => {
       return res.status(400).json({ error: 'title, department, and estimatedBudget are required' });
     }
 
-    const { rows: [last] } = await pool.query(
-      `SELECT id FROM capex_initiations WHERE id LIKE 'CINIT-${new Date().getFullYear()}-%' ORDER BY id DESC LIMIT 1`
+    const year = new Date().getFullYear();
+    const { rows: [{ maxseq }] } = await pool.query(
+      `SELECT COALESCE(MAX(NULLIF(split_part(id, '-', 3), '')::int), 0) AS maxseq
+       FROM capex_initiations WHERE id LIKE $1`,
+      [`CINIT-${year}-%`]
     );
-    const seq = last ? String(Number(last.id.split('-')[2]) + 1).padStart(3, '0') : '001';
-    const id  = `CINIT-${new Date().getFullYear()}-${seq}`;
+    const seq = String(Number(maxseq) + 1).padStart(3, '0');
+    const id  = `CINIT-${year}-${seq}`;
 
     const { rows: [row] } = await pool.query(
       `INSERT INTO capex_initiations
@@ -516,7 +519,7 @@ exports.uploadBudget = async (req, res, next) => {
 
     if (rows.length === 0) return res.status(400).json({ error: 'No valid data rows found' });
 
-    const uploader = req.user?.name || req.user?.email || 'Unknown';
+    const uploader = req.user?.full_name || req.user?.email || 'Unknown';
 
     const client = await pool.connect();
     try {
@@ -696,10 +699,14 @@ exports.createRequest = async (req, res, next) => {
     const thresholds = await getValueThresholds(client);
     const band = calcValueBandWithThresholds(acvPoValue || estimatedValue, thresholds);
 
-    const { rows: [last] } = await client.query(
-      `SELECT id FROM capex_requests WHERE id LIKE 'CAPEX-${year}-%' ORDER BY id DESC LIMIT 1`
+    // Numeric max, not lexicographic ORDER BY id (which sorts CAPEX-…-1000
+    // before CAPEX-…-999 and would reissue a used number).
+    const { rows: [{ maxseq }] } = await client.query(
+      `SELECT COALESCE(MAX(NULLIF(split_part(id, '-', 3), '')::int), 0) AS maxseq
+       FROM capex_requests WHERE id LIKE $1`,
+      [`CAPEX-${year}-%`]
     );
-    const seq = last ? String(Number(last.id.split('-')[2]) + 1).padStart(3, '0') : '001';
+    const seq = String(Number(maxseq) + 1).padStart(3, '0');
     const id = `CAPEX-${year}-${seq}`;
 
     const { rows: [request] } = await client.query(
@@ -1357,6 +1364,16 @@ exports.saveFinancialClosure = async (req, res, next) => {
       return res.status(404).json({ error: 'CAPEX request not found' });
     }
 
+    // Financial closure only applies once the request has cleared the approval
+    // chain and entered execution — it must never be reachable mid-approval,
+    // where it could jump a Submitted/Pending request straight to closure.
+    if (!APPROVED_OR_LATER_STATUSES.includes(canonicalStatus(request.status))) {
+      await client.query('ROLLBACK');
+      return res.status(409).json({
+        error: `Financial closure is only available after approval and execution (current status: ${request.status})`,
+      });
+    }
+
     if (closeRequest) {
       await insertDefaultClosureChecklist(client, req.params.id, userName(req));
 
@@ -1853,13 +1870,13 @@ exports.createBudgetVariation = async (req, res, next) => {
       `INSERT INTO capex_budget_variations
        (request_id, variation_type, original_budget, revised_budget, variation_amount,
         variation_percent, justification, financial_impact_analysis, fib_review_status,
-        moa_approval_required, approval_status, requested_by, approved_by, approved_at)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,'Pending',$11,NULL,NULL)
+        moa_approval_required, approval_status, requested_by, requested_by_id, approved_by, approved_at)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,'Pending',$11,$12,NULL,NULL)
        RETURNING *`,
       [
         req.params.id, variationType || 'Variation', original, revised, amount,
         percent, justification, financialImpactAnalysis || '', fibReviewStatus || 'Pending',
-        moaRequired, userName(req),
+        moaRequired, userName(req), toUuid(req.user?.id),
       ]
     );
     await addAuditLog(client, req.params.id, 'BUDGET_VARIATION_CREATED', `Budget variation requested: ${row.variation_percent}%.`, userName(req));
@@ -1899,7 +1916,13 @@ exports.decideBudgetVariation = async (req, res, next) => {
       await client.query('ROLLBACK');
       return res.status(409).json({ error: `Variation is already ${variation.approval_status}` });
     }
-    if (variation.requested_by === userName(req) && req.user?.role !== 'Admin') {
+    // Compare by identity where recorded (falling back to name for pre-migration
+    // rows). Admins may override.
+    const userId = toUuid(req.user?.id);
+    const isRequester = variation.requested_by_id
+      ? (!!userId && userId === variation.requested_by_id)
+      : variation.requested_by === userName(req);
+    if (isRequester && req.user?.role !== 'Admin') {
       await client.query('ROLLBACK');
       return res.status(403).json({ error: 'A variation cannot be decided by its requester' });
     }

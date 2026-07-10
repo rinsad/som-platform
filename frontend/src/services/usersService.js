@@ -37,6 +37,9 @@ export const usersService = {
   deactivate: (id) =>
     request(`/api/users/${id}/deactivate`, { method: 'PATCH' }),
 
+  reactivate: (id) =>
+    request(`/api/users/${id}/reactivate`, { method: 'PATCH' }),
+
   delete: (id) =>
     request(`/api/users/${id}`, { method: 'DELETE' }),
 };

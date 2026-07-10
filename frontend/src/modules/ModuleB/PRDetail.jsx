@@ -1,23 +1,22 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { getPRById, approvePR, updatePR, resubmitPR, getDocuments, uploadDocumentFile, downloadDocument } from '../../services/prService';
+import SelectField from '../../components/SelectField';
+import Badge from '../../components/Badge';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function fmtOMR(v) {
   return 'OMR ' + Number(v).toLocaleString('en-GB', { minimumFractionDigits: 3, maximumFractionDigits: 3 });
 }
 
-const TIER_STYLE = {
-  LOW:    { bg: 'rgba(52,211,153,0.12)',  color: '#34d399', border: 'rgba(52,211,153,0.30)' },
-  MEDIUM: { bg: 'rgba(251,191,36,0.12)',  color: '#fbbf24', border: 'rgba(251,191,36,0.30)' },
-  HIGH:   { bg: 'rgba(220,38,38,0.12)',   color: '#ff6b6b', border: 'rgba(220,38,38,0.30)' },
-};
+// Needed for the compound "TIER — value range" label, where the badge's
+// displayed text no longer matches a lookup key, so the tone must be explicit.
+const TIER_TONE = { LOW: 'success', MEDIUM: 'warning', HIGH: 'danger' };
 
-const STATUS_STYLE = {
-  DRAFT:            { bg: 'rgba(255,255,255,0.07)',  color: 'rgba(255,255,255,0.45)', border: 'rgba(255,255,255,0.15)' },
-  PENDING_APPROVAL: { bg: 'rgba(107,159,255,0.15)', color: '#6b9fff',                border: 'rgba(107,159,255,0.30)' },
-  APPROVED:         { bg: 'rgba(52,211,153,0.12)',  color: '#34d399',                border: 'rgba(52,211,153,0.30)' },
-  REJECTED:         { bg: 'rgba(220,38,38,0.12)',   color: '#ff6b6b',                border: 'rgba(220,38,38,0.30)' },
+// Accent color for the sidebar status card's top border (not a badge).
+const STATUS_ACCENT = {
+  DRAFT: 'var(--neutral-text)', PENDING_APPROVAL: 'var(--info)',
+  APPROVED: 'var(--success)', REJECTED: 'var(--danger)',
 };
 
 const STATUS_LABEL = {
@@ -26,7 +25,7 @@ const STATUS_LABEL = {
 };
 
 const DECISION_ICON = { APPROVED: '✓', REJECTED: '✕', RETURNED: '↩' };
-const DECISION_COLOR = { APPROVED: '#34d399', REJECTED: '#ff6b6b', RETURNED: '#fbbf24' };
+const DECISION_COLOR = { APPROVED: 'var(--success)', REJECTED: 'var(--danger)', RETURNED: 'var(--warning)' };
 
 const DOC_TYPE_ICON = { Quote: '📋', Scope: '📐', Technical: '⚙️', Document: '📄' };
 
@@ -34,20 +33,6 @@ const DEPARTMENTS = [
   'Admin', 'Finance', 'HR', 'Infrastructure',
   'IT', 'Logistics', 'Operations', 'QHSE', 'Retail',
 ];
-
-function Badge({ text, style }) {
-  return (
-    <span style={{
-      display: 'inline-flex', alignItems: 'center',
-      padding: '3px 12px', borderRadius: 9999,
-      fontSize: 12, fontWeight: 700,
-      border: `1px solid ${style.border}`,
-      background: style.bg, color: style.color,
-    }}>
-      {text}
-    </span>
-  );
-}
 
 // ── Approval Timeline ─────────────────────────────────────────────────────────
 function ApprovalTimeline({ workflow = [], history = [], status, currentStepIndex = 0 }) {
@@ -73,23 +58,23 @@ function ApprovalTimeline({ workflow = [], history = [], status, currentStepInde
           <div key={i} style={tl.step}>
             {/* Connector line */}
             {i < steps.length - 1 && (
-              <div style={{ ...tl.line, background: isComplete ? '#22c55e' : 'var(--gray-200)' }} />
+              <div style={{ ...tl.line, background: isComplete ? 'var(--success)' : 'var(--gray-200)' }} />
             )}
             {/* Node */}
             <div style={{
               ...tl.node,
               background: isComplete
-                ? (decision === 'REJECTED' ? 'rgba(220,38,38,0.15)' : 'rgba(52,211,153,0.15)')
-                : isCurrent ? 'rgba(107,159,255,0.15)' : 'var(--gray-50)',
+                ? (decision === 'REJECTED' ? 'var(--danger-bg)' : 'var(--success-bg)')
+                : isCurrent ? 'var(--info-bg)' : 'var(--gray-50)',
               border: `2px solid ${isComplete
-                ? (decision === 'REJECTED' ? 'rgba(220,38,38,0.35)' : 'rgba(52,211,153,0.35)')
-                : isCurrent ? 'rgba(107,159,255,0.40)' : 'var(--gray-200)'}`,
+                ? (decision === 'REJECTED' ? 'var(--danger)' : 'var(--success)')
+                : isCurrent ? 'var(--info)' : 'var(--gray-200)'}`,
             }}>
               <div style={{
                 ...tl.nodeIcon,
                 color: isComplete
-                  ? DECISION_COLOR[decision] || '#15803d'
-                  : isCurrent ? '#1d4ed8' : 'var(--gray-400)',
+                  ? DECISION_COLOR[decision] || 'var(--success)'
+                  : isCurrent ? 'var(--info)' : 'var(--gray-400)',
               }}>
                 {isComplete ? (DECISION_ICON[decision] || '✓') : isCurrent ? '●' : '○'}
               </div>
@@ -99,7 +84,7 @@ function ApprovalTimeline({ workflow = [], history = [], status, currentStepInde
               <p style={tl.stepLabel}>{step.label}</p>
               {isComplete ? (
                 <>
-                  <p style={{ ...tl.stepMeta, color: DECISION_COLOR[decision] || '#15803d' }}>
+                  <p style={{ ...tl.stepMeta, color: DECISION_COLOR[decision] || 'var(--success)' }}>
                     {decision} by {step.done.approver}
                     {step.done.role ? ` (${step.done.role})` : ''} · {step.done.date}
                   </p>
@@ -108,7 +93,7 @@ function ApprovalTimeline({ workflow = [], history = [], status, currentStepInde
                   )}
                 </>
               ) : isCurrent ? (
-                <p style={{ ...tl.stepMeta, color: '#1d4ed8' }}>Awaiting approval</p>
+                <p style={{ ...tl.stepMeta, color: 'var(--info)' }}>Awaiting approval</p>
               ) : (
                 <p style={tl.stepMeta}>Pending</p>
               )}
@@ -122,15 +107,15 @@ function ApprovalTimeline({ workflow = [], history = [], status, currentStepInde
         <div style={tl.step}>
           <div style={{
             ...tl.node,
-            background: status === 'APPROVED' ? 'rgba(52,211,153,0.15)' : 'rgba(220,38,38,0.15)',
-            border: `2px solid ${status === 'APPROVED' ? '#34d399' : '#ff6b6b'}`,
+            background: status === 'APPROVED' ? 'var(--success-bg)' : 'var(--danger-bg)',
+            border: `2px solid ${status === 'APPROVED' ? 'var(--success)' : 'var(--danger)'}`,
           }}>
-            <div style={{ ...tl.nodeIcon, color: status === 'APPROVED' ? '#34d399' : '#ff6b6b', fontSize: 16 }}>
+            <div style={{ ...tl.nodeIcon, color: status === 'APPROVED' ? 'var(--success)' : 'var(--danger)', fontSize: 16 }}>
               {status === 'APPROVED' ? '✓' : '✕'}
             </div>
           </div>
           <div style={tl.content}>
-            <p style={{ ...tl.stepLabel, color: status === 'APPROVED' ? '#34d399' : '#ff6b6b' }}>
+            <p style={{ ...tl.stepLabel, color: status === 'APPROVED' ? 'var(--success)' : 'var(--danger)' }}>
               PR {status === 'APPROVED' ? 'Approved' : 'Rejected'}
             </p>
           </div>
@@ -149,7 +134,7 @@ const tl = {
   content:   { paddingTop: 6 },
   stepLabel: { margin: 0, fontSize: 14, fontWeight: 600, color: 'var(--label)' },
   stepMeta:  { margin: '3px 0 0', fontSize: 12, color: 'var(--label-secondary)' },
-  comment:   { margin: '6px 0 0', fontSize: 12, color: 'var(--label-secondary)', fontStyle: 'italic', background: 'var(--fill-quaternary)', padding: '6px 10px', borderRadius: 6 },
+  comment:   { margin: '6px 0 0', fontSize: 12, color: 'var(--label-secondary)', fontStyle: 'italic', background: 'var(--fill-quaternary)', padding: '6px 10px', borderRadius: 'var(--radius-sm)' },
 };
 
 // ── Document Repository ───────────────────────────────────────────────────────
@@ -194,15 +179,15 @@ function DocumentRepository({ prId, canUpload }) {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <span style={{
-            padding: '3px 12px', borderRadius: 9999, fontSize: 12, fontWeight: 700,
-            background: quoteCount >= 3 ? 'rgba(52,211,153,0.12)' : 'rgba(220,38,38,0.12)',
-            color:      quoteCount >= 3 ? '#34d399' : '#ff6b6b',
-            border:     `1px solid ${quoteCount >= 3 ? 'rgba(52,211,153,0.30)' : 'rgba(220,38,38,0.30)'}`,
+            padding: '3px 12px', borderRadius: 'var(--radius-pill)', fontSize: 12, fontWeight: 700,
+            background: quoteCount >= 3 ? 'var(--success-bg)' : 'var(--danger-bg)',
+            color:      quoteCount >= 3 ? 'var(--success)' : 'var(--danger)',
+            border:     `1px solid ${quoteCount >= 3 ? 'var(--success)' : 'var(--danger)'}`,
           }}>
             {quoteCount} / 3 quotes
           </span>
           {quoteCount < 3 && (
-            <span style={{ fontSize: 12, color: '#dc2626' }}>⚠ Minimum 3 quotes required</span>
+            <span style={{ fontSize: 12, color: 'var(--danger)' }}>⚠ Minimum 3 quotes required</span>
           )}
         </div>
         {canUpload && (
@@ -219,7 +204,7 @@ function DocumentRepository({ prId, canUpload }) {
         )}
       </div>
 
-      {uploadErr && <p style={{ color: '#dc2626', fontSize: 13, marginBottom: 12 }}>{uploadErr}</p>}
+      {uploadErr && <p style={{ color: 'var(--danger)', fontSize: 13, marginBottom: 12 }}>{uploadErr}</p>}
 
       {docs.length === 0 ? (
         <p style={{ color: 'var(--label-secondary)', fontSize: 14, padding: '20px 0' }}>
@@ -235,11 +220,9 @@ function DocumentRepository({ prId, canUpload }) {
                 <p style={doc.sub}>{d.type} · {d.size} · Uploaded by {d.uploadedBy} on {d.uploadedAt}</p>
               </div>
               {d.hasFile !== false && (
-                <button style={doc.downloadBtn} onClick={() => handleDownload(d)}>Download</button>
+                <button type="button" style={doc.downloadBtn} onClick={() => handleDownload(d)}>Download</button>
               )}
-              <Badge text={d.type} style={{
-                bg: 'rgba(107,159,255,0.12)', color: '#6b9fff', border: 'rgba(107,159,255,0.25)',
-              }} />
+              <Badge status={d.type} tone="info" />
             </div>
           ))}
         </div>
@@ -302,23 +285,23 @@ function ApprovalPanel({ prId, onDecision }) {
         value={comment}
         onChange={(e) => setComment(e.target.value)}
       />
-      {error && <p style={{ color: '#dc2626', fontSize: 12, marginBottom: 8 }}>{error}</p>}
+      {error && <p style={{ color: 'var(--danger)', fontSize: 12, marginBottom: 8 }}>{error}</p>}
       <div style={ap.btnRow}>
-        <button
+        <button type="button"
           style={{ ...ap.btn, ...ap.returnBtn }}
           disabled={saving}
           onClick={() => submit('RETURNED')}
         >
           ↩ Return for Revision
         </button>
-        <button
+        <button type="button"
           style={{ ...ap.btn, ...ap.rejectBtn }}
           disabled={saving}
           onClick={() => submit('REJECTED')}
         >
           ✕ Reject
         </button>
-        <button
+        <button type="button"
           style={{ ...ap.btn, ...ap.approveBtn }}
           disabled={saving}
           onClick={() => submit('APPROVED')}
@@ -331,14 +314,14 @@ function ApprovalPanel({ prId, onDecision }) {
 }
 
 const ap = {
-  wrap:      { background: 'rgba(52,211,153,0.07)', border: '1px solid rgba(52,211,153,0.20)', borderRadius: 'var(--radius-lg)', padding: 20 },
-  title:     { margin: '0 0 12px', fontSize: 13, fontWeight: 700, color: '#34d399', textTransform: 'uppercase', letterSpacing: '0.4px' },
+  wrap:      { background: 'var(--success-bg)', border: '1px solid var(--success-bg)', borderRadius: 'var(--radius-lg)', padding: 20 },
+  title:     { margin: '0 0 12px', fontSize: 13, fontWeight: 700, color: 'var(--success)', textTransform: 'uppercase', letterSpacing: '0.4px' },
   textarea:  { width: '100%', border: '1px solid var(--separator)', borderRadius: 'var(--radius-sm)', padding: '9px 12px', fontSize: 13, fontFamily: 'inherit', resize: 'vertical', marginBottom: 12, background: 'var(--surface)', color: 'var(--label)' },
   btnRow:    { display: 'flex', gap: 8 },
   btn:       { flex: 1, padding: '9px 12px', border: 'none', borderRadius: 'var(--radius-sm)', fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' },
-  approveBtn:{ background: '#DD1D21', color: '#fff' },
-  rejectBtn: { background: 'rgba(220,38,38,0.15)', color: '#ff6b6b', border: '1px solid rgba(220,38,38,0.30)' },
-  returnBtn: { background: 'rgba(180,83,9,0.15)', color: '#fbbf24', border: '1px solid rgba(180,83,9,0.30)' },
+  approveBtn:{ background: 'var(--shell-red)', color: '#fff' },
+  rejectBtn: { background: 'var(--danger-bg)', color: 'var(--danger)', border: '1px solid var(--danger)' },
+  returnBtn: { background: 'var(--warning-bg)', color: 'var(--warning)', border: '1px solid var(--warning)' },
 };
 
 function buildDraftForm(pr) {
@@ -432,10 +415,7 @@ function DraftEditor({ pr, onCancel, onSaved }) {
         <input style={s.input} value={form.title} onChange={(e) => updateField('title', e.target.value)} required />
 
         <label style={s.formLabel}>Department</label>
-        <select style={s.input} value={form.department} onChange={(e) => updateField('department', e.target.value)} required>
-          <option value="">Select department...</option>
-          {DEPARTMENTS.map((dept) => <option key={dept} value={dept}>{dept}</option>)}
-        </select>
+        <SelectField name="department" required style={s.input} value={form.department} onChange={(v) => updateField('department', v)} options={DEPARTMENTS} placeholder="Select department..." aria-label="Department" />
 
         <label style={s.formLabel}>Description</label>
         <textarea style={s.textarea} rows={3} value={form.description} onChange={(e) => updateField('description', e.target.value)} />
@@ -544,26 +524,24 @@ export default function PRDetail() {
   if (error || !pr) return (
     <div style={s.center}>
       <div style={s.errorBox}>{error || 'Request not found.'}</div>
-      <button style={s.backBtn} onClick={() => navigate('/purchase-requests')}>← Back to list</button>
+      <button type="button" style={s.backBtn} onClick={() => navigate('/purchase-requests')}>← Back to list</button>
     </div>
   );
 
-  const tierStyle   = TIER_STYLE[pr.tier]   || TIER_STYLE.LOW;
-  const statusStyle = STATUS_STYLE[pr.status] || STATUS_STYLE.DRAFT;
 
   return (
     <div>
       {/* Header */}
       <div style={s.pageHeader}>
-        <button style={s.backLink} onClick={() => navigate('/purchase-requests')}>← Purchase Requests</button>
+        <button type="button" style={s.backLink} onClick={() => navigate('/purchase-requests')}>← Purchase Requests</button>
         <div style={s.headerRow}>
           <div>
             <h1 style={s.heading}>{pr.title}</h1>
             <p style={s.prId}>{pr.id} · Submitted {pr.createdAt}</p>
           </div>
           <div style={s.headerBadges}>
-            <Badge text={pr.tier}                     style={tierStyle} />
-            <Badge text={STATUS_LABEL[pr.status] || pr.status} style={statusStyle} />
+            <Badge status={pr.tier} />
+            <Badge status={STATUS_LABEL[pr.status] || pr.status} />
           </div>
         </div>
       </div>
@@ -604,7 +582,7 @@ export default function PRDetail() {
       {/* Tab bar */}
       <div style={s.tabBar}>
         {TABS.map((t) => (
-          <button
+          <button type="button"
             key={t.id}
             style={{ ...s.tabBtn, ...(activeTab === t.id ? s.tabActive : {}) }}
             onClick={() => setActiveTab(t.id)}
@@ -636,10 +614,10 @@ export default function PRDetail() {
                 <InfoRow label="Submitted"   value={pr.createdAt} />
                 <InfoRow label="Total Value" value={<strong>{fmtOMR(pr.totalValue)}</strong>} />
                 <InfoRow label="Approval Tier" value={
-                  <Badge text={`${pr.tier} — ${pr.tier === 'LOW' ? 'up to OMR 25,000' : pr.tier === 'MEDIUM' ? 'OMR 25,001–300,000' : 'above OMR 300,000'}`} style={tierStyle} />
+                  <Badge tone={TIER_TONE[pr.tier]}>{`${pr.tier} — ${pr.tier === 'LOW' ? 'up to OMR 25,000' : pr.tier === 'MEDIUM' ? 'OMR 25,001–300,000' : 'above OMR 300,000'}`}</Badge>
                 } />
                 <InfoRow label="Quote Count" value={
-                  <span style={{ color: pr.quoteCount >= 3 ? '#15803d' : '#dc2626', fontWeight: 600 }}>
+                  <span style={{ color: pr.quoteCount >= 3 ? 'var(--success)' : 'var(--danger)', fontWeight: 600 }}>
                     {pr.quoteCount} of 3 required
                   </span>
                 } />
@@ -657,7 +635,7 @@ export default function PRDetail() {
                 <>
                   <div style={s.divider} />
                   <h3 style={s.subTitle}>Quote Justification</h3>
-                  <p style={{ ...s.descText, background: 'rgba(251,191,36,0.10)', border: '1px solid rgba(251,191,36,0.25)', borderRadius: 8, padding: '10px 14px' }}>
+                  <p style={{ ...s.descText, background: 'var(--warning-bg)', border: '1px solid var(--warning)', borderRadius: 'var(--radius-md)', padding: '10px 14px' }}>
                     {pr.justification}
                   </p>
                 </>
@@ -734,16 +712,16 @@ export default function PRDetail() {
         {/* ── Sidebar ── */}
         <div style={s.side}>
           {/* Status card */}
-          <div style={{ ...s.sideCard, borderTop: `3px solid ${statusStyle.color}` }}>
+          <div style={{ ...s.sideCard, borderTop: `3px solid ${STATUS_ACCENT[pr.status] || STATUS_ACCENT.DRAFT}` }}>
             <p style={s.sideLabel}>Status</p>
-            <Badge text={STATUS_LABEL[pr.status] || pr.status} style={statusStyle} />
+            <Badge status={STATUS_LABEL[pr.status] || pr.status} />
           </div>
 
           {/* Value card */}
           <div style={s.sideCard}>
             <p style={s.sideLabel}>Total Value</p>
             <p style={{ ...s.sideValue, color: 'var(--shell-yellow)' }}>{fmtOMR(pr.totalValue)}</p>
-            <Badge text={pr.tier} style={tierStyle} />
+            <Badge status={pr.tier} />
           </div>
 
           {/* Workflow summary */}
@@ -758,13 +736,13 @@ export default function PRDetail() {
                       width: 18, height: 18, borderRadius: '50%', flexShrink: 0,
                       display: 'flex', alignItems: 'center', justifyContent: 'center',
                       fontSize: 10, fontWeight: 700,
-                      background: done ? 'rgba(52,211,153,0.15)' : 'var(--fill-tertiary)',
-                      color: done ? '#34d399' : 'var(--label-secondary)',
-                      border: `1px solid ${done ? 'rgba(52,211,153,0.30)' : 'var(--separator-clear)'}`,
+                      background: done ? 'var(--success-bg)' : 'var(--fill-tertiary)',
+                      color: done ? 'var(--success)' : 'var(--label-secondary)',
+                      border: `1px solid ${done ? 'var(--success)' : 'var(--separator-clear)'}`,
                     }}>
                       {done ? '✓' : i + 1}
                     </span>
-                    <span style={{ fontSize: 12, color: done ? '#15803d' : 'var(--label-secondary)', fontWeight: done ? 600 : 400 }}>
+                    <span style={{ fontSize: 12, color: done ? 'var(--success)' : 'var(--label-secondary)', fontWeight: done ? 600 : 400 }}>
                       {step.label}
                     </span>
                   </div>
@@ -775,7 +753,7 @@ export default function PRDetail() {
 
           {/* Quick approve button in sidebar (if on details/docs tab) */}
           {canApprove && activeTab !== 'approval' && (
-            <button
+            <button type="button"
               style={s.quickApproveBtn}
               onClick={() => setActiveTab('approval')}
             >
@@ -801,7 +779,7 @@ function InfoRow({ label, value }) {
 const s = {
   center:  { display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: 300 },
   spinner: { width: 36, height: 36, border: '3px solid var(--gray-200)', borderTopColor: 'var(--shell-red)', borderRadius: '50%', animation: 'spin 0.8s linear infinite' },
-  errorBox:{ background: 'rgba(220,38,38,0.12)', border: '1px solid rgba(220,38,38,0.30)', color: '#ff6b6b', padding: '12px 20px', borderRadius: 'var(--radius-sm)', marginBottom: 12 },
+  errorBox:{ background: 'var(--danger-bg)', border: '1px solid var(--danger)', color: 'var(--danger)', padding: '12px 20px', borderRadius: 'var(--radius-sm)', marginBottom: 12 },
   backBtn: { padding: '8px 18px', background: 'var(--surface)', border: '1px solid var(--separator)', borderRadius: 'var(--radius-sm)', cursor: 'pointer', fontSize: 13, fontWeight: 600, color: 'var(--label-secondary)' },
 
   pageHeader: { marginBottom: 20 },
@@ -813,9 +791,9 @@ const s = {
 
   alertBanner: {
     display: 'flex', alignItems: 'center', gap: 10,
-    background: 'rgba(251,191,36,0.10)', border: '1px solid rgba(251,191,36,0.25)',
+    background: 'var(--warning-bg)', border: '1px solid var(--warning)',
     borderRadius: 'var(--radius-sm)', padding: '12px 16px',
-    marginBottom: 16, fontSize: 13, color: '#fbbf24',
+    marginBottom: 16, fontSize: 13, color: 'var(--warning)',
   },
 
   tabBar: {
@@ -848,15 +826,15 @@ const s = {
   th:        { padding: '9px 12px', textAlign: 'left', fontSize: 11, fontWeight: 700, color: 'var(--label-secondary)', textTransform: 'uppercase', letterSpacing: '0.4px', borderBottom: '1px solid var(--separator-clear)', whiteSpace: 'nowrap' },
   td:        { padding: '10px 12px', borderBottom: '1px solid var(--separator-clear)', color: 'var(--label)' },
   cellInput: { width: '100%', minWidth: 90, border: '1px solid var(--separator)', borderRadius: 'var(--radius-sm)', padding: '7px 9px', fontSize: 13, fontFamily: 'inherit', background: 'var(--surface)', color: 'var(--label)' },
-  iconBtn:   { border: '1px solid var(--separator)', borderRadius: 6, background: 'var(--surface)', color: 'var(--label-secondary)', cursor: 'pointer', padding: '3px 8px', fontWeight: 700 },
+  iconBtn:   { border: '1px solid var(--separator)', borderRadius: 'var(--radius-sm)', background: 'var(--surface)', color: 'var(--label-secondary)', cursor: 'pointer', padding: '3px 8px', fontWeight: 700 },
   draftTotal:{ marginTop: 14, textAlign: 'right', fontSize: 15, fontWeight: 700, color: 'var(--label)' },
-  inlineError:{ marginTop: 12, background: 'rgba(220,38,38,0.12)', border: '1px solid rgba(220,38,38,0.30)', color: '#ff6b6b', padding: '10px 14px', borderRadius: 'var(--radius-sm)', fontSize: 13 },
+  inlineError:{ marginTop: 12, background: 'var(--danger-bg)', border: '1px solid var(--danger)', color: 'var(--danger)', padding: '10px 14px', borderRadius: 'var(--radius-sm)', fontSize: 13 },
   saveBtn:   { padding: '9px 14px', background: 'var(--shell-red)', color: '#fff', border: 'none', borderRadius: 'var(--radius-sm)', fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' },
   secondaryBtn:{ padding: '8px 13px', background: 'var(--surface)', border: '1px solid var(--separator)', borderRadius: 'var(--radius-sm)', color: 'var(--label)', fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' },
   disabledBtn:{ opacity: 0.6, cursor: 'not-allowed' },
-  draftBanner:{ display: 'flex', justifyContent: 'space-between', gap: 16, alignItems: 'center', background: 'rgba(251,191,36,0.10)', border: '1px solid rgba(251,191,36,0.25)', borderRadius: 'var(--radius-sm)', padding: '14px 16px', marginBottom: 16, color: '#fbbf24', fontSize: 13 },
+  draftBanner:{ display: 'flex', justifyContent: 'space-between', gap: 16, alignItems: 'center', background: 'var(--warning-bg)', border: '1px solid var(--warning)', borderRadius: 'var(--radius-sm)', padding: '14px 16px', marginBottom: 16, color: 'var(--warning)', fontSize: 13 },
   draftActionRow:{ display: 'flex', gap: 8, flexShrink: 0 },
-  draftError:{ margin: '6px 0 0', color: '#ff6b6b', fontSize: 12 },
+  draftError:{ margin: '6px 0 0', color: 'var(--danger)', fontSize: 12 },
 
   sideCard:  { background: 'var(--surface)', borderRadius: 'var(--radius-lg)', padding: '16px 18px', boxShadow: 'var(--shadow-card)' },
   sideLabel: { margin: '0 0 8px', fontSize: 11, fontWeight: 700, color: 'var(--label-secondary)', textTransform: 'uppercase', letterSpacing: '0.4px' },

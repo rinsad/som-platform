@@ -30,7 +30,7 @@ const s = {
   root: {
     minHeight: '100vh',
     background: '#fff',
-    color: '#222',
+    color: 'var(--label)',
   },
   main: {
     background: '#fff',

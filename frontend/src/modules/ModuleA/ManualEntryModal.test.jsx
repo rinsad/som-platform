@@ -24,23 +24,23 @@ describe('ManualEntryModal — rendering', () => {
     expect(screen.getByLabelText(/Reference Number/i)).toBeInTheDocument();
   });
 
-  test('renders all entry type options', () => {
+  test('renders all entry type options', async () => {
+    const user = userEvent.setup();
     renderModal();
-    const select = screen.getByLabelText(/Entry Type \*/i);
-    const options = Array.from(select.options).map((o) => o.value);
-    expect(options).toContain('Actual');
-    expect(options).toContain('PO Commitment');
-    expect(options).toContain('Budget Adjustment');
+    await user.click(screen.getByLabelText(/Entry Type \*/i));
+    expect(screen.getByRole('option', { name: 'Actual' })).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: 'PO Commitment' })).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: 'Budget Adjustment' })).toBeInTheDocument();
   });
 
-  test('renders all department options', () => {
+  test('renders all department options', async () => {
+    const user = userEvent.setup();
     renderModal();
-    const select = screen.getByLabelText(/Department \*/i);
-    const options = Array.from(select.options).map((o) => o.value);
-    expect(options).toContain('Retail Operations');
-    expect(options).toContain('Infrastructure');
-    expect(options).toContain('Technology');
-    expect(options).toContain('QHSE');
+    await user.click(screen.getByLabelText(/Department \*/i));
+    expect(screen.getByRole('option', { name: 'HR & Real Estate' })).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: 'Aviation' })).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: 'Mobility' })).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: 'General' })).toBeInTheDocument();
   });
 });
 
@@ -77,11 +77,16 @@ describe('ManualEntryModal — interactions', () => {
   });
 
   test('calls onSubmit with form data on valid submit', async () => {
-    const user = userEvent.setup();
+    // delay:null removes user-event's inter-event delay; Radix Select's
+    // portal/scroll work makes the default 5s timeout tight for two selects
+    // plus typing in jsdom.
+    const user = userEvent.setup({ delay: null });
     const { onSubmit } = renderModal();
 
-    await user.selectOptions(screen.getByLabelText(/Entry Type \*/i), 'PO Commitment');
-    await user.selectOptions(screen.getByLabelText(/Department \*/i), 'Technology');
+    await user.click(screen.getByLabelText(/Entry Type \*/i));
+    await user.click(screen.getByRole('option', { name: 'PO Commitment' }));
+    await user.click(screen.getByLabelText(/Department \*/i));
+    await user.click(screen.getByRole('option', { name: 'Aviation' }));
     await user.clear(screen.getByLabelText(/Amount \(OMR\) \*/i));
     await user.type(screen.getByLabelText(/Amount \(OMR\) \*/i), '42000');
     await user.type(screen.getByLabelText(/Description/i), 'Network switches');
@@ -93,13 +98,13 @@ describe('ManualEntryModal — interactions', () => {
     expect(onSubmit).toHaveBeenCalledWith(
       expect.objectContaining({
         entryType: 'PO Commitment',
-        department: 'Technology',
+        department: 'Aviation',
         amount: '42000',
         description: 'Network switches',
         referenceNumber: 'PO-001',
       })
     );
-  });
+  }, 15000);
 
   test('calls onClose after successful submit', async () => {
     const user = userEvent.setup();

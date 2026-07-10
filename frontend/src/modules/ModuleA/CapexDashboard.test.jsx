@@ -198,7 +198,7 @@ describe('Overview tab', () => {
     renderDashboard();
     await waitFor(() => expect(screen.getAllByText('Test Dept').length).toBeGreaterThan(0));
     const bar = screen.getAllByTestId('meter-bar-Test Dept')[0];
-    expect(bar.style.backgroundColor).toBe('rgb(221, 29, 33)'); // #DD1D21
+    expect(bar.style.backgroundColor).toBe('var(--shell-red)');
   });
 
   test('applies green colour to meter bar when percentUsed < 70', async () => {
@@ -206,7 +206,7 @@ describe('Overview tab', () => {
     await waitForLoad();
     // QHSE is 13% — should be green
     const bar = screen.getAllByTestId('meter-bar-General')[0];
-    expect(bar.style.backgroundColor).toBe('rgb(46, 125, 50)'); // #2e7d32
+    expect(bar.style.backgroundColor).toBe('var(--success)');
   });
 
   test('displays GSAP sync badge in header', async () => {

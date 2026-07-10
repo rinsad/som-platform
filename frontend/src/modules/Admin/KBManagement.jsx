@@ -1,26 +1,27 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { getKnowledgeAdmin, deleteKBDocument, uploadDocument, searchKnowledge, embedDocument } from '../../services/portalService';
+import SelectField from '../../components/SelectField';
 
 const SOURCE_BADGES = {
-  pdf:    { label: 'PDF',    bg: 'rgba(220,38,38,0.14)',   color: '#ff6b6b', border: 'rgba(220,38,38,0.28)' },
-  docx:   { label: 'DOCX',  bg: 'rgba(56,189,248,0.12)',  color: '#38bdf8', border: 'rgba(56,189,248,0.28)' },
-  eml:    { label: 'EML',   bg: 'rgba(251,191,36,0.12)',  color: '#fbbf24', border: 'rgba(251,191,36,0.28)' },
-  txt:    { label: 'TXT',   bg: 'rgba(255,255,255,0.07)', color: 'rgba(255,255,255,0.50)', border: 'rgba(255,255,255,0.15)' },
-  manual: { label: 'Manual',bg: 'rgba(52,211,153,0.10)',  color: '#34d399', border: 'rgba(52,211,153,0.25)' },
+  pdf:    { label: 'PDF',    bg: 'var(--danger-bg)',   color: 'var(--danger)', border: 'var(--danger)' },
+  docx:   { label: 'DOCX',  bg: 'var(--info-bg)',  color: 'var(--info)', border: 'var(--info)' },
+  eml:    { label: 'EML',   bg: 'var(--warning-bg)',  color: 'var(--warning)', border: 'var(--warning)' },
+  txt:    { label: 'TXT',   bg: 'var(--neutral-bg)', color: 'var(--neutral-text)', border: 'var(--gray-200)' },
+  manual: { label: 'Manual',bg: 'var(--success-bg)',  color: 'var(--success)', border: 'var(--success)' },
 };
 
 const CAT_COLOURS = {
-  Policy:    { bg: 'rgba(220,38,38,0.12)',  color: '#ff6b6b' },
-  Procedure: { bg: 'rgba(52,211,153,0.12)', color: '#34d399' },
-  QHSE:      { bg: 'rgba(251,191,36,0.12)', color: '#fbbf24' },
-  HR:        { bg: 'rgba(56,189,248,0.12)', color: '#38bdf8' },
-  Finance:   { bg: 'rgba(251,191,36,0.10)', color: '#fbbf24' },
-  IT:        { bg: 'rgba(56,189,248,0.12)', color: '#38bdf8' },
-  Operations:{ bg: 'rgba(192,132,252,0.12)',color: '#c084fc' },
+  Policy:    { bg: 'var(--danger-bg)',  color: 'var(--danger)' },
+  Procedure: { bg: 'var(--success-bg)', color: 'var(--success)' },
+  QHSE:      { bg: 'var(--warning-bg)', color: 'var(--warning)' },
+  HR:        { bg: 'var(--info-bg)', color: 'var(--info)' },
+  Finance:   { bg: 'var(--warning-bg)', color: 'var(--warning)' },
+  IT:        { bg: 'var(--info-bg)', color: 'var(--info)' },
+  Operations:{ bg: 'var(--neutral-bg)', color: 'var(--neutral-text)' },
 };
 
 function catColour(cat) {
-  return CAT_COLOURS[cat] || { bg: 'rgba(255,255,255,0.07)', color: 'rgba(255,255,255,0.45)' };
+  return CAT_COLOURS[cat] || { bg: 'var(--neutral-bg)', color: 'var(--neutral-text)' };
 }
 
 function fmtSize(bytes) {
@@ -60,7 +61,7 @@ function UploadModal({ onClose, onSuccess }) {
       <div style={modal}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 22 }}>
           <h2 style={{ fontSize: 16, fontWeight: 700, color: 'var(--gray-900)' }}>Upload Document</h2>
-          <button onClick={onClose} style={closeBtn}>×</button>
+          <button type="button" onClick={onClose} style={closeBtn}>×</button>
         </div>
 
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
@@ -75,11 +76,7 @@ function UploadModal({ onClose, onSuccess }) {
           </Field>
 
           <Field label="Category">
-            <select value={category} onChange={(e) => setCategory(e.target.value)} style={inputStyle}>
-              {['Policy','Procedure','QHSE','HR','Finance','IT','Operations'].map(c => (
-                <option key={c} value={c}>{c}</option>
-              ))}
-            </select>
+            <SelectField value={category} onChange={setCategory} options={['Policy','Procedure','QHSE','HR','Finance','IT','Operations']} style={inputStyle} aria-label="Category" />
           </Field>
 
           <Field label="File (PDF, DOCX, EML, TXT)">
@@ -97,7 +94,7 @@ function UploadModal({ onClose, onSuccess }) {
           </Field>
 
           {error && (
-            <div style={{ fontSize: 12.5, color: '#ff6b6b', background: 'rgba(220,38,38,0.10)', borderRadius: 8, padding: '8px 12px', border: '1px solid rgba(220,38,38,0.25)' }}>
+            <div style={{ fontSize: 12.5, color: 'var(--danger)', background: 'var(--danger-bg)', borderRadius: 'var(--radius-md)', padding: '8px 12px', border: '1px solid var(--danger)' }}>
               {error}
             </div>
           )}
@@ -141,10 +138,10 @@ function ConfirmDelete({ doc, onConfirm, onCancel }) {
           {' '}will be permanently removed from the knowledge base along with all its indexed chunks. This cannot be undone.
         </p>
         <div style={{ display: 'flex', gap: 10 }}>
-          <button onClick={onCancel} style={cancelBtn}>Cancel</button>
-          <button
+          <button type="button" onClick={onCancel} style={cancelBtn}>Cancel</button>
+          <button type="button"
             onClick={onConfirm}
-            style={{ ...submitBtn, background: '#DC2626', boxShadow: '0 2px 8px rgba(220,38,38,0.30)' }}
+            style={{ ...submitBtn, background: 'var(--danger)', boxShadow: '0 2px 8px var(--danger)' }}
           >
             Remove
           </button>
@@ -256,21 +253,21 @@ export default function KBManagement() {
             Manage documents available to all portal visitors — upload, index, and remove.
           </p>
         </div>
-        <button onClick={() => setShowUpload(true)} style={newBtn}>
+        <button type="button" onClick={() => setShowUpload(true)} style={newBtn}>
           ↑ Upload Document
         </button>
       </div>
 
       {/* Toast */}
       {toast && (
-        <div style={{ fontSize: 13, color: '#34d399', background: 'rgba(52,211,153,0.10)', border: '1px solid rgba(52,211,153,0.25)', borderRadius: 10, padding: '11px 16px', marginBottom: 16 }}>
+        <div style={{ fontSize: 13, color: 'var(--success)', background: 'var(--success-bg)', border: '1px solid var(--success)', borderRadius: 'var(--radius-md)', padding: '11px 16px', marginBottom: 16 }}>
           ✓ {toast}
         </div>
       )}
 
       {/* Error */}
       {error && (
-        <div style={{ fontSize: 13, color: '#ff6b6b', background: 'rgba(220,38,38,0.10)', border: '1px solid rgba(220,38,38,0.28)', borderRadius: 10, padding: '11px 16px', marginBottom: 16 }}>
+        <div style={{ fontSize: 13, color: 'var(--danger)', background: 'var(--danger-bg)', border: '1px solid var(--danger)', borderRadius: 'var(--radius-md)', padding: '11px 16px', marginBottom: 16 }}>
           {error}
         </div>
       )}
@@ -282,7 +279,7 @@ export default function KBManagement() {
           { label: 'Uploaded Files',  value: docs.filter(d => d.sourceType !== 'manual').length },
           { label: 'Total Chunks',    value: docs.reduce((s, d) => s + (d.chunkCount || 0), 0) },
         ].map(stat => (
-          <div key={stat.label} style={{ background: 'var(--surface)', border: '1px solid var(--gray-200)', borderRadius: 12, padding: '14px 20px', boxShadow: 'var(--shadow-xs)', minWidth: 140 }}>
+          <div key={stat.label} style={{ background: 'var(--surface)', border: '1px solid var(--gray-200)', borderRadius: 'var(--radius-md)', padding: '14px 20px', boxShadow: 'var(--shadow-xs)', minWidth: 140 }}>
             <div style={{ fontSize: 22, fontWeight: 700, color: 'var(--gray-900)', letterSpacing: '-0.3px' }}>{stat.value}</div>
             <div style={{ fontSize: 12, color: 'var(--gray-400)', fontWeight: 500, marginTop: 2 }}>{stat.label}</div>
           </div>
@@ -296,12 +293,12 @@ export default function KBManagement() {
           placeholder="Search by title, content, category, or uploader…"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          style={{ padding: '10px 14px', fontSize: 14, borderRadius: 10, border: '1px solid var(--gray-200)', background: 'var(--gray-50)', color: 'var(--gray-900)', fontFamily: 'inherit', outline: 'none', width: '100%', maxWidth: 380, boxShadow: 'var(--shadow-xs)' }}
+          style={{ padding: '10px 14px', fontSize: 14, borderRadius: 'var(--radius-md)', border: '1px solid var(--gray-200)', background: 'var(--gray-50)', color: 'var(--gray-900)', fontFamily: 'inherit', outline: 'none', width: '100%', maxWidth: 380, boxShadow: 'var(--shadow-xs)' }}
         />
       </div>
 
       {/* Table */}
-      <div style={{ background: 'var(--surface)', border: '1px solid var(--gray-200)', borderRadius: 14, boxShadow: 'var(--shadow-sm)', overflow: 'hidden' }}>
+      <div style={{ background: 'var(--surface)', border: '1px solid var(--gray-200)', borderRadius: 'var(--radius-md)', boxShadow: 'var(--shadow-sm)', overflow: 'hidden' }}>
         {/* Header */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 100px 90px 70px 130px 70px 110px 80px', gap: 12, padding: '11px 20px', borderBottom: '1px solid var(--gray-100)', background: 'var(--gray-50)' }}>
           {['Title', 'Category', 'Source', 'Version', 'Uploaded by', 'Chunks', 'AI Search', ''].map(h => (
@@ -311,7 +308,7 @@ export default function KBManagement() {
 
         {loading ? (
           <div style={{ display: 'flex', justifyContent: 'center', padding: 48 }}>
-            <div style={{ width: 26, height: 26, border: '3px solid rgba(255,255,255,0.10)', borderTopColor: '#DD1D21', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+            <div style={{ width: 26, height: 26, border: '3px solid var(--gray-200)', borderTopColor: 'var(--shell-red)', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
           </div>
         ) : filtered.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '48px 24px', color: 'var(--gray-400)', fontSize: 14 }}>
@@ -343,12 +340,12 @@ export default function KBManagement() {
                 </div>
 
                 {/* Category */}
-                <span style={{ display: 'inline-flex', alignItems: 'center', padding: '2px 10px', borderRadius: 9999, fontSize: 11, fontWeight: 600, background: cc.bg, color: cc.color }}>
+                <span style={{ display: 'inline-flex', alignItems: 'center', padding: '2px 10px', borderRadius: 'var(--radius-pill)', fontSize: 11, fontWeight: 600, background: cc.bg, color: cc.color }}>
                   {doc.category || '—'}
                 </span>
 
                 {/* Source */}
-                <span style={{ display: 'inline-flex', alignItems: 'center', padding: '2px 9px', borderRadius: 6, fontSize: 11, fontWeight: 700, letterSpacing: '0.2px', background: src.bg, color: src.color, border: `1px solid ${src.border}` }}>
+                <span style={{ display: 'inline-flex', alignItems: 'center', padding: '2px 9px', borderRadius: 'var(--radius-sm)', fontSize: 11, fontWeight: 700, letterSpacing: '0.2px', background: src.bg, color: src.color, border: `1px solid ${src.border}` }}>
                   {src.label}
                 </span>
 
@@ -373,19 +370,19 @@ export default function KBManagement() {
                 {/* AI Search status */}
                 <div>
                   {doc.embeddedAt ? (
-                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 11.5, fontWeight: 600, color: '#34d399' }}>
-                      <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#34d399', flexShrink: 0 }} />
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 11.5, fontWeight: 600, color: 'var(--success)' }}>
+                      <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--success)', flexShrink: 0 }} />
                       Ready
                     </span>
                   ) : (
-                    <button
+                    <button type="button"
                       onClick={() => handleEmbed(doc)}
                       disabled={embeddingId === doc.id}
                       title="Generate semantic embeddings for AI search"
                       style={{
                         padding: '4px 10px', fontSize: 11.5, fontWeight: 600,
-                        borderRadius: 7, border: '1px solid rgba(99,102,241,0.35)',
-                        background: 'rgba(99,102,241,0.08)', color: '#818cf8',
+                        borderRadius: 'var(--radius-sm)', border: '1px solid rgba(99,102,241,0.35)',
+                        background: 'rgba(99,102,241,0.08)', color: 'var(--info)',
                         cursor: embeddingId === doc.id ? 'not-allowed' : 'pointer',
                         fontFamily: 'inherit', opacity: embeddingId === doc.id ? 0.6 : 1,
                         whiteSpace: 'nowrap',
@@ -397,13 +394,13 @@ export default function KBManagement() {
                 </div>
 
                 {/* Actions */}
-                <button
+                <button type="button"
                   onClick={() => setConfirmDoc(doc)}
                   title="Remove document"
                   style={{
                     padding: '5px 12px', fontSize: 12, fontWeight: 600,
-                    borderRadius: 8, border: '1px solid rgba(220,38,38,0.30)',
-                    background: 'rgba(220,38,38,0.08)', color: '#ff6b6b',
+                    borderRadius: 'var(--radius-md)', border: '1px solid var(--danger)',
+                    background: 'var(--danger-bg)', color: 'var(--danger)',
                     cursor: 'pointer', fontFamily: 'inherit', transition: 'background 0.15s',
                   }}
                 >
@@ -429,7 +426,7 @@ const overlay = {
   zIndex: 9999, backdropFilter: 'blur(4px)',
 };
 const modal = {
-  background: 'var(--surface)', borderRadius: 20, padding: '32px 28px',
+  background: 'var(--surface)', borderRadius: 'var(--radius-md)', padding: '32px 28px',
   width: '100%', maxWidth: 460, boxShadow: '0 32px 80px rgba(0,0,0,0.50)',
   border: '1px solid var(--gray-200)', animation: 'fadeIn 0.2s ease',
 };
@@ -438,26 +435,26 @@ const closeBtn = {
   fontSize: 20, color: 'var(--gray-400)', lineHeight: 1, padding: 2,
 };
 const inputStyle = {
-  padding: '10px 12px', fontSize: 14, borderRadius: 10,
+  padding: '10px 12px', fontSize: 14, borderRadius: 'var(--radius-md)',
   border: '1px solid var(--gray-200)', background: 'var(--gray-50)',
   color: 'var(--gray-900)', fontFamily: 'inherit', outline: 'none', width: '100%',
 };
 const cancelBtn = {
   flex: 1, padding: '11px', fontSize: 14, fontWeight: 600,
-  borderRadius: 10, border: '1px solid var(--gray-200)',
+  borderRadius: 'var(--radius-md)', border: '1px solid var(--gray-200)',
   background: 'var(--surface)', color: 'var(--gray-600)',
   cursor: 'pointer', fontFamily: 'inherit',
 };
 const submitBtn = {
   flex: 1, padding: '11px', fontSize: 14, fontWeight: 600,
-  borderRadius: 10, border: 'none', background: '#DD1D21',
+  borderRadius: 'var(--radius-md)', border: 'none', background: 'var(--shell-red)',
   color: '#fff', cursor: 'pointer', fontFamily: 'inherit',
   display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
   boxShadow: '0 2px 8px rgba(221,29,33,0.30)',
 };
 const newBtn = {
   padding: '9px 18px', fontSize: 13.5, fontWeight: 600,
-  borderRadius: 10, border: 'none', background: '#DD1D21',
+  borderRadius: 'var(--radius-md)', border: 'none', background: 'var(--shell-red)',
   color: '#fff', cursor: 'pointer', fontFamily: 'inherit',
   display: 'flex', alignItems: 'center', gap: 6,
   boxShadow: '0 2px 10px rgba(221,29,33,0.35)',

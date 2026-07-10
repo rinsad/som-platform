@@ -10,9 +10,13 @@
     "dev": "npm run dev -w @som/broker-simulator-web",
     "build": "npm run build -w @som/broker-simulator-web",
     "lint": "npm run lint -w @som/broker-simulator-web",
-    "typecheck": "npm run typecheck -w @som/broker-simulator-web"
+    "typecheck": "npm run typecheck -w @som/broker-simulator-web",
+    "doctor": "npx react-doctor@latest"
   },
   "engines": {
     "node": ">=20.0.0"
+  },
+  "devDependencies": {
+    "react-doctor": "^0.7.4"
   }
 }

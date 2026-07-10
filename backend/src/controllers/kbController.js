@@ -321,7 +321,7 @@ exports.uploadDoc = async (req, res, next) => {
     const nextNum = (maxRow.max || 0) + 1;
     const newId   = `KB-${String(nextNum).padStart(3, '0')}`;
 
-    const uploader = req.user?.name || req.user?.email || 'Unknown';
+    const uploader = req.user?.full_name || req.user?.email || 'Unknown';
 
     const description = extractSummary(text);
     const embeddings  = await embedTexts(chunks);

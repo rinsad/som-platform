@@ -5,10 +5,11 @@ import {
   getPinnedDocs, togglePinnedDoc,
   ssoLogin, getDocFileUrl,
 } from '../../services/portalService';
+import { sanitizeSnippet } from '../../utils/sanitizeHtml';
 
-const SHELL_RED = '#DD1D21';
-const SHELL_YELLOW = '#FFD500';
-const INK = '#222';
+const SHELL_RED = 'var(--shell-red)';
+const SHELL_YELLOW = 'var(--shell-yellow)';
+const INK = 'var(--label)';
 
 const KB_CATEGORIES = ['All', 'Policy', 'Procedure', 'QHSE', 'HR'];
 
@@ -132,28 +133,28 @@ const LONG_SERVICE = [
 ];
 
 const CATEGORY_COLORS = {
-  Enterprise: { bg: '#eef3ff', color: '#1d4ed8', border: '#c9d8ff' },
-  HR: { bg: '#ecfdf5', color: '#047857', border: '#bbf7d0' },
-  QHSE: { bg: '#fff7cc', color: '#8a5d00', border: '#ffe889' },
-  IT: { bg: '#eaf7ff', color: '#0369a1', border: '#bae6fd' },
-  Finance: { bg: '#fff7cc', color: '#8a5d00', border: '#ffe889' },
-  Procurement: { bg: '#f4efff', color: '#6d28d9', border: '#ddd6fe' },
-  Operations: { bg: '#f0fdf4', color: '#166534', border: '#bbf7d0' },
-  Administration: { bg: '#f4f4f4', color: '#525252', border: '#dedede' },
-  Policy: { bg: '#fff1f1', color: SHELL_RED, border: '#ffd3d3' },
-  Procedure: { bg: '#ecfdf5', color: '#047857', border: '#bbf7d0' },
+  Enterprise: { bg: 'var(--info-bg)', color: 'var(--info)', border: 'var(--info-bg)' },
+  HR: { bg: 'var(--success-bg)', color: 'var(--success)', border: 'var(--success-bg)' },
+  QHSE: { bg: 'var(--accent-amber-bg)', color: 'var(--accent-amber-text)', border: 'var(--accent-amber-line)' },
+  IT: { bg: 'var(--info-bg)', color: 'var(--info)', border: 'var(--info-bg)' },
+  Finance: { bg: 'var(--accent-amber-bg)', color: 'var(--accent-amber-text)', border: 'var(--accent-amber-line)' },
+  Procurement: { bg: 'var(--neutral-bg)', color: 'var(--neutral)', border: 'var(--neutral-bg)' },
+  Operations: { bg: 'var(--success-bg)', color: 'var(--success-text)', border: 'var(--success-bg)' },
+  Administration: { bg: 'var(--fill-tertiary)', color: 'var(--gray-600)', border: 'var(--gray-200)' },
+  Policy: { bg: 'var(--accent-red-bg)', color: SHELL_RED, border: 'var(--accent-red-line)' },
+  Procedure: { bg: 'var(--success-bg)', color: 'var(--success)', border: 'var(--success-bg)' },
 };
 
 const SOURCE_BADGES = {
-  pdf: { label: 'PDF', bg: '#fff1f1', color: SHELL_RED, border: '#ffd3d3' },
-  docx: { label: 'DOCX', bg: '#eaf7ff', color: '#0369a1', border: '#bae6fd' },
-  eml: { label: 'EML', bg: '#fff7cc', color: '#8a5d00', border: '#ffe889' },
-  txt: { label: 'TXT', bg: '#f4f4f4', color: '#525252', border: '#dedede' },
-  manual: { label: 'KB', bg: '#ecfdf5', color: '#047857', border: '#bbf7d0' },
+  pdf: { label: 'PDF', bg: 'var(--accent-red-bg)', color: SHELL_RED, border: 'var(--accent-red-line)' },
+  docx: { label: 'DOCX', bg: 'var(--info-bg)', color: 'var(--info)', border: 'var(--info-bg)' },
+  eml: { label: 'EML', bg: 'var(--accent-amber-bg)', color: 'var(--accent-amber-text)', border: 'var(--accent-amber-line)' },
+  txt: { label: 'TXT', bg: 'var(--fill-tertiary)', color: 'var(--gray-600)', border: 'var(--gray-200)' },
+  manual: { label: 'KB', bg: 'var(--success-bg)', color: 'var(--success)', border: 'var(--success-bg)' },
 };
 
 function catStyle(cat) {
-  return CATEGORY_COLORS[cat] || { bg: '#f4f4f4', color: '#525252', border: '#dedede' };
+  return CATEGORY_COLORS[cat] || { bg: 'var(--fill-tertiary)', color: 'var(--gray-600)', border: 'var(--gray-200)' };
 }
 
 function ArrowIcon() {
@@ -167,7 +168,7 @@ function ArrowIcon() {
 function StarButton({ active, onClick, appId }) {
   if (!onClick) return null;
   return (
-    <button
+    <button type="button"
       data-testid={`star-btn-${appId}`}
       onClick={(event) => { event.stopPropagation(); onClick(appId); }}
       style={active ? s.starActive : s.star}
@@ -181,7 +182,7 @@ function StarButton({ active, onClick, appId }) {
 function AppTile({ app, isFav, onToggleStar, onAppClick, launching }) {
   const iconText = (app.icon && app.icon !== 'APP') ? app.icon : app.name.split(/\s+/).map((part) => part[0]).join('').slice(0, 2);
   return (
-    <button
+    <button type="button"
       data-testid="app-tile"
       onClick={() => !launching && onAppClick(app)}
       style={s.appTile}
@@ -228,7 +229,7 @@ function KnowledgeCard({ doc, isPinned, onTogglePin }) {
         <div style={s.badgeRow}>
           {doc.sourceType && doc.sourceType !== 'manual' && <span style={{ ...s.fileBadge, ...srcBadge }}>{srcBadge.label}</span>}
           {onTogglePin && (
-            <button
+            <button type="button"
               data-testid={`pin-btn-${doc.id}`}
               onClick={() => onTogglePin(doc.id)}
               style={isPinned ? s.pinActive : s.pin}
@@ -249,7 +250,7 @@ function KnowledgeCard({ doc, isPinned, onTogglePin }) {
             View
           </a>
         )}
-        <button data-testid={`history-btn-${doc.id}`} onClick={handleHistory} style={s.textButton}>
+        <button type="button" data-testid={`history-btn-${doc.id}`} onClick={handleHistory} style={s.textButton}>
           {showHistory ? 'Hide history' : 'History'}
         </button>
       </div>
@@ -286,7 +287,7 @@ function SearchResultCard({ result }) {
           <span style={{ ...s.tag, ...catStyle(result.category) }}>{result.category}</span>
         </div>
       </div>
-      {result.snippet && <p style={s.kbText} dangerouslySetInnerHTML={{ __html: result.snippet }} />}
+      {result.snippet && <p style={s.kbText} dangerouslySetInnerHTML={{ __html: sanitizeSnippet(result.snippet) }} />}
       <div style={s.kbMeta}>
         {result.version && <span>v{result.version}</span>}
         {result.lastUpdated && <span>Updated {result.lastUpdated}</span>}
@@ -546,7 +547,7 @@ export default function IntraPortal() {
               const followed = followedDepartments.includes(department.name);
               return (
                   <article key={department.name} className="som-lift-card" style={active ? s.departmentCardActive : s.departmentCard}>
-                  <button onClick={() => setSelectedDepartment(department.name)} style={s.departmentReadMore}>
+                  <button type="button" onClick={() => setSelectedDepartment(department.name)} style={s.departmentReadMore}>
                     Read more <ArrowIcon />
                   </button>
                   <div style={s.departmentPhoto}>{department.photo}</div>
@@ -555,7 +556,7 @@ export default function IntraPortal() {
                   <div style={s.unitList}>
                     {department.units.slice(0, 5).map((unit) => <span key={unit} style={s.unitChip}>{unit}</span>)}
                   </div>
-                  <button onClick={() => toggleFollow(department.name)} style={followed ? s.followingBtn : s.followBtn}>
+                  <button type="button" onClick={() => toggleFollow(department.name)} style={followed ? s.followingBtn : s.followBtn}>
                     {followed ? 'Following' : 'Follow'}
                   </button>
                 </article>
@@ -622,7 +623,7 @@ export default function IntraPortal() {
               </p>
               <div style={s.modeTabs}>
                 {HR_MODES.map((mode) => (
-                  <button key={mode.id} onClick={() => setHrMode(mode.id)} style={hrMode === mode.id ? s.modeActive : s.modeBtn}>
+                  <button type="button" key={mode.id} onClick={() => setHrMode(mode.id)} style={hrMode === mode.id ? s.modeActive : s.modeBtn}>
                     {mode.label}
                   </button>
                 ))}
@@ -641,7 +642,7 @@ export default function IntraPortal() {
                   placeholder="Post a question or HR update..."
                   style={s.textArea}
                 />
-                <button style={s.primarySmall}>Post update</button>
+                <button type="submit" style={s.primarySmall}>Post update</button>
               </form>
               {hrPosts.map((post) => <p key={post} style={s.newsItem}>{post}</p>)}
             </div>
@@ -789,7 +790,7 @@ export default function IntraPortal() {
               {KB_CATEGORIES.map((cat) => {
                 const active = kbCategory === cat;
                 return (
-                  <button
+                  <button type="button"
                     key={cat}
                     onClick={() => setKbCategory(cat)}
                     style={active ? s.filterActive : s.filter}
@@ -881,7 +882,7 @@ export default function IntraPortal() {
         .som-lift-card:active {
           transform: translateY(-6px);
           box-shadow: 0 14px 30px rgba(0,0,0,0.12) !important;
-          border-color: #c9c9c9 !important;
+          border-color: var(--gray-300) !important;
         }
         .som-lift-card:hover .som-lift-accent,
         .som-lift-card:focus-within .som-lift-accent,
@@ -889,12 +890,12 @@ export default function IntraPortal() {
         .som-lift-card:hover .som-letter-badge,
         .som-lift-card:focus-within .som-letter-badge,
         .som-lift-card:active .som-letter-badge {
-          background: #DD1D21 !important;
+          background: var(--shell-red) !important;
         }
         .som-lift-card:hover .som-letter-badge,
         .som-lift-card:focus-within .som-letter-badge,
         .som-lift-card:active .som-letter-badge {
-          color: #FFD500 !important;
+          color: var(--shell-yellow) !important;
         }
         .som-app-panel {
           opacity: 0;
@@ -960,125 +961,125 @@ const s = {
   },
   heroOverlay: { position: 'relative', minHeight: 520, display: 'flex', alignItems: 'center', borderBottom: `14px solid ${SHELL_YELLOW}` },
   heroContent: { width: 'min(1180px, calc(100% - 48px))', margin: '0 auto', padding: '72px 0', color: '#fff' },
-  eyebrow: { display: 'inline-flex', background: SHELL_YELLOW, color: '#222', fontSize: 13, fontWeight: 800, padding: '8px 12px', borderRadius: 2, marginBottom: 18 },
+  eyebrow: { display: 'inline-flex', background: SHELL_YELLOW, color: 'var(--label)', fontSize: 13, fontWeight: 800, padding: '8px 12px', borderRadius: 'var(--radius-xs)', marginBottom: 18 },
   heroTitle: { fontSize: 'clamp(40px, 7vw, 72px)', lineHeight: 0.95, maxWidth: 820, fontWeight: 800, marginBottom: 22 },
   heroText: { maxWidth: 710, fontSize: 20, lineHeight: 1.55, color: 'rgba(255,255,255,0.92)', marginBottom: 28 },
   heroActions: { display: 'flex', gap: 12, flexWrap: 'wrap' },
-  primaryCta: { display: 'inline-flex', color: '#fff', background: SHELL_RED, padding: '13px 20px', borderRadius: 4, fontWeight: 800 },
-  secondaryCta: { display: 'inline-flex', color: '#222', background: SHELL_YELLOW, padding: '13px 20px', borderRadius: 4, fontWeight: 800 },
-  ghostCta: { display: 'inline-flex', color: '#fff', background: 'rgba(255,255,255,0.16)', border: '1px solid rgba(255,255,255,0.42)', padding: '13px 20px', borderRadius: 4, fontWeight: 800 },
+  primaryCta: { display: 'inline-flex', color: '#fff', background: SHELL_RED, padding: '13px 20px', borderRadius: 'var(--radius-xs)', fontWeight: 800 },
+  secondaryCta: { display: 'inline-flex', color: 'var(--label)', background: SHELL_YELLOW, padding: '13px 20px', borderRadius: 'var(--radius-xs)', fontWeight: 800 },
+  ghostCta: { display: 'inline-flex', color: '#fff', background: 'rgba(255,255,255,0.16)', border: '1px solid rgba(255,255,255,0.42)', padding: '13px 20px', borderRadius: 'var(--radius-xs)', fontWeight: 800 },
   band: { padding: '64px 24px', background: '#fff' },
   toolsBand: { padding: 0, background: 'transparent', height: 0 },
-  performance: { padding: '64px 24px', background: '#f7f7f7' },
+  performance: { padding: '64px 24px', background: 'var(--bg)' },
   hrBand: {
     padding: '64px 24px',
     background: '#fff',
-    color: '#222',
+    color: 'var(--label)',
     borderTop: `10px solid ${SHELL_RED}`,
-    borderBottom: '1px solid #e5e5e5',
+    borderBottom: '1px solid var(--gray-200)',
   },
   container: { maxWidth: 1180, margin: '0 auto' },
   sectionIntro: { maxWidth: 780, marginBottom: 28 },
   kicker: { display: 'inline-block', color: SHELL_RED, fontSize: 13, fontWeight: 800, textTransform: 'uppercase', marginBottom: 8 },
-  kickerDark: { display: 'inline-block', color: '#222', fontSize: 13, fontWeight: 800, textTransform: 'uppercase', marginBottom: 8 },
-  sectionTitle: { color: '#222', fontSize: 34, lineHeight: 1.15, fontWeight: 800, marginBottom: 10 },
-  sectionText: { color: '#595959', fontSize: 17, lineHeight: 1.65 },
-  smallText: { color: '#666', fontSize: 13, lineHeight: 1.5 },
+  kickerDark: { display: 'inline-block', color: 'var(--label)', fontSize: 13, fontWeight: 800, textTransform: 'uppercase', marginBottom: 8 },
+  sectionTitle: { color: 'var(--label)', fontSize: 34, lineHeight: 1.15, fontWeight: 800, marginBottom: 10 },
+  sectionText: { color: 'var(--label-secondary)', fontSize: 17, lineHeight: 1.65 },
+  smallText: { color: 'var(--gray-500)', fontSize: 13, lineHeight: 1.5 },
   pillarGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(245px, 1fr))', gap: 18 },
-  pillarCard: { position: 'relative', minHeight: 190, border: '1px solid #dfdfdf', borderRadius: 4, padding: 22, color: '#222', background: '#fff', display: 'flex', flexDirection: 'column', gap: 10 },
+  pillarCard: { position: 'relative', minHeight: 190, border: '1px solid var(--gray-200)', borderRadius: 'var(--radius-xs)', padding: 22, color: 'var(--label)', background: '#fff', display: 'flex', flexDirection: 'column', gap: 10 },
   cardAccent: { width: 48, height: 6, background: SHELL_YELLOW, display: 'block', marginBottom: 6 },
   cardTitle: { fontSize: 21, fontWeight: 800 },
-  cardText: { color: '#5d5d5d', lineHeight: 1.55, flex: 1 },
+  cardText: { color: 'var(--gray-600)', lineHeight: 1.55, flex: 1 },
   featureGrid: { display: 'grid', gridTemplateColumns: 'minmax(0, 1.45fr) minmax(280px, 0.55fr)', gap: 20 },
-  yellowPanel: { background: SHELL_YELLOW, borderRadius: 4, padding: 34, color: '#222' },
+  yellowPanel: { background: SHELL_YELLOW, borderRadius: 'var(--radius-xs)', padding: 34, color: 'var(--label)' },
   featureTitle: { fontSize: 34, lineHeight: 1.12, fontWeight: 800, marginBottom: 12 },
   featureText: { fontSize: 17, lineHeight: 1.65, maxWidth: 720 },
   metricGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12, marginTop: 24 },
-  metricCard: { background: 'rgba(255,255,255,0.72)', border: '1px solid rgba(0,0,0,0.08)', borderRadius: 4, padding: 16, display: 'grid', gap: 5 },
-  eventPanel: { background: '#fff', border: '1px solid #dfdfdf', borderRadius: 4, padding: 24, color: '#222' },
+  metricCard: { background: 'rgba(255,255,255,0.72)', border: '1px solid rgba(0,0,0,0.08)', borderRadius: 'var(--radius-xs)', padding: 16, display: 'grid', gap: 5 },
+  eventPanel: { background: '#fff', border: '1px solid var(--gray-200)', borderRadius: 'var(--radius-xs)', padding: 24, color: 'var(--label)' },
   panelTitle: { fontSize: 20, fontWeight: 800, marginBottom: 16 },
-  eventItem: { display: 'flex', gap: 14, padding: '14px 0', borderTop: '1px solid #eee' },
-  eventDate: { width: 54, minWidth: 54, height: 54, background: SHELL_RED, color: '#fff', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', borderRadius: 4, fontSize: 12, lineHeight: 1 },
+  eventItem: { display: 'flex', gap: 14, padding: '14px 0', borderTop: '1px solid var(--gray-100)' },
+  eventDate: { width: 54, minWidth: 54, height: 54, background: SHELL_RED, color: '#fff', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', borderRadius: 'var(--radius-xs)', fontSize: 12, lineHeight: 1 },
   departmentGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 18 },
-  departmentCard: { position: 'relative', border: '1px solid #dfdfdf', borderRadius: 4, background: '#fff', padding: 22, borderTop: `7px solid ${SHELL_RED}`, display: 'grid', gap: 12 },
-  departmentCardActive: { position: 'relative', border: `2px solid ${SHELL_RED}`, borderRadius: 4, background: '#fff', padding: 21, borderTop: `7px solid ${SHELL_RED}`, display: 'grid', gap: 12 },
+  departmentCard: { position: 'relative', border: '1px solid var(--gray-200)', borderRadius: 'var(--radius-xs)', background: '#fff', padding: 22, borderTop: `7px solid ${SHELL_RED}`, display: 'grid', gap: 12 },
+  departmentCardActive: { position: 'relative', border: `2px solid ${SHELL_RED}`, borderRadius: 'var(--radius-xs)', background: '#fff', padding: 21, borderTop: `7px solid ${SHELL_RED}`, display: 'grid', gap: 12 },
   departmentReadMore: { justifySelf: 'end', color: SHELL_RED, background: 'transparent', border: 0, fontWeight: 800, display: 'inline-flex', alignItems: 'center', gap: 4 },
-  departmentPhoto: { width: '100%', height: 120, background: '#fff8cc', color: SHELL_RED, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 44, fontWeight: 900, borderRadius: 4 },
+  departmentPhoto: { width: '100%', height: 120, background: 'var(--bg-tertiary)', color: SHELL_RED, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 44, fontWeight: 900, borderRadius: 'var(--radius-xs)' },
   departmentTitle: { fontSize: 22, fontWeight: 800 },
   unitList: { display: 'flex', gap: 8, flexWrap: 'wrap' },
-  unitChip: { display: 'inline-flex', background: '#f4f4f4', border: '1px solid #e1e1e1', color: '#444', padding: '6px 9px', borderRadius: 4, fontSize: 12, fontWeight: 700 },
-  followBtn: { width: 'fit-content', background: '#fff', color: SHELL_RED, border: `1px solid ${SHELL_RED}`, borderRadius: 4, padding: '8px 12px', fontWeight: 800 },
-  followingBtn: { width: 'fit-content', background: SHELL_YELLOW, color: '#222', border: '1px solid #f0c800', borderRadius: 4, padding: '8px 12px', fontWeight: 800 },
-  detailPanel: { marginTop: 24, border: '1px solid #dfdfdf', borderRadius: 4, padding: 24, background: '#fff' },
+  unitChip: { display: 'inline-flex', background: 'var(--fill-tertiary)', border: '1px solid var(--gray-200)', color: 'var(--gray-700)', padding: '6px 9px', borderRadius: 'var(--radius-xs)', fontSize: 12, fontWeight: 700 },
+  followBtn: { width: 'fit-content', background: '#fff', color: SHELL_RED, border: `1px solid ${SHELL_RED}`, borderRadius: 'var(--radius-xs)', padding: '8px 12px', fontWeight: 800 },
+  followingBtn: { width: 'fit-content', background: SHELL_YELLOW, color: 'var(--label)', border: '1px solid var(--accent-amber-line)', borderRadius: 'var(--radius-xs)', padding: '8px 12px', fontWeight: 800 },
+  detailPanel: { marginTop: 24, border: '1px solid var(--gray-200)', borderRadius: 'var(--radius-xs)', padding: 24, background: '#fff' },
   detailTitle: { fontSize: 28, fontWeight: 800, marginBottom: 8 },
   detailColumns: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 18, marginTop: 20 },
   listTitle: { fontSize: 16, fontWeight: 800, marginBottom: 10 },
   hrGrid: { display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(280px, 0.75fr)', gap: 28, alignItems: 'start' },
-  newsPanel: { background: '#fff', color: '#222', borderRadius: 4, padding: 22, border: '1px solid #dfdfdf' },
-  newsItem: { padding: '12px 0', borderTop: '1px solid #eee', lineHeight: 1.55 },
-  followSummary: { marginTop: 18, display: 'flex', gap: 8, flexWrap: 'wrap', color: '#666' },
+  newsPanel: { background: '#fff', color: 'var(--label)', borderRadius: 'var(--radius-xs)', padding: 22, border: '1px solid var(--gray-200)' },
+  newsItem: { padding: '12px 0', borderTop: '1px solid var(--gray-100)', lineHeight: 1.55 },
+  followSummary: { marginTop: 18, display: 'flex', gap: 8, flexWrap: 'wrap', color: 'var(--gray-500)' },
   modeTabs: { display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 20 },
-  modeBtn: { background: '#fff', color: '#333', border: '1px solid #d8d8d8', borderRadius: 4, padding: '8px 12px', fontWeight: 800 },
-  modeActive: { background: SHELL_YELLOW, color: '#222', border: '1px solid #f0c800', borderRadius: 4, padding: '8px 12px', fontWeight: 800 },
-  hrModePanel: { marginTop: 16, background: '#fff', color: '#222', borderRadius: 4, padding: 20, borderLeft: `6px solid ${SHELL_RED}`, boxShadow: 'var(--shadow-sm)' },
-  hrPostPanel: { background: '#fff', color: '#222', borderRadius: 4, padding: 22, borderTop: `6px solid ${SHELL_RED}`, boxShadow: 'var(--shadow-sm)' },
+  modeBtn: { background: '#fff', color: 'var(--gray-700)', border: '1px solid var(--separator)', borderRadius: 'var(--radius-xs)', padding: '8px 12px', fontWeight: 800 },
+  modeActive: { background: SHELL_YELLOW, color: 'var(--label)', border: '1px solid var(--accent-amber-line)', borderRadius: 'var(--radius-xs)', padding: '8px 12px', fontWeight: 800 },
+  hrModePanel: { marginTop: 16, background: '#fff', color: 'var(--label)', borderRadius: 'var(--radius-xs)', padding: 20, borderLeft: `6px solid ${SHELL_RED}`, boxShadow: 'var(--shadow-sm)' },
+  hrPostPanel: { background: '#fff', color: 'var(--label)', borderRadius: 'var(--radius-xs)', padding: 22, borderTop: `6px solid ${SHELL_RED}`, boxShadow: 'var(--shadow-sm)' },
   postForm: { display: 'grid', gap: 10, marginBottom: 12 },
-  textArea: { minHeight: 92, resize: 'vertical', border: '1px solid #d8d8d8', borderRadius: 4, padding: 12, fontFamily: 'inherit' },
-  primarySmall: { width: 'fit-content', background: SHELL_RED, color: '#fff', border: 0, borderRadius: 4, padding: '9px 14px', fontWeight: 800 },
+  textArea: { minHeight: 92, resize: 'vertical', border: '1px solid var(--separator)', borderRadius: 'var(--radius-xs)', padding: 12, fontFamily: 'inherit' },
+  primarySmall: { width: 'fit-content', background: SHELL_RED, color: '#fff', border: 0, borderRadius: 'var(--radius-xs)', padding: '9px 14px', fontWeight: 800 },
   employeeGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12, marginTop: 18 },
-  employeeCard: { border: '1px solid #dfdfdf', borderRadius: 4, padding: 16, display: 'grid', gap: 6, background: '#fff' },
+  employeeCard: { border: '1px solid var(--gray-200)', borderRadius: 'var(--radius-xs)', padding: 16, display: 'grid', gap: 6, background: '#fff' },
   employeeAvatar: { width: 38, height: 38, borderRadius: '50%', background: SHELL_YELLOW, color: SHELL_RED, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 900 },
-  locationItem: { display: 'grid', gap: 4, padding: '12px 0', borderTop: '1px solid #eee' },
+  locationItem: { display: 'grid', gap: 4, padding: '12px 0', borderTop: '1px solid var(--gray-100)' },
   awardGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: 14 },
-  awardCard: { background: '#fff', border: '1px solid #dfdfdf', borderRadius: 4, padding: 18, display: 'grid', gap: 8, textAlign: 'center', justifyItems: 'center' },
+  awardCard: { background: '#fff', border: '1px solid var(--gray-200)', borderRadius: 'var(--radius-xs)', padding: 18, display: 'grid', gap: 8, textAlign: 'center', justifyItems: 'center' },
   awardPhoto: { width: 84, height: 84, borderRadius: '50%', background: SHELL_RED, color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 24, fontWeight: 900 },
-  awardYears: { background: '#fff8cc', border: '1px solid #ffe889', borderRadius: 4, padding: '5px 9px', fontWeight: 800 },
-  appDock: { position: 'fixed', top: 188, right: 0, zIndex: 95, display: 'flex', flexDirection: 'row-reverse', alignItems: 'center', color: '#222' },
+  awardYears: { background: 'var(--bg-tertiary)', border: '1px solid var(--accent-amber-line)', borderRadius: 'var(--radius-xs)', padding: '5px 9px', fontWeight: 800 },
+  appDock: { position: 'fixed', top: 188, right: 0, zIndex: 95, display: 'flex', flexDirection: 'row-reverse', alignItems: 'center', color: 'var(--label)' },
   appDockTab: { width: 38, minHeight: 130, border: 0, borderRadius: '18px 0 0 18px', background: SHELL_RED, color: '#fff', boxShadow: '-5px 10px 24px rgba(221,29,33,0.28)', display: 'grid', alignContent: 'center', justifyItems: 'center', gap: 10, padding: '13px 0', fontWeight: 900 },
   appDockDots: { writingMode: 'vertical-rl', letterSpacing: 2, color: SHELL_YELLOW, fontSize: 17, lineHeight: 1 },
   appDockText: { writingMode: 'vertical-rl', transform: 'rotate(180deg)', textTransform: 'uppercase', letterSpacing: 1, fontSize: 11 },
-  appPanel: { position: 'relative', width: 326, maxHeight: 510, background: 'rgba(255,255,255,0.74)', backdropFilter: 'blur(18px) saturate(1.35)', WebkitBackdropFilter: 'blur(18px) saturate(1.35)', border: '1px solid rgba(255,255,255,0.72)', borderRadius: '26px 0 0 26px', padding: 16, boxShadow: '-20px 24px 46px rgba(0,0,0,0.20)', color: '#222', display: 'flex', flexDirection: 'column', overflow: 'hidden' },
-  launcherHeader: { position: 'relative', zIndex: 1, display: 'flex', gap: 12, alignItems: 'center', padding: '2px 4px 14px', color: '#222' },
+  appPanel: { position: 'relative', width: 326, maxHeight: 510, background: 'rgba(255,255,255,0.74)', backdropFilter: 'blur(18px) saturate(1.35)', WebkitBackdropFilter: 'blur(18px) saturate(1.35)', border: '1px solid rgba(255,255,255,0.72)', borderRadius: '26px 0 0 26px', padding: 16, boxShadow: '-20px 24px 46px rgba(0,0,0,0.20)', color: 'var(--label)', display: 'flex', flexDirection: 'column', overflow: 'hidden' },
+  launcherHeader: { position: 'relative', zIndex: 1, display: 'flex', gap: 12, alignItems: 'center', padding: '2px 4px 14px', color: 'var(--label)' },
   launcherTitle: { display: 'grid', gap: 2, lineHeight: 1.2 },
-  launcherIcon: { width: 52, height: 52, borderRadius: 14, background: SHELL_YELLOW, color: SHELL_RED, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 900, boxShadow: '0 8px 18px rgba(255,213,0,0.34)' },
+  launcherIcon: { width: 52, height: 52, borderRadius: 'var(--radius-md)', background: SHELL_YELLOW, color: SHELL_RED, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 900, boxShadow: '0 8px 18px rgba(255,213,0,0.34)' },
   launcherDots: { position: 'relative', zIndex: 1, height: 1, margin: '0 2px 14px', background: 'rgba(0,0,0,0.08)' },
   launcherScroll: { position: 'relative', zIndex: 1, overflowY: 'auto', padding: '4px 4px 6px', flex: 1, scrollbarWidth: 'thin', scrollbarColor: 'rgba(0,0,0,0.22) transparent' },
   toolSection: { marginTop: 18 },
   toolHeading: { display: 'flex', alignItems: 'center', gap: 8, color: 'rgba(255,255,255,0.86)', fontSize: 13, fontWeight: 800, marginBottom: 12, textTransform: 'uppercase' },
   appGrid: { display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: '20px 14px', alignItems: 'start' },
-  appTile: { position: 'relative', minHeight: 104, textAlign: 'center', background: 'transparent', border: '1px solid transparent', borderRadius: 16, padding: '2px 4px 0', display: 'grid', gridTemplateRows: '58px auto', justifyItems: 'center', alignItems: 'start', gap: 8, color: '#222', fontFamily: 'inherit' },
-  appIcon: { width: 58, height: 58, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 16, fontSize: 14, fontWeight: 900, boxShadow: '0 10px 20px rgba(0,0,0,0.10), inset 0 1px 0 rgba(255,255,255,0.72)' },
+  appTile: { position: 'relative', minHeight: 104, textAlign: 'center', background: 'transparent', border: '1px solid transparent', borderRadius: 'var(--radius-md)', padding: '2px 4px 0', display: 'grid', gridTemplateRows: '58px auto', justifyItems: 'center', alignItems: 'start', gap: 8, color: 'var(--label)', fontFamily: 'inherit' },
+  appIcon: { width: 58, height: 58, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 'var(--radius-md)', fontSize: 14, fontWeight: 900, boxShadow: '0 10px 20px rgba(0,0,0,0.10), inset 0 1px 0 rgba(255,255,255,0.72)' },
   appTitle: { fontSize: 12, fontWeight: 800, lineHeight: 1.12, color: '#1f1f1f', maxWidth: 82, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' },
   appText: { display: 'none' },
-  star: { position: 'absolute', top: 0, right: 7, border: '1px solid rgba(0,0,0,0.08)', background: 'rgba(255,255,255,0.92)', color: '#777', borderRadius: 999, width: 21, height: 21, fontSize: 12, lineHeight: 1, fontWeight: 900, boxShadow: '0 3px 8px rgba(0,0,0,0.08)' },
-  starActive: { position: 'absolute', top: 0, right: 7, border: '1px solid #f0c800', background: SHELL_YELLOW, color: '#222', borderRadius: 999, width: 21, height: 21, fontSize: 12, lineHeight: 1, fontWeight: 900, boxShadow: '0 3px 8px rgba(0,0,0,0.08)' },
-  ssoBadge: { position: 'absolute', top: 43, left: 12, background: 'rgba(255,255,255,0.96)', color: SHELL_RED, border: `1px solid ${SHELL_RED}`, borderRadius: 6, fontSize: 8, fontWeight: 800, padding: '1px 5px', boxShadow: '0 2px 6px rgba(0,0,0,0.08)' },
+  star: { position: 'absolute', top: 0, right: 7, border: '1px solid rgba(0,0,0,0.08)', background: 'rgba(255,255,255,0.92)', color: 'var(--label-tertiary)', borderRadius: 'var(--radius-pill)', width: 21, height: 21, fontSize: 12, lineHeight: 1, fontWeight: 900, boxShadow: '0 3px 8px rgba(0,0,0,0.08)' },
+  starActive: { position: 'absolute', top: 0, right: 7, border: '1px solid var(--accent-amber-line)', background: SHELL_YELLOW, color: 'var(--label)', borderRadius: 'var(--radius-pill)', width: 21, height: 21, fontSize: 12, lineHeight: 1, fontWeight: 900, boxShadow: '0 3px 8px rgba(0,0,0,0.08)' },
+  ssoBadge: { position: 'absolute', top: 43, left: 12, background: 'rgba(255,255,255,0.96)', color: SHELL_RED, border: `1px solid ${SHELL_RED}`, borderRadius: 'var(--radius-sm)', fontSize: 8, fontWeight: 800, padding: '1px 5px', boxShadow: '0 2px 6px rgba(0,0,0,0.08)' },
   launching: { position: 'absolute', inset: 0, zIndex: 2, background: 'rgba(255,255,255,0.94)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, fontWeight: 800, color: SHELL_RED },
-  spinner: { width: 18, height: 18, border: '3px solid #ffd3d3', borderTopColor: SHELL_RED, borderRadius: '50%', animation: 'spin 0.8s linear infinite' },
-  tag: { display: 'inline-flex', alignItems: 'center', width: 'fit-content', padding: '4px 9px', borderRadius: 4, border: '1px solid', fontSize: 12, fontWeight: 800 },
+  spinner: { width: 18, height: 18, border: '3px solid var(--accent-red-line)', borderTopColor: SHELL_RED, borderRadius: '50%', animation: 'spin 0.8s linear infinite' },
+  tag: { display: 'inline-flex', alignItems: 'center', width: 'fit-content', padding: '4px 9px', borderRadius: 'var(--radius-xs)', border: '1px solid', fontSize: 12, fontWeight: 800 },
   searchBar: { display: 'grid', gap: 14, marginBottom: 24 },
-  searchInput: { width: 'min(100%, 560px)', padding: '13px 15px', border: '1px solid #cfcfcf', borderRadius: 4, fontSize: 15, color: '#222', outlineColor: SHELL_RED },
+  searchInput: { width: 'min(100%, 560px)', padding: '13px 15px', border: '1px solid var(--gray-300)', borderRadius: 'var(--radius-xs)', fontSize: 15, color: 'var(--label)', outlineColor: SHELL_RED },
   categoryFilter: { display: 'flex', gap: 8, flexWrap: 'wrap' },
-  filter: { background: '#fff', color: '#333', border: '1px solid #d8d8d8', borderRadius: 4, padding: '8px 14px', fontWeight: 800 },
-  filterActive: { background: SHELL_RED, color: '#fff', border: `1px solid ${SHELL_RED}`, borderRadius: 4, padding: '8px 14px', fontWeight: 800 },
+  filter: { background: '#fff', color: 'var(--gray-700)', border: '1px solid var(--separator)', borderRadius: 'var(--radius-xs)', padding: '8px 14px', fontWeight: 800 },
+  filterActive: { background: SHELL_RED, color: '#fff', border: `1px solid ${SHELL_RED}`, borderRadius: 'var(--radius-xs)', padding: '8px 14px', fontWeight: 800 },
   kbGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 14 },
-  kbCard: { background: '#fff', border: '1px solid #dfdfdf', borderRadius: 4, padding: 20, display: 'grid', gap: 12 },
+  kbCard: { background: '#fff', border: '1px solid var(--gray-200)', borderRadius: 'var(--radius-xs)', padding: 20, display: 'grid', gap: 12 },
   kbHeader: { display: 'flex', justifyContent: 'space-between', gap: 12 },
   kbTitle: { fontSize: 17, lineHeight: 1.35, fontWeight: 800 },
-  kbText: { color: '#666', lineHeight: 1.6 },
-  kbMeta: { display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center', color: '#777', fontSize: 12 },
+  kbText: { color: 'var(--gray-500)', lineHeight: 1.6 },
+  kbMeta: { display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center', color: 'var(--label-tertiary)', fontSize: 12 },
   badgeRow: { display: 'flex', gap: 6, flexWrap: 'wrap', justifyContent: 'flex-end' },
-  fileBadge: { display: 'inline-flex', height: 25, alignItems: 'center', padding: '3px 7px', border: '1px solid', borderRadius: 4, fontSize: 11, fontWeight: 800 },
-  matchBadge: { display: 'inline-flex', height: 25, alignItems: 'center', padding: '3px 7px', border: '1px solid #c9d8ff', borderRadius: 4, background: '#eef3ff', color: '#1d4ed8', fontSize: 11, fontWeight: 800 },
-  pin: { border: '1px solid #ddd', background: '#fff', color: '#555', borderRadius: 4, padding: '4px 7px', fontWeight: 800, fontSize: 11 },
-  pinActive: { border: '1px solid #f0c800', background: SHELL_YELLOW, color: '#222', borderRadius: 4, padding: '4px 7px', fontWeight: 800, fontSize: 11 },
+  fileBadge: { display: 'inline-flex', height: 25, alignItems: 'center', padding: '3px 7px', border: '1px solid', borderRadius: 'var(--radius-xs)', fontSize: 11, fontWeight: 800 },
+  matchBadge: { display: 'inline-flex', height: 25, alignItems: 'center', padding: '3px 7px', border: '1px solid var(--info-bg)', borderRadius: 'var(--radius-xs)', background: 'var(--info-bg)', color: 'var(--info)', fontSize: 11, fontWeight: 800 },
+  pin: { border: '1px solid var(--gray-200)', background: '#fff', color: 'var(--gray-600)', borderRadius: 'var(--radius-xs)', padding: '4px 7px', fontWeight: 800, fontSize: 11 },
+  pinActive: { border: '1px solid var(--accent-amber-line)', background: SHELL_YELLOW, color: 'var(--label)', borderRadius: 'var(--radius-xs)', padding: '4px 7px', fontWeight: 800, fontSize: 11 },
   redLink: { color: SHELL_RED, fontWeight: 800 },
   textButton: { color: SHELL_RED, background: 'transparent', border: 0, fontWeight: 800, padding: 0 },
-  history: { borderTop: '1px solid #eee', paddingTop: 12, color: '#666', fontSize: 13, display: 'grid', gap: 8 },
+  history: { borderTop: '1px solid var(--gray-100)', paddingTop: 12, color: 'var(--gray-500)', fontSize: 13, display: 'grid', gap: 8 },
   historyItem: { display: 'grid', gridTemplateColumns: '50px 95px 1fr', gap: 8 },
-  error: { background: '#fff1f1', border: '1px solid #ffd3d3', color: SHELL_RED, borderRadius: 4, padding: '12px 14px', fontWeight: 700 },
-  loading: { padding: 36, textAlign: 'center', color: '#777' },
-  empty: { padding: 36, textAlign: 'center', color: '#777', border: '1px solid #dfdfdf', borderRadius: 4, background: '#fff' },
+  error: { background: 'var(--accent-red-bg)', border: '1px solid var(--accent-red-line)', color: SHELL_RED, borderRadius: 'var(--radius-xs)', padding: '12px 14px', fontWeight: 700 },
+  loading: { padding: 36, textAlign: 'center', color: 'var(--label-tertiary)' },
+  empty: { padding: 36, textAlign: 'center', color: 'var(--label-tertiary)', border: '1px solid var(--gray-200)', borderRadius: 'var(--radius-xs)', background: '#fff' },
   footer: { background: '#262626', color: '#fff', padding: '36px 24px' },
   footerGrid: { display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: 28 },
 };

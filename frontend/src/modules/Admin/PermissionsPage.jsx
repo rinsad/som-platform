@@ -108,7 +108,7 @@ export default function PermissionsPage() {
       {/* Page header */}
       <div style={s.header}>
         <div style={s.headerLeft}>
-          <button style={s.backBtn} onClick={() => navigate('/admin/users')}>
+          <button type="button" style={s.backBtn} onClick={() => navigate('/admin/users')}>
             ← Users
           </button>
           <div>
@@ -121,10 +121,10 @@ export default function PermissionsPage() {
         </div>
         <div style={s.headerActions}>
           {saved && <span style={s.savedBadge}>Saved</span>}
-          <button style={s.cancelBtn} onClick={() => navigate('/admin/users')}>
+          <button type="button" style={s.cancelBtn} onClick={() => navigate('/admin/users')}>
             Cancel
           </button>
-          <button style={s.saveBtn} onClick={handleSave} disabled={saving}>
+          <button type="button" style={s.saveBtn} onClick={handleSave} disabled={saving}>
             {saving ? 'Saving…' : 'Save Permissions'}
           </button>
         </div>
@@ -149,7 +149,7 @@ const s = {
   },
   state: {
     padding: '48px 32px',
-    color: '#666',
+    color: 'var(--gray-500)',
     fontSize: '14px',
   },
   header: {
@@ -167,9 +167,9 @@ const s = {
   },
   backBtn: {
     background: '#fff',
-    border: '1px solid #d8d8d8',
-    borderRadius: '4px',
-    color: '#333',
+    border: '1px solid var(--separator)',
+    borderRadius: 'var(--radius-xs)',
+    color: 'var(--gray-700)',
     fontSize: '13px',
     fontWeight: '800',
     padding: '7px 14px',
@@ -179,12 +179,12 @@ const s = {
   title: {
     fontSize: '22px',
     fontWeight: '800',
-    color: '#222',
+    color: 'var(--label)',
     margin: '0 0 4px',
   },
   subtitle: {
     fontSize: '13px',
-    color: '#666',
+    color: 'var(--gray-500)',
     margin: 0,
     display: 'flex',
     alignItems: 'center',
@@ -194,9 +194,9 @@ const s = {
     fontSize: '11px',
     fontWeight: '600',
     padding: '2px 8px',
-    borderRadius: '20px',
-    background: '#fff1f1',
-    color: '#DD1D21',
+    borderRadius: 'var(--radius-md)',
+    background: 'var(--accent-red-bg)',
+    color: 'var(--shell-red)',
     textTransform: 'uppercase',
     letterSpacing: '0.4px',
   },
@@ -208,27 +208,27 @@ const s = {
   savedBadge: {
     fontSize: '12px',
     fontWeight: '600',
-    color: '#047857',
+    color: 'var(--success)',
     padding: '4px 10px',
-    background: '#ecfdf5',
-    borderRadius: '4px',
-    border: '1px solid #bbf7d0',
+    background: 'var(--success-bg)',
+    borderRadius: 'var(--radius-xs)',
+    border: '1px solid var(--success-bg)',
   },
   cancelBtn: {
     padding: '9px 20px',
-    borderRadius: '4px',
-    border: '1px solid #d8d8d8',
+    borderRadius: 'var(--radius-xs)',
+    border: '1px solid var(--separator)',
     background: '#fff',
-    color: '#333',
+    color: 'var(--gray-700)',
     fontSize: '13px',
     fontWeight: '800',
     cursor: 'pointer',
   },
   saveBtn: {
     padding: '9px 24px',
-    borderRadius: '4px',
+    borderRadius: 'var(--radius-xs)',
     border: 'none',
-    background: '#DD1D21',
+    background: 'var(--shell-red)',
     color: '#fff',
     fontSize: '13px',
     fontWeight: '800',
@@ -236,16 +236,16 @@ const s = {
   },
   hint: {
     fontSize: '12px',
-    color: '#777',
+    color: 'var(--label-tertiary)',
     margin: '0 0 14px',
   },
   errorBanner: {
     marginBottom: '16px',
     padding: '10px 14px',
-    background: '#fff1f1',
-    border: '1px solid #ffd3d3',
-    borderRadius: '4px',
-    color: '#DD1D21',
+    background: 'var(--accent-red-bg)',
+    border: '1px solid var(--accent-red-line)',
+    borderRadius: 'var(--radius-xs)',
+    color: 'var(--shell-red)',
     fontSize: '13px',
   },
 };

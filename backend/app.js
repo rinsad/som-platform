@@ -1,13 +1,8 @@
-import express from "express";
-import cors from "cors";
+// Netlify serverless entrypoint. Delegate to the real Express app (CommonJS)
+// so the deployed /api exposes the full route set instead of an empty stub.
+import { createRequire } from "module";
 
-const app = express();
-
-app.use(cors());
-app.use(express.json());
-
-// keep your existing routes here
-// app.use("/login", loginRoutes);
-// app.use("/users", userRoutes);
+const require = createRequire(import.meta.url);
+const app = require("./src/index.js");
 
 export default app;

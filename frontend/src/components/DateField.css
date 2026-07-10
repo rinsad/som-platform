@@ -1,0 +1,52 @@
+/* Brand theming for react-day-picker, scoped to our popover wrapper so the
+   library's base style.css handles layout and we only override colors/spacing
+   to match the Shell design system (see index.css tokens). */
+.som-datefield-calendar {
+  --rdp-accent-color: var(--shell-red);
+  --rdp-accent-background-color: var(--accent-red-bg);
+  --rdp-today-color: var(--shell-red);
+  --rdp-day-width: 38px;
+  --rdp-day-height: 38px;
+  --rdp-day_button-width: 38px;
+  --rdp-day_button-height: 38px;
+  --rdp-day_button-border-radius: var(--radius-sm);
+  --rdp-selected-border: none;
+  --rdp-outside-opacity: 0.4;
+  --rdp-weekday-text-transform: none;
+
+  font-family: inherit;
+  font-size: 13px;
+  color: var(--label);
+  padding: 10px;
+}
+
+.som-datefield-calendar .rdp-day_button:hover {
+  background: var(--accent-red-bg);
+}
+
+/* Selected day: solid red fill, white text. Keep it solid on hover too, and
+   make sure it wins over the today-color rule when today is the selection. */
+.som-datefield-calendar .rdp-selected .rdp-day_button,
+.som-datefield-calendar .rdp-selected .rdp-day_button:hover {
+  background: var(--shell-red);
+  border-color: var(--shell-red);
+  color: #fff;
+  font-weight: 700;
+}
+
+.som-datefield-calendar .rdp-weekday {
+  color: var(--label-tertiary);
+  font-weight: 700;
+  font-size: 11px;
+}
+
+.som-datefield-calendar .rdp-caption_label,
+.som-datefield-calendar .rdp-month_caption {
+  font-weight: 800;
+  color: var(--label);
+  font-size: 14px;
+}
+
+.som-datefield-calendar .rdp-chevron {
+  fill: var(--shell-red);
+}

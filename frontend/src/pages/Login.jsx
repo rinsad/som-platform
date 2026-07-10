@@ -102,8 +102,8 @@ export default function Login() {
 
             {error && <div style={s.errorRow}>{error}</div>}
 
-            <button type="submit" disabled={loading} style={{ ...s.btn, ...(loading ? s.btnLoading : {}) }}>
-              {loading ? <span style={s.spinner} /> : 'Sign In'}
+            <button type="submit" disabled={loading} aria-busy={loading} style={{ ...s.btn, ...(loading ? s.btnLoading : {}) }}>
+              {loading ? <><span style={s.spinner} aria-hidden="true" /> Signing In…</> : 'Sign In'}
             </button>
           </form>
 
@@ -126,7 +126,7 @@ export default function Login() {
             .som-login-brand {
               min-height: 390px !important;
               border-right: 0 !important;
-              border-bottom: 10px solid #FFD500 !important;
+              border-bottom: 10px solid var(--shell-yellow) !important;
             }
             .som-login-form {
               min-height: auto !important;
@@ -144,7 +144,7 @@ const s = {
     display: 'grid',
     gridTemplateColumns: 'minmax(360px, 0.92fr) minmax(420px, 1.08fr)',
     background: '#fff',
-    color: '#222',
+    color: 'var(--label)',
   },
   brandPanel: {
     position: 'relative',
@@ -153,8 +153,8 @@ const s = {
     justifyContent: 'space-between',
     minHeight: '100vh',
     padding: '38px 44px',
-    background: 'linear-gradient(135deg, #3b3b3b 0%, #242424 42%, #DD1D21 100%)',
-    borderRight: '14px solid #FFD500',
+    background: 'linear-gradient(135deg, var(--gray-700) 0%, var(--gray-900) 42%, var(--shell-red) 100%)',
+    borderRight: '14px solid var(--shell-yellow)',
     color: '#fff',
     overflow: 'hidden',
   },
@@ -184,8 +184,8 @@ const s = {
     bottom: 0,
     width: '100%',
     height: 18,
-    background: '#DD1D21',
-    borderTop: '8px solid #FFD500',
+    background: 'var(--shell-red)',
+    borderTop: '8px solid var(--shell-yellow)',
     pointerEvents: 'none',
   },
   logoRow: {
@@ -201,7 +201,7 @@ const s = {
     height: 48,
     objectFit: 'contain',
     background: '#fff',
-    borderRadius: 4,
+    borderRadius: 'var(--radius-xs)',
     padding: 4,
   },
   brandName: {
@@ -221,13 +221,13 @@ const s = {
   },
   eyebrow: {
     display: 'inline-flex',
-    background: '#FFD500',
-    color: '#222',
+    background: 'var(--shell-yellow)',
+    color: 'var(--label)',
     fontSize: 12,
     fontWeight: 900,
     textTransform: 'uppercase',
     padding: '8px 11px',
-    borderRadius: 2,
+    borderRadius: 'var(--radius-xs)',
     marginBottom: 18,
   },
   heroTitle: {
@@ -255,15 +255,15 @@ const s = {
     alignItems: 'center',
     justifyContent: 'center',
     padding: 32,
-    background: 'linear-gradient(180deg, #fff8cc 0, #fff 220px)',
+    background: 'linear-gradient(180deg, var(--bg-tertiary) 0, #fff 220px)',
   },
   card: {
     position: 'relative',
     width: '100%',
     maxWidth: 430,
     background: '#fff',
-    border: '1px solid #e1e1e1',
-    borderRadius: 4,
+    border: '1px solid var(--gray-200)',
+    borderRadius: 'var(--radius-xs)',
     padding: '34px 32px 28px',
     boxShadow: 'var(--shadow-lg)',
     overflow: 'hidden',
@@ -275,17 +275,17 @@ const s = {
     left: 0,
     right: 0,
     height: 7,
-    background: '#DD1D21',
+    background: 'var(--shell-red)',
   },
   heading: {
     fontSize: 32,
     fontWeight: 900,
-    color: '#222',
+    color: 'var(--label)',
     marginBottom: 6,
   },
   subheading: {
     fontSize: 14,
-    color: '#666',
+    color: 'var(--gray-500)',
     marginBottom: 24,
   },
   form: {
@@ -295,25 +295,25 @@ const s = {
   label: {
     fontSize: 12,
     fontWeight: 900,
-    color: '#4f4f4f',
+    color: 'var(--gray-600)',
     textTransform: 'uppercase',
     marginTop: 4,
   },
   input: {
     width: '100%',
     padding: '13px 14px',
-    border: '1px solid #d8d8d8',
-    borderRadius: 4,
-    background: '#fafafa',
-    color: '#222',
+    border: '1px solid var(--separator)',
+    borderRadius: 'var(--radius-xs)',
+    background: 'var(--gray-50)',
+    color: 'var(--label)',
     fontSize: 15,
-    outlineColor: '#DD1D21',
+    outlineColor: 'var(--shell-red)',
   },
   errorRow: {
-    background: '#fff1f1',
-    border: '1px solid #ffd3d3',
-    color: '#DD1D21',
-    borderRadius: 4,
+    background: 'var(--accent-red-bg)',
+    border: '1px solid var(--accent-red-line)',
+    color: 'var(--shell-red)',
+    borderRadius: 'var(--radius-xs)',
     padding: '10px 12px',
     fontSize: 13,
     fontWeight: 800,
@@ -324,8 +324,8 @@ const s = {
     padding: '13px 16px',
     minHeight: 48,
     border: 'none',
-    borderRadius: 4,
-    background: '#DD1D21',
+    borderRadius: 'var(--radius-xs)',
+    background: 'var(--shell-red)',
     color: '#fff',
     fontSize: 15,
     fontWeight: 900,
@@ -350,24 +350,24 @@ const s = {
     display: 'flex',
     gap: 8,
     justifyContent: 'center',
-    color: '#777',
+    color: 'var(--label-tertiary)',
     fontSize: 12,
     fontWeight: 800,
     textTransform: 'uppercase',
     marginTop: 22,
     paddingTop: 18,
-    borderTop: '1px solid #f0f0f0',
+    borderTop: '1px solid var(--gray-100)',
   },
   backLink: {
     marginTop: 18,
-    color: '#DD1D21',
+    color: 'var(--shell-red)',
     fontSize: 13,
     fontWeight: 900,
   },
   pageFooter: {
     marginTop: 22,
     fontSize: 12,
-    color: '#777',
+    color: 'var(--label-tertiary)',
     textAlign: 'center',
   },
 };

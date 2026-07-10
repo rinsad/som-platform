@@ -1,0 +1,95 @@
+/* Brand styling for the Radix Select listbox (SelectField.jsx). The closed
+   trigger inherits the caller's input style; here we style the open popup to
+   match the Shell design tokens instead of the OS dropdown. */
+
+.som-select-trigger .som-select-value {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.som-select-trigger[data-placeholder] .som-select-value {
+  color: var(--label-quaternary);
+}
+
+.som-select-trigger:focus-visible {
+  outline: 2px solid var(--shell-red);
+  outline-offset: 1px;
+}
+
+.som-select-trigger[data-disabled] {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.som-select-chevron {
+  display: inline-flex;
+  flex-shrink: 0;
+  color: var(--label-tertiary);
+  transition: transform 0.15s ease;
+}
+
+.som-select-trigger[data-state='open'] .som-select-chevron {
+  transform: rotate(180deg);
+}
+
+.som-select-content {
+  z-index: 1200;
+  min-width: var(--radix-select-trigger-width);
+  max-height: var(--radix-select-content-available-height);
+  background: var(--surface);
+  border: 1px solid var(--gray-200);
+  border-radius: var(--radius-md);
+  box-shadow: 0 20px 60px rgba(16, 24, 40, 0.24);
+  padding: 6px;
+  font-family: inherit;
+  font-size: 13px;
+  color: var(--label);
+}
+
+.som-select-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  color: var(--label);
+  cursor: pointer;
+  user-select: none;
+  outline: none;
+}
+
+/* Active option (hover / keyboard) — soft red tint with red text, matching the
+   calendar's hover and replacing the OS blue highlight. */
+.som-select-item[data-highlighted] {
+  background: var(--accent-red-bg);
+  color: var(--shell-red);
+}
+
+/* Currently-selected value — bold red with a check. */
+.som-select-item[data-state='checked'] {
+  font-weight: 700;
+  color: var(--shell-red);
+}
+
+.som-select-item[data-disabled] {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.som-select-check {
+  display: inline-flex;
+  flex-shrink: 0;
+  color: currentColor;
+}
+
+.som-select-scroll {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 22px;
+  font-size: 10px;
+  color: var(--label-tertiary);
+  cursor: default;
+}

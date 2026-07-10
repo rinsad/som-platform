@@ -59,8 +59,8 @@ const s = {
     display: 'flex',
     height: '100vh',
     overflow: 'hidden',
-    background: '#f7f7f7',
-    color: '#222',
+    background: 'var(--bg)',
+    color: 'var(--label)',
   },
   workspace: {
     display: 'flex',
@@ -73,7 +73,7 @@ const s = {
   mainScroll: {
     flex: 1,
     overflowY: 'auto',
-    background: 'linear-gradient(180deg, #fff8cc 0, #f7f7f7 190px)',
+    background: 'linear-gradient(180deg, var(--bg-tertiary) 0, var(--bg) 190px)',
   },
   main: {
     padding: '40px 32px',

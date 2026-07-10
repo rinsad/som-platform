@@ -10,7 +10,7 @@ export default function Modal({ title, subtitle, onClose, children, maxWidth = 5
             <h3 style={s.title}>{title}</h3>
             {subtitle && <p style={s.subtitle}>{subtitle}</p>}
           </div>
-          <button style={s.close} onClick={onClose} aria-label="Close">×</button>
+          <button type="button" style={s.close} onClick={onClose} aria-label="Close">×</button>
         </div>
         <div style={s.body}>{children}</div>
       </div>
@@ -25,18 +25,18 @@ const s = {
     padding: '64px 20px', zIndex: 1000, overflowY: 'auto',
   },
   card: {
-    background: '#FFFFFF', border: '1px solid #ECEEF1', borderRadius: 16,
+    background: 'var(--surface)', border: '1px solid var(--gray-200)', borderRadius: 'var(--radius-md)',
     width: '100%', maxWidth: 560, boxShadow: '0 20px 60px rgba(16,24,40,0.24)',
   },
   head: {
     display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between',
-    gap: 12, padding: '18px 22px', borderBottom: '1px solid #F1F2F4',
+    gap: 12, padding: '18px 22px', borderBottom: '1px solid var(--separator-clear)',
   },
-  title: { fontSize: 17, fontWeight: 800, color: '#1A2233', margin: 0 },
-  subtitle: { fontSize: 13, color: '#98A0AC', margin: '4px 0 0', fontWeight: 500 },
+  title: { fontSize: 17, fontWeight: 800, color: 'var(--label)', margin: 0 },
+  subtitle: { fontSize: 13, color: 'var(--label-quaternary)', margin: '4px 0 0', fontWeight: 500 },
   close: {
-    width: 32, height: 32, borderRadius: 8, border: '1px solid #E0E3E8',
-    background: '#FFFFFF', color: '#6B7280', fontSize: 20, lineHeight: 1,
+    width: 32, height: 32, borderRadius: 'var(--radius-md)', border: '1px solid var(--gray-200)',
+    background: 'var(--surface)', color: 'var(--label-secondary)', fontSize: 20, lineHeight: 1,
     cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
   },
   body: { padding: '20px 22px' },

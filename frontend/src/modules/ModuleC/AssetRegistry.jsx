@@ -8,6 +8,9 @@ import {
   getBillsBySite, createBill,
   getWorkOrders, createWorkOrder,
 } from '../../services/assetsService';
+import DateField from '../../components/DateField';
+import SelectField from '../../components/SelectField';
+import Badge from '../../components/Badge';
 
 if (typeof Chart.register === 'function') {
   Chart.register(LineController, LineElement, PointElement, CategoryScale, LinearScale, Tooltip, Legend);
@@ -19,26 +22,11 @@ const SITES = [
   { id: 'SITE-004', label: 'Sohar Industrial Station — Sohar' },
 ];
 
-const UTILITY_COLORS = { Electricity: '#FFD500', Water: '#0ea5e9', Gas: '#f97316' };
+const UTILITY_COLORS = { Electricity: 'var(--shell-yellow)', Water: 'var(--info)', Gas: 'var(--warning)' };
 
-const STATUS_STYLE = {
-  Active:      { bg: 'rgba(52,211,153,0.12)',  color: '#34d399', border: 'rgba(52,211,153,0.30)' },
-  Maintenance: { bg: 'rgba(251,191,36,0.12)',  color: '#fbbf24', border: 'rgba(251,191,36,0.30)' },
-  Inactive:    { bg: 'rgba(255,255,255,0.07)', color: 'rgba(255,255,255,0.42)', border: 'rgba(255,255,255,0.15)' },
-};
-
-const WO_STATUS_STYLE = {
-  Open:          { bg: 'rgba(107,159,255,0.15)', color: '#6b9fff', border: 'rgba(107,159,255,0.30)' },
-  'In Progress': { bg: 'rgba(251,191,36,0.12)',  color: '#fbbf24', border: 'rgba(251,191,36,0.30)' },
-  Completed:     { bg: 'rgba(52,211,153,0.12)',  color: '#34d399', border: 'rgba(52,211,153,0.30)' },
-};
-
-const PRIORITY_STYLE = {
-  Low:      { bg: 'rgba(255,255,255,0.07)', color: 'rgba(255,255,255,0.42)', border: 'rgba(255,255,255,0.15)' },
-  Medium:   { bg: 'rgba(107,159,255,0.15)', color: '#6b9fff',                border: 'rgba(107,159,255,0.30)' },
-  High:     { bg: 'rgba(251,191,36,0.12)',  color: '#fbbf24',                border: 'rgba(251,191,36,0.30)' },
-  Critical: { bg: 'rgba(220,38,38,0.15)',   color: '#ff6b6b',                border: 'rgba(220,38,38,0.35)' },
-};
+// Work-order priority is a 4-rung ladder distinct from the shared Badge's
+// default 3-rung Low/Medium/High mapping, so it needs an explicit tone here.
+const PRIORITY_TONE = { Low: 'neutral', Medium: 'info', High: 'warning', Critical: 'danger' };
 
 const EQUIP_TYPES  = ['Generator', 'Dispenser', 'HVAC', 'Security', 'Lighting', 'Electrical', 'Pump', 'Other'];
 const REGIONS      = ['Muscat', 'Salalah', 'Sohar'];
@@ -46,22 +34,10 @@ const DEPARTMENTS  = ['Operations', 'Retail', 'Facilities', 'Infrastructure', 'Q
 
 function fmtOMR(v) { return `OMR ${Number(v).toLocaleString('en-GB')}`; }
 
-function Badge({ text, style }) {
-  return (
-    <span style={{
-      display: 'inline-flex', alignItems: 'center', padding: '3px 10px',
-      borderRadius: '9999px', fontSize: '12px', fontWeight: '600',
-      border: `1px solid ${style.border}`, background: style.bg, color: style.color,
-    }}>
-      {text}
-    </span>
-  );
-}
-
 function Spinner() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: 240, gap: 12 }}>
-      <div style={{ width: 34, height: 34, border: '3px solid rgba(255,255,255,0.12)', borderTopColor: '#DD1D21', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+      <div style={{ width: 34, height: 34, border: '3px solid var(--gray-200)', borderTopColor: 'var(--shell-red)', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
       <p style={{ color: 'var(--gray-400)', fontSize: 13 }}>Loading…</p>
     </div>
   );
@@ -69,12 +45,12 @@ function Spinner() {
 
 function StatCard({ label, value, color, bg, icon }) {
   return (
-    <div style={{ background: 'var(--surface)', border: '1px solid var(--gray-200)', borderRadius: 14, padding: 20, boxShadow: 'var(--shadow-sm)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+    <div style={{ background: 'var(--surface)', border: '1px solid var(--gray-200)', borderRadius: 'var(--radius-md)', padding: 20, boxShadow: 'var(--shadow-sm)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
       <div>
         <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--gray-500)', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 6 }}>{label}</div>
         <div style={{ fontSize: 28, fontWeight: 700, color }}>{value}</div>
       </div>
-      <div style={{ width: 48, height: 48, borderRadius: 12, background: bg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20 }}>{icon}</div>
+      <div style={{ width: 48, height: 48, borderRadius: 'var(--radius-md)', background: bg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20 }}>{icon}</div>
     </div>
   );
 }
@@ -108,14 +84,14 @@ function AssetTreeView({ assets }) {
 
   if (assets.length === 0) {
     return (
-      <div style={{ background: 'var(--surface)', border: '1px solid var(--gray-200)', borderRadius: 14, padding: '48px 24px', textAlign: 'center', color: 'var(--gray-400)', fontSize: 14 }}>
+      <div style={{ background: 'var(--surface)', border: '1px solid var(--gray-200)', borderRadius: 'var(--radius-md)', padding: '48px 24px', textAlign: 'center', color: 'var(--gray-400)', fontSize: 14 }}>
         No assets match the current filter.
       </div>
     );
   }
 
   return (
-    <div style={{ background: 'var(--surface)', border: '1px solid var(--gray-200)', borderRadius: 14, overflow: 'hidden', boxShadow: 'var(--shadow-sm)' }}>
+    <div style={{ background: 'var(--surface)', border: '1px solid var(--gray-200)', borderRadius: 'var(--radius-md)', overflow: 'hidden', boxShadow: 'var(--shadow-sm)' }}>
       <div style={{ padding: '10px 16px', background: 'var(--gray-50)', borderBottom: '1px solid var(--gray-100)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--gray-400)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Region → Site → Facility → Equipment</span>
         <span style={{ fontSize: 12, color: 'var(--gray-400)' }}>{assets.length} assets</span>
@@ -131,11 +107,11 @@ function AssetTreeView({ assets }) {
             {/* Region */}
             <div
               onClick={() => toggle(regionKey)}
-              style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 16px', cursor: 'pointer', background: 'rgba(255,255,255,0.04)', borderBottom: '1px solid var(--gray-100)', userSelect: 'none' }}
+              style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 16px', cursor: 'pointer', background: 'var(--gray-50)', borderBottom: '1px solid var(--gray-100)', userSelect: 'none' }}
             >
               <span style={{ fontSize: 11, color: 'var(--gray-400)', width: 14, flexShrink: 0 }}>{regionOpen ? '▼' : '▶'}</span>
               <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--gray-800)' }}>🗺 {region} Region</span>
-              <span style={{ marginLeft: 'auto', background: 'var(--gray-200)', color: 'var(--gray-600)', fontSize: 11, fontWeight: 700, padding: '1px 8px', borderRadius: 9999 }}>{regionCount}</span>
+              <span style={{ marginLeft: 'auto', background: 'var(--gray-200)', color: 'var(--gray-600)', fontSize: 11, fontWeight: 700, padding: '1px 8px', borderRadius: 'var(--radius-pill)' }}>{regionCount}</span>
             </div>
 
             {regionOpen && Object.entries(sites).map(([site, facilities]) => {
@@ -148,11 +124,11 @@ function AssetTreeView({ assets }) {
                   {/* Site */}
                   <div
                     onClick={() => toggle(siteKey)}
-                    style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '9px 16px 9px 32px', cursor: 'pointer', background: 'rgba(255,255,255,0.03)', borderBottom: '1px solid var(--gray-100)', userSelect: 'none' }}
+                    style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '9px 16px 9px 32px', cursor: 'pointer', background: 'var(--gray-50)', borderBottom: '1px solid var(--gray-100)', userSelect: 'none' }}
                   >
                     <span style={{ fontSize: 11, color: 'var(--gray-400)', width: 14, flexShrink: 0 }}>{siteOpen ? '▼' : '▶'}</span>
                     <span style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--gray-700)' }}>📍 {site}</span>
-                    <span style={{ marginLeft: 'auto', background: 'rgba(107,159,255,0.18)', color: '#6b9fff', fontSize: 11, fontWeight: 700, padding: '1px 8px', borderRadius: 9999 }}>{siteCount}</span>
+                    <span style={{ marginLeft: 'auto', background: 'var(--info-bg)', color: 'var(--info)', fontSize: 11, fontWeight: 700, padding: '1px 8px', borderRadius: 'var(--radius-pill)' }}>{siteCount}</span>
                   </div>
 
                   {siteOpen && Object.entries(facilities).map(([facility, assetList]) => {
@@ -164,29 +140,26 @@ function AssetTreeView({ assets }) {
                         {/* Facility */}
                         <div
                           onClick={() => toggle(facKey)}
-                          style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 16px 8px 52px', cursor: 'pointer', background: 'rgba(255,255,255,0.02)', borderBottom: '1px solid rgba(255,255,255,0.06)', userSelect: 'none' }}
+                          style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 16px 8px 52px', cursor: 'pointer', background: 'var(--gray-50)', borderBottom: '1px solid var(--gray-50)', userSelect: 'none' }}
                         >
                           <span style={{ fontSize: 11, color: 'var(--gray-400)', width: 14, flexShrink: 0 }}>{facOpen ? '▼' : '▶'}</span>
                           <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--gray-600)' }}>🏗 {facility}</span>
-                          <span style={{ marginLeft: 'auto', background: 'rgba(52,211,153,0.15)', color: '#34d399', fontSize: 11, fontWeight: 700, padding: '1px 8px', borderRadius: 9999 }}>{assetList.length}</span>
+                          <span style={{ marginLeft: 'auto', background: 'var(--success-bg)', color: 'var(--success)', fontSize: 11, fontWeight: 700, padding: '1px 8px', borderRadius: 'var(--radius-pill)' }}>{assetList.length}</span>
                         </div>
 
                         {/* Equipment rows */}
-                        {facOpen && assetList.map((asset) => {
-                          const ss = STATUS_STYLE[asset.status] || STATUS_STYLE.Inactive;
-                          return (
-                            <div
-                              key={asset.assetCode}
-                              data-testid="asset-tree-row"
-                              style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '8px 16px 8px 72px', borderBottom: '1px solid rgba(255,255,255,0.05)', background: 'transparent' }}
-                            >
-                              <span style={{ fontSize: 12, fontFamily: 'monospace', color: 'var(--gray-500)', minWidth: 175, flexShrink: 0 }}>{asset.assetCode}</span>
-                              <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--gray-800)', flex: 1 }}>{asset.name}</span>
-                              <span style={{ fontSize: 12, color: 'var(--gray-500)', minWidth: 80, flexShrink: 0 }}>{asset.equipmentType}</span>
-                              <Badge text={asset.status} style={ss} />
-                            </div>
-                          );
-                        })}
+                        {facOpen && assetList.map((asset) => (
+                          <div
+                            key={asset.assetCode}
+                            data-testid="asset-tree-row"
+                            style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '8px 16px 8px 72px', borderBottom: '1px solid var(--gray-50)', background: 'transparent' }}
+                          >
+                            <span style={{ fontSize: 12, fontFamily: 'monospace', color: 'var(--gray-500)', minWidth: 175, flexShrink: 0 }}>{asset.assetCode}</span>
+                            <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--gray-800)', flex: 1 }}>{asset.name}</span>
+                            <span style={{ fontSize: 12, color: 'var(--gray-500)', minWidth: 80, flexShrink: 0 }}>{asset.equipmentType}</span>
+                            <Badge status={asset.status} />
+                          </div>
+                        ))}
                       </div>
                     );
                   })}
@@ -239,9 +212,9 @@ function AssetsTab() {
   });
 
   const alertBg = (days) => {
-    if (days < 7)  return { bg: 'rgba(220,38,38,0.12)', border: 'rgba(220,38,38,0.30)', color: '#ff6b6b', icon: '🔴' };
-    if (days < 30) return { bg: 'rgba(251,191,36,0.12)', border: 'rgba(251,191,36,0.30)', color: '#fbbf24', icon: '🟡' };
-    return { bg: 'rgba(52,211,153,0.12)', border: 'rgba(52,211,153,0.30)', color: '#34d399', icon: '🟢' };
+    if (days < 7)  return { bg: 'var(--danger-bg)', border: 'var(--danger)', color: 'var(--danger)', icon: '🔴' };
+    if (days < 30) return { bg: 'var(--warning-bg)', border: 'var(--warning)', color: 'var(--warning)', icon: '🟡' };
+    return { bg: 'var(--success-bg)', border: 'var(--success)', color: 'var(--success)', icon: '🟢' };
   };
 
   const handleAddAsset = async (e) => {
@@ -262,8 +235,8 @@ function AssetsTab() {
   if (loading) return <Spinner />;
   if (error) return (
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, padding: 40 }}>
-      <div style={{ background: 'rgba(220,38,38,0.12)', border: '1px solid rgba(220,38,38,0.30)', color: '#ff6b6b', padding: '12px 20px', borderRadius: 10, fontSize: 14 }}>{error}</div>
-      <button onClick={fetchAll} style={btn.retry}>Retry</button>
+      <div style={{ background: 'var(--danger-bg)', border: '1px solid var(--danger)', color: 'var(--danger)', padding: '12px 20px', borderRadius: 'var(--radius-md)', fontSize: 14 }}>{error}</div>
+      <button type="button" onClick={fetchAll} style={btn.retry}>Retry</button>
     </div>
   );
 
@@ -275,13 +248,13 @@ function AssetsTab() {
           {alerts.map((al) => {
             const c = alertBg(al.daysRemaining);
             return (
-              <div key={al.alertId} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, background: c.bg, border: `1px solid ${c.border}`, borderRadius: 10, padding: '12px 16px' }}>
+              <div key={al.alertId} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, background: c.bg, border: `1px solid ${c.border}`, borderRadius: 'var(--radius-md)', padding: '12px 16px' }}>
                 <span style={{ fontSize: 16, flexShrink: 0 }}>{c.icon}</span>
                 <div>
                   <span style={{ fontWeight: 700, color: c.color, fontSize: 13 }}>{al.type} · {al.assetCode}</span>
                   <p style={{ color: c.color, fontSize: 13, marginTop: 2 }}>{al.message}</p>
                 </div>
-                <span style={{ marginLeft: 'auto', background: c.border, color: c.color, fontSize: 11, fontWeight: 700, padding: '2px 10px', borderRadius: 9999, flexShrink: 0 }}>
+                <span style={{ marginLeft: 'auto', background: c.border, color: c.color, fontSize: 11, fontWeight: 700, padding: '2px 10px', borderRadius: 'var(--radius-pill)', flexShrink: 0 }}>
                   {al.daysRemaining === 0 ? 'BREACHED' : `${al.daysRemaining}d`}
                 </span>
               </div>
@@ -298,24 +271,24 @@ function AssetsTab() {
           placeholder="Search by name or asset code…"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          style={{ flex: 1, minWidth: 220, padding: '9px 13px', border: '1px solid var(--gray-200)', borderRadius: 9, fontSize: 13.5, background: 'var(--gray-50)', fontFamily: 'inherit', outline: 'none' }}
+          style={{ flex: 1, minWidth: 220, padding: '9px 13px', border: '1px solid var(--gray-200)', borderRadius: 'var(--radius-md)', fontSize: 13.5, background: 'var(--gray-50)', fontFamily: 'inherit', outline: 'none' }}
         />
-        <select
+        <SelectField
           value={region}
-          onChange={(e) => setRegion(e.target.value)}
-          style={{ padding: '9px 13px', border: '1px solid var(--gray-200)', borderRadius: 9, fontSize: 13.5, background: 'var(--gray-50)', fontFamily: 'inherit', color: 'var(--gray-700)' }}
-        >
-          {regions.map((r) => <option key={r} value={r}>{r === 'ALL' ? 'All Regions' : r}</option>)}
-        </select>
+          onChange={setRegion}
+          options={regions.map((r) => ({ value: r, label: r === 'ALL' ? 'All Regions' : r }))}
+          style={{ padding: '9px 13px', border: '1px solid var(--gray-200)', borderRadius: 'var(--radius-md)', fontSize: 13.5, background: 'var(--gray-50)', fontFamily: 'inherit', color: 'var(--gray-700)' }}
+          aria-label="Filter by region"
+        />
 
         {/* View toggle */}
-        <div style={{ display: 'flex', background: 'var(--gray-100)', borderRadius: 8, padding: 3, gap: 2 }}>
+        <div style={{ display: 'flex', background: 'var(--gray-100)', borderRadius: 'var(--radius-md)', padding: 3, gap: 2 }}>
           {[{ id: 'tree', label: '🌲 Tree' }, { id: 'table', label: '📋 Table' }].map((v) => (
-            <button
+            <button type="button"
               key={v.id}
               onClick={() => setViewMode(v.id)}
               style={{
-                padding: '5px 12px', border: 'none', borderRadius: 6, fontSize: 12.5, fontWeight: 600,
+                padding: '5px 12px', border: 'none', borderRadius: 'var(--radius-sm)', fontSize: 12.5, fontWeight: 600,
                 cursor: 'pointer', fontFamily: 'inherit',
                 background: viewMode === v.id ? 'var(--surface)' : 'transparent',
                 color:      viewMode === v.id ? 'var(--gray-900)' : 'var(--gray-500)',
@@ -325,14 +298,14 @@ function AssetsTab() {
           ))}
         </div>
 
-        <button onClick={() => { setShowAddForm((v) => !v); setAddErr(''); }} style={btn.primary}>
+        <button type="button" onClick={() => { setShowAddForm((v) => !v); setAddErr(''); }} style={btn.primary}>
           {showAddForm ? '✕ Cancel' : '+ Register Asset'}
         </button>
       </div>
 
       {/* Register asset form */}
       {showAddForm && (
-        <div style={{ background: 'var(--surface)', border: '1px solid var(--gray-200)', borderRadius: 14, padding: 24, marginBottom: 20, boxShadow: 'var(--shadow-sm)' }}>
+        <div style={{ background: 'var(--surface)', border: '1px solid var(--gray-200)', borderRadius: 'var(--radius-md)', padding: 24, marginBottom: 20, boxShadow: 'var(--shadow-sm)' }}>
           <h3 style={{ fontSize: 15, fontWeight: 700, color: 'var(--gray-900)', marginBottom: 4 }}>Register New Asset</h3>
           <p style={{ fontSize: 12.5, color: 'var(--gray-400)', marginBottom: 16 }}>Asset code is auto-generated from location and equipment type.</p>
           <form onSubmit={handleAddAsset}>
@@ -343,9 +316,7 @@ function AssetsTab() {
               </div>
               <div>
                 <label htmlFor="asset-region" style={frm.label}>Region</label>
-                <select id="asset-region" value={addForm.region} onChange={(e) => setAddForm((f) => ({ ...f, region: e.target.value }))} style={frm.input}>
-                  {REGIONS.map((r) => <option key={r} value={r}>{r}</option>)}
-                </select>
+                <SelectField id="asset-region" value={addForm.region} onChange={(v) => setAddForm((f) => ({ ...f, region: v }))} options={REGIONS} style={frm.input} aria-label="Region" />
               </div>
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 14, marginBottom: 14 }}>
@@ -359,26 +330,20 @@ function AssetsTab() {
               </div>
               <div>
                 <label htmlFor="asset-type" style={frm.label}>Equipment Type</label>
-                <select id="asset-type" value={addForm.equipmentType} onChange={(e) => setAddForm((f) => ({ ...f, equipmentType: e.target.value }))} style={frm.input}>
-                  {EQUIP_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
-                </select>
+                <SelectField id="asset-type" value={addForm.equipmentType} onChange={(v) => setAddForm((f) => ({ ...f, equipmentType: v }))} options={EQUIP_TYPES} style={frm.input} aria-label="Equipment Type" />
               </div>
               <div>
                 <label htmlFor="asset-dept" style={frm.label}>Department</label>
-                <select id="asset-dept" value={addForm.department} onChange={(e) => setAddForm((f) => ({ ...f, department: e.target.value }))} style={frm.input}>
-                  {DEPARTMENTS.map((d) => <option key={d} value={d}>{d}</option>)}
-                </select>
+                <SelectField id="asset-dept" value={addForm.department} onChange={(v) => setAddForm((f) => ({ ...f, department: v }))} options={DEPARTMENTS} style={frm.input} aria-label="Department" />
               </div>
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 3fr', gap: 14, marginBottom: 14 }}>
               <div>
                 <label htmlFor="asset-status" style={frm.label}>Status</label>
-                <select id="asset-status" value={addForm.status} onChange={(e) => setAddForm((f) => ({ ...f, status: e.target.value }))} style={frm.input}>
-                  {['Active', 'Maintenance', 'Inactive'].map((s) => <option key={s} value={s}>{s}</option>)}
-                </select>
+                <SelectField id="asset-status" value={addForm.status} onChange={(v) => setAddForm((f) => ({ ...f, status: v }))} options={['Active', 'Maintenance', 'Inactive']} style={frm.input} aria-label="Status" />
               </div>
             </div>
-            {addErr && <div style={{ color: '#dc2626', fontSize: 13, marginBottom: 10 }}>⚠ {addErr}</div>}
+            {addErr && <div style={{ color: 'var(--danger)', fontSize: 13, marginBottom: 10 }}>⚠ {addErr}</div>}
             <div style={{ display: 'flex', gap: 10 }}>
               <button type="submit" disabled={addSaving} style={{ ...btn.saveForm, ...(addSaving ? { opacity: 0.6, cursor: 'not-allowed' } : {}) }}>
                 {addSaving ? 'Registering…' : 'Register Asset'}
@@ -393,7 +358,7 @@ function AssetsTab() {
       {viewMode === 'tree' ? (
         <AssetTreeView assets={filtered} />
       ) : (
-        <div style={{ background: 'var(--surface)', border: '1px solid var(--gray-200)', borderRadius: 14, overflow: 'hidden', boxShadow: 'var(--shadow-sm)' }}>
+        <div style={{ background: 'var(--surface)', border: '1px solid var(--gray-200)', borderRadius: 'var(--radius-md)', overflow: 'hidden', boxShadow: 'var(--shadow-sm)' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13.5 }}>
             <thead>
               <tr style={{ background: 'var(--gray-50)' }}>
@@ -407,14 +372,13 @@ function AssetsTab() {
                 <tr><td colSpan={7} style={{ padding: '48px 24px', textAlign: 'center', color: 'var(--gray-400)', fontSize: 14 }}>No assets found</td></tr>
               ) : filtered.map((asset, i) => {
                 const isOpen = expanded === asset.assetCode;
-                const ss = STATUS_STYLE[asset.status] || STATUS_STYLE.Inactive;
                 return (
                   <>
                     <tr
                       key={asset.assetCode}
                       data-testid="asset-row"
                       onClick={() => setExpanded(isOpen ? null : asset.assetCode)}
-                      style={{ background: i % 2 === 1 ? 'rgba(255,255,255,0.025)' : 'transparent', cursor: 'pointer', transition: 'background 0.1s', borderBottom: isOpen ? 'none' : '1px solid rgba(255,255,255,0.06)' }}
+                      style={{ background: i % 2 === 1 ? 'var(--gray-50)' : 'transparent', cursor: 'pointer', transition: 'background 0.1s', borderBottom: isOpen ? 'none' : '1px solid var(--gray-50)' }}
                     >
                       <td style={{ padding: '12px 14px', fontWeight: 600, color: 'var(--gray-700)', fontFamily: 'monospace', fontSize: 12.5 }}>{asset.assetCode}</td>
                       <td style={{ padding: '12px 14px', fontWeight: 500, color: 'var(--gray-800)' }}>{asset.name}</td>
@@ -422,15 +386,15 @@ function AssetsTab() {
                       <td style={{ padding: '12px 14px', color: 'var(--gray-500)' }}>{asset.site}</td>
                       <td style={{ padding: '12px 14px', color: 'var(--gray-500)' }}>{asset.facility}</td>
                       <td style={{ padding: '12px 14px', color: 'var(--gray-600)' }}>{asset.equipmentType}</td>
-                      <td style={{ padding: '12px 14px' }}><Badge text={asset.status} style={ss} /></td>
+                      <td style={{ padding: '12px 14px' }}><Badge status={asset.status} /></td>
                     </tr>
                     {isOpen && (
-                      <tr key={`${asset.assetCode}-detail`} style={{ background: 'rgba(107,159,255,0.08)' }}>
-                        <td colSpan={7} style={{ padding: '14px 20px', borderBottom: '1px solid rgba(107,159,255,0.20)' }}>
+                      <tr key={`${asset.assetCode}-detail`} style={{ background: 'var(--info-bg)' }}>
+                        <td colSpan={7} style={{ padding: '14px 20px', borderBottom: '1px solid var(--info-bg)' }}>
                           <div style={{ display: 'flex', gap: 32, flexWrap: 'wrap' }}>
                             <div><span style={exp.label}>Asset Code</span><span style={exp.value}>{asset.assetCode}</span></div>
                             <div><span style={exp.label}>Department</span><span style={exp.value}>{asset.department}</span></div>
-                            <div><span style={exp.label}>Status</span><Badge text={asset.status} style={ss} /></div>
+                            <div><span style={exp.label}>Status</span><Badge status={asset.status} /></div>
                             <div><span style={exp.label}>Region</span><span style={exp.value}>{asset.region}</span></div>
                             <div><span style={exp.label}>Site</span><span style={exp.value}>{asset.site}</span></div>
                             <div><span style={exp.label}>Facility</span><span style={exp.value}>{asset.facility}</span></div>
@@ -486,8 +450,8 @@ function UtilitiesTab() {
       return {
         label: type,
         data: allPeriods.map((p) => byPeriod[p] ?? null),
-        borderColor: UTILITY_COLORS[type] || '#888',
-        backgroundColor: (UTILITY_COLORS[type] || '#888') + '18',
+        borderColor: UTILITY_COLORS[type] || 'var(--gray-400)',
+        backgroundColor: (UTILITY_COLORS[type] || 'var(--gray-400)') + '18',
         borderWidth: 2, pointRadius: 4, pointHoverRadius: 6,
         tension: 0.4, fill: false, spanGaps: true,
       };
@@ -538,23 +502,23 @@ function UtilitiesTab() {
   };
 
   const METRICS = [
-    { type: 'Electricity', testId: 'metric-electricity', icon: '⚡', color: '#6b9fff', light: 'rgba(107,159,255,0.12)' },
-    { type: 'Water',       testId: 'metric-water',       icon: '💧', color: '#38bdf8', light: 'rgba(56,189,248,0.12)'  },
-    { type: 'Gas',         testId: 'metric-gas',         icon: '🔥', color: '#f97316', light: 'rgba(249,115,22,0.12)'  },
+    { type: 'Electricity', testId: 'metric-electricity', icon: '⚡', color: 'var(--info)', light: 'var(--info-bg)' },
+    { type: 'Water',       testId: 'metric-water',       icon: '💧', color: 'var(--info)', light: 'var(--info-bg)'  },
+    { type: 'Gas',         testId: 'metric-gas',         icon: '🔥', color: 'var(--warning)', light: 'rgba(249,115,22,0.12)'  },
   ];
 
   return (
     <div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 20, flexWrap: 'wrap' }}>
         <label style={{ fontSize: 13, fontWeight: 600, color: 'var(--gray-600)' }}>Site</label>
-        <select
+        <SelectField
           value={siteId}
-          onChange={(e) => setSiteId(e.target.value)}
-          style={{ padding: '9px 14px', border: '1px solid var(--gray-200)', borderRadius: 9, fontSize: 13.5, fontFamily: 'inherit', color: 'var(--gray-800)', background: 'var(--surface)', minWidth: 280, boxShadow: 'var(--shadow-xs)' }}
-        >
-          {SITES.map((s) => <option key={s.id} value={s.id}>{s.label}</option>)}
-        </select>
-        <button
+          onChange={setSiteId}
+          options={SITES.map((site) => ({ value: site.id, label: site.label }))}
+          style={{ padding: '9px 14px', border: '1px solid var(--gray-200)', borderRadius: 'var(--radius-md)', fontSize: 13.5, fontFamily: 'inherit', color: 'var(--gray-800)', background: 'var(--surface)', minWidth: 280, boxShadow: 'var(--shadow-xs)' }}
+          aria-label="Site"
+        />
+        <button type="button"
           data-testid="btn-log-bill"
           onClick={() => { setShowForm((v) => !v); setSaveMsg(''); setSaveErr(''); }}
           style={{ ...btn.primary, marginLeft: 'auto' }}
@@ -563,17 +527,15 @@ function UtilitiesTab() {
         </button>
       </div>
 
-      {saveMsg && <div style={{ background: 'rgba(52,211,153,0.12)', border: '1px solid rgba(52,211,153,0.30)', color: '#34d399', borderRadius: 9, padding: '10px 14px', fontSize: 13, marginBottom: 14 }}>✓ {saveMsg}</div>}
+      {saveMsg && <div style={{ background: 'var(--success-bg)', border: '1px solid var(--success)', color: 'var(--success)', borderRadius: 'var(--radius-md)', padding: '10px 14px', fontSize: 13, marginBottom: 14 }}>✓ {saveMsg}</div>}
 
       {showForm && (
-        <div style={{ background: 'var(--surface)', border: '1px solid var(--gray-200)', borderRadius: 14, padding: 24, marginBottom: 20, boxShadow: 'var(--shadow-sm)' }}>
+        <div style={{ background: 'var(--surface)', border: '1px solid var(--gray-200)', borderRadius: 'var(--radius-md)', padding: 24, marginBottom: 20, boxShadow: 'var(--shadow-sm)' }}>
           <h3 style={{ fontSize: 15, fontWeight: 700, color: 'var(--gray-900)', marginBottom: 16 }}>Log Utility Bill</h3>
           <form onSubmit={handleLogBill} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr auto', gap: 12, alignItems: 'end' }}>
             <div>
               <label style={frm.label}>Utility Type</label>
-              <select value={formData.utilityType} onChange={(e) => setFormData((f) => ({ ...f, utilityType: e.target.value }))} style={frm.input}>
-                {['Electricity', 'Water', 'Gas'].map((t) => <option key={t} value={t}>{t}</option>)}
-              </select>
+              <SelectField value={formData.utilityType} onChange={(v) => setFormData((f) => ({ ...f, utilityType: v }))} options={['Electricity', 'Water', 'Gas']} style={frm.input} aria-label="Utility Type" />
             </div>
             <div>
               <label style={frm.label}>Period</label>
@@ -591,12 +553,12 @@ function UtilitiesTab() {
               {saving ? 'Saving…' : 'Save'}
             </button>
           </form>
-          {saveErr && <div style={{ marginTop: 10, color: '#dc2626', fontSize: 13 }}>⚠ {saveErr}</div>}
+          {saveErr && <div style={{ marginTop: 10, color: 'var(--danger)', fontSize: 13 }}>⚠ {saveErr}</div>}
         </div>
       )}
 
       {loading ? <Spinner /> : error ? (
-        <div style={{ color: '#ff6b6b', background: 'rgba(220,38,38,0.12)', border: '1px solid rgba(220,38,38,0.30)', borderRadius: 10, padding: '12px 16px', fontSize: 14 }}>{error}</div>
+        <div style={{ color: 'var(--danger)', background: 'var(--danger-bg)', border: '1px solid var(--danger)', borderRadius: 'var(--radius-md)', padding: '12px 16px', fontSize: 14 }}>{error}</div>
       ) : (
         <>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 16, marginBottom: 20 }}>
@@ -605,16 +567,16 @@ function UtilitiesTab() {
               const trendUp   = trend > 0;
               const trendDown = trend < 0;
               return (
-                <div key={m.type} data-testid={m.testId} style={{ background: 'var(--surface)', border: '1px solid var(--gray-200)', borderRadius: 14, padding: 20, boxShadow: 'var(--shadow-sm)' }}>
+                <div key={m.type} data-testid={m.testId} style={{ background: 'var(--surface)', border: '1px solid var(--gray-200)', borderRadius: 'var(--radius-md)', padding: 20, boxShadow: 'var(--shadow-sm)' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
                     <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--gray-500)', textTransform: 'uppercase', letterSpacing: '0.4px' }}>{m.type}</span>
-                    <span style={{ width: 36, height: 36, borderRadius: 9, background: m.light, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18 }}>{m.icon}</span>
+                    <span style={{ width: 36, height: 36, borderRadius: 'var(--radius-md)', background: m.light, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18 }}>{m.icon}</span>
                   </div>
                   <div style={{ fontSize: 22, fontWeight: 700, color: current !== null ? m.color : 'var(--gray-300)', marginBottom: 6 }}>
                     {current !== null ? fmtOMR(current) : '—'}
                   </div>
                   {prev !== null && (
-                    <div style={{ fontSize: 12, color: trendUp ? '#dc2626' : trendDown ? '#16a34a' : 'var(--gray-400)', fontWeight: 500 }}>
+                    <div style={{ fontSize: 12, color: trendUp ? 'var(--danger)' : trendDown ? 'var(--success)' : 'var(--gray-400)', fontWeight: 500 }}>
                       {trendUp ? '↑' : trendDown ? '↓' : '→'} {fmtOMR(Math.abs(trend))} vs prev month
                     </div>
                   )}
@@ -625,7 +587,7 @@ function UtilitiesTab() {
           </div>
 
           {Object.keys(bills).length > 0 && (
-            <div style={{ background: 'var(--surface)', border: '1px solid var(--gray-200)', borderRadius: 14, padding: 24, boxShadow: 'var(--shadow-sm)' }}>
+            <div style={{ background: 'var(--surface)', border: '1px solid var(--gray-200)', borderRadius: 'var(--radius-md)', padding: 24, boxShadow: 'var(--shadow-sm)' }}>
               <h3 style={{ fontSize: 15, fontWeight: 700, color: 'var(--gray-900)', marginBottom: 16 }}>6-Month Utility Trend</h3>
               <div style={{ height: 280, position: 'relative' }}>
                 <canvas ref={chartRef} />
@@ -691,8 +653,8 @@ function MaintenanceTab() {
   if (loading) return <Spinner />;
   if (error) return (
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, padding: 40 }}>
-      <div style={{ background: 'rgba(220,38,38,0.12)', border: '1px solid rgba(220,38,38,0.30)', color: '#ff6b6b', padding: '12px 20px', borderRadius: 10, fontSize: 14 }}>{error}</div>
-      <button onClick={fetchData} style={btn.retry}>Retry</button>
+      <div style={{ background: 'var(--danger-bg)', border: '1px solid var(--danger)', color: 'var(--danger)', padding: '12px 20px', borderRadius: 'var(--radius-md)', fontSize: 14 }}>{error}</div>
+      <button type="button" onClick={fetchData} style={btn.retry}>Retry</button>
     </div>
   );
 
@@ -704,55 +666,43 @@ function MaintenanceTab() {
     <div>
       {/* Summary stats */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 16, marginBottom: 20 }}>
-        <StatCard label="Open"        value={openCount}     color="#6b9fff" bg="rgba(107,159,255,0.12)" icon="📋" />
-        <StatCard label="In Progress" value={inProgCount}   color="#fbbf24" bg="rgba(251,191,36,0.12)"  icon="🔧" />
-        <StatCard label="Critical"    value={criticalCount} color="#ff6b6b" bg="rgba(220,38,38,0.15)"   icon="🚨" />
+        <StatCard label="Open"        value={openCount}     color="var(--info)" bg="var(--info-bg)" icon="📋" />
+        <StatCard label="In Progress" value={inProgCount}   color="var(--warning)" bg="var(--warning-bg)"  icon="🔧" />
+        <StatCard label="Critical"    value={criticalCount} color="var(--danger)" bg="var(--danger-bg)"   icon="🚨" />
       </div>
 
       {/* Toolbar */}
       <div style={{ display: 'flex', gap: 10, marginBottom: 16, flexWrap: 'wrap', alignItems: 'center' }}>
-        <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} style={{ padding: '9px 12px', border: '1px solid var(--gray-200)', borderRadius: 9, fontSize: 13, background: 'var(--gray-50)', fontFamily: 'inherit', color: 'var(--gray-700)' }}>
-          {['ALL', 'Open', 'In Progress', 'Completed'].map((s) => <option key={s} value={s}>{s === 'ALL' ? 'All Statuses' : s}</option>)}
-        </select>
-        <select value={filterType} onChange={(e) => setFilterType(e.target.value)} style={{ padding: '9px 12px', border: '1px solid var(--gray-200)', borderRadius: 9, fontSize: 13, background: 'var(--gray-50)', fontFamily: 'inherit', color: 'var(--gray-700)' }}>
-          {['ALL', 'Planned', 'Unplanned'].map((t) => <option key={t} value={t}>{t === 'ALL' ? 'All Types' : t}</option>)}
-        </select>
-        <button onClick={() => { setShowForm((v) => !v); setSaveErr(''); }} style={{ ...btn.primary, marginLeft: 'auto' }}>
+        <SelectField value={filterStatus} onChange={setFilterStatus} options={['ALL', 'Open', 'In Progress', 'Completed'].map((s) => ({ value: s, label: s === 'ALL' ? 'All Statuses' : s }))} style={{ padding: '9px 12px', border: '1px solid var(--gray-200)', borderRadius: 'var(--radius-md)', fontSize: 13, background: 'var(--gray-50)', fontFamily: 'inherit', color: 'var(--gray-700)' }} aria-label="Filter by status" />
+        <SelectField value={filterType} onChange={setFilterType} options={['ALL', 'Planned', 'Unplanned'].map((t) => ({ value: t, label: t === 'ALL' ? 'All Types' : t }))} style={{ padding: '9px 12px', border: '1px solid var(--gray-200)', borderRadius: 'var(--radius-md)', fontSize: 13, background: 'var(--gray-50)', fontFamily: 'inherit', color: 'var(--gray-700)' }} aria-label="Filter by type" />
+        <button type="button" onClick={() => { setShowForm((v) => !v); setSaveErr(''); }} style={{ ...btn.primary, marginLeft: 'auto' }}>
           {showForm ? '✕ Cancel' : '+ New Work Order'}
         </button>
       </div>
 
       {/* New work order form */}
       {showForm && (
-        <div style={{ background: 'var(--surface)', border: '1px solid var(--gray-200)', borderRadius: 14, padding: 24, marginBottom: 20, boxShadow: 'var(--shadow-sm)' }}>
+        <div style={{ background: 'var(--surface)', border: '1px solid var(--gray-200)', borderRadius: 'var(--radius-md)', padding: 24, marginBottom: 20, boxShadow: 'var(--shadow-sm)' }}>
           <h3 style={{ fontSize: 15, fontWeight: 700, color: 'var(--gray-900)', marginBottom: 16 }}>New Work Order</h3>
           <form onSubmit={handleSubmit}>
             <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: 14, marginBottom: 14 }}>
               <div>
                 <label htmlFor="wo-asset" style={frm.label}>Asset</label>
-                <select id="wo-asset" value={formData.assetCode} onChange={(e) => setFormData((f) => ({ ...f, assetCode: e.target.value }))} style={frm.input}>
-                  <option value="">Select asset…</option>
-                  {assets.map((a) => <option key={a.assetCode} value={a.assetCode}>{a.assetCode} — {a.name}</option>)}
-                </select>
+                <SelectField id="wo-asset" value={formData.assetCode} onChange={(v) => setFormData((f) => ({ ...f, assetCode: v }))} options={assets.map((a) => ({ value: a.assetCode, label: `${a.assetCode} — ${a.name}` }))} placeholder="Select asset…" style={frm.input} aria-label="Asset" />
               </div>
               <div>
                 <label htmlFor="wo-type" style={frm.label}>Type</label>
-                <select id="wo-type" value={formData.type} onChange={(e) => setFormData((f) => ({ ...f, type: e.target.value }))} style={frm.input}>
-                  <option value="Planned">Planned</option>
-                  <option value="Unplanned">Unplanned</option>
-                </select>
+                <SelectField id="wo-type" value={formData.type} onChange={(v) => setFormData((f) => ({ ...f, type: v }))} options={['Planned', 'Unplanned']} style={frm.input} aria-label="Type" />
               </div>
               <div>
                 <label htmlFor="wo-priority" style={frm.label}>Priority</label>
-                <select id="wo-priority" value={formData.priority} onChange={(e) => setFormData((f) => ({ ...f, priority: e.target.value }))} style={frm.input}>
-                  {['Low', 'Medium', 'High', 'Critical'].map((p) => <option key={p} value={p}>{p}</option>)}
-                </select>
+                <SelectField id="wo-priority" value={formData.priority} onChange={(v) => setFormData((f) => ({ ...f, priority: v }))} options={['Low', 'Medium', 'High', 'Critical']} style={frm.input} aria-label="Priority" />
               </div>
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 14, marginBottom: 14 }}>
               <div>
                 <label htmlFor="wo-scheduled" style={frm.label}>Scheduled Date</label>
-                <input id="wo-scheduled" type="date" value={formData.scheduledDate} onChange={(e) => setFormData((f) => ({ ...f, scheduledDate: e.target.value }))} style={frm.input} />
+                <DateField id="wo-scheduled" value={formData.scheduledDate} onChange={(v) => setFormData((f) => ({ ...f, scheduledDate: v }))} style={frm.input} />
               </div>
               <div>
                 <label htmlFor="wo-tech" style={frm.label}>Technician</label>
@@ -760,10 +710,7 @@ function MaintenanceTab() {
               </div>
               <div>
                 <label htmlFor="wo-dept" style={frm.label}>Department</label>
-                <select id="wo-dept" value={formData.department} onChange={(e) => setFormData((f) => ({ ...f, department: e.target.value }))} style={frm.input}>
-                  <option value="">Select…</option>
-                  {DEPARTMENTS.map((d) => <option key={d} value={d}>{d}</option>)}
-                </select>
+                <SelectField id="wo-dept" value={formData.department} onChange={(v) => setFormData((f) => ({ ...f, department: v }))} options={DEPARTMENTS} placeholder="Select…" style={frm.input} aria-label="Work order department" />
               </div>
               <div>
                 <label htmlFor="wo-hours" style={frm.label}>Est. Hours</label>
@@ -780,7 +727,7 @@ function MaintenanceTab() {
                 <textarea id="wo-notes" rows={3} value={formData.notes} onChange={(e) => setFormData((f) => ({ ...f, notes: e.target.value }))} style={{ ...frm.input, resize: 'vertical' }} />
               </div>
             </div>
-            {saveErr && <div style={{ color: '#dc2626', fontSize: 13, marginBottom: 10 }}>⚠ {saveErr}</div>}
+            {saveErr && <div style={{ color: 'var(--danger)', fontSize: 13, marginBottom: 10 }}>⚠ {saveErr}</div>}
             <div style={{ display: 'flex', gap: 10 }}>
               <button type="submit" disabled={saving} style={{ ...btn.saveForm, ...(saving ? { opacity: 0.6, cursor: 'not-allowed' } : {}) }}>
                 {saving ? 'Saving…' : 'Create Work Order'}
@@ -792,7 +739,7 @@ function MaintenanceTab() {
       )}
 
       {/* Work orders table */}
-      <div style={{ background: 'var(--surface)', border: '1px solid var(--gray-200)', borderRadius: 14, overflow: 'hidden', boxShadow: 'var(--shadow-sm)' }}>
+      <div style={{ background: 'var(--surface)', border: '1px solid var(--gray-200)', borderRadius: 'var(--radius-md)', overflow: 'hidden', boxShadow: 'var(--shadow-sm)' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13.5 }}>
           <thead>
             <tr style={{ background: 'var(--gray-50)' }}>
@@ -804,31 +751,27 @@ function MaintenanceTab() {
           <tbody>
             {filtered.length === 0 ? (
               <tr><td colSpan={8} style={{ padding: '48px 24px', textAlign: 'center', color: 'var(--gray-400)', fontSize: 14 }}>No work orders found</td></tr>
-            ) : filtered.map((wo, i) => {
-              const ws = WO_STATUS_STYLE[wo.status] || WO_STATUS_STYLE.Open;
-              const ps = PRIORITY_STYLE[wo.priority] || PRIORITY_STYLE.Medium;
-              return (
-                <tr key={wo.id} data-testid="wo-row" style={{ background: i % 2 === 1 ? 'rgba(255,255,255,0.025)' : 'transparent', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+            ) : filtered.map((wo, i) => (
+                <tr key={wo.id} data-testid="wo-row" style={{ background: i % 2 === 1 ? 'var(--gray-50)' : 'transparent', borderBottom: '1px solid var(--gray-50)' }}>
                   <td style={{ padding: '11px 14px', fontWeight: 600, color: 'var(--gray-700)', fontFamily: 'monospace', fontSize: 12 }}>{wo.id}</td>
                   <td style={{ padding: '11px 14px' }}>
                     <div style={{ fontSize: 12, fontFamily: 'monospace', color: 'var(--gray-500)' }}>{wo.assetCode}</div>
                     <div style={{ fontSize: 12.5, color: 'var(--gray-700)', marginTop: 2 }}>{wo.assetName}</div>
                   </td>
                   <td style={{ padding: '11px 14px' }}>
-                    <span style={{ fontSize: 12.5, fontWeight: 600, color: wo.type === 'Planned' ? '#1d4ed8' : '#dc2626' }}>
+                    <span style={{ fontSize: 12.5, fontWeight: 600, color: wo.type === 'Planned' ? 'var(--info)' : 'var(--danger)' }}>
                       {wo.type === 'Planned' ? '📅' : '⚠'} {wo.type}
                     </span>
                   </td>
-                  <td style={{ padding: '11px 14px' }}><Badge text={wo.priority} style={ps} /></td>
+                  <td style={{ padding: '11px 14px' }}><Badge status={wo.priority} tone={PRIORITY_TONE[wo.priority]} /></td>
                   <td style={{ padding: '11px 14px', maxWidth: 200 }}>
                     <span style={{ fontSize: 13, color: 'var(--gray-700)', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{wo.description}</span>
                   </td>
                   <td style={{ padding: '11px 14px', fontSize: 12.5, color: 'var(--gray-500)', whiteSpace: 'nowrap' }}>{wo.scheduledDate}</td>
-                  <td style={{ padding: '11px 14px' }}><Badge text={wo.status} style={ws} /></td>
+                  <td style={{ padding: '11px 14px' }}><Badge status={wo.status} /></td>
                   <td style={{ padding: '11px 14px', fontSize: 13, color: 'var(--gray-600)' }}>{wo.technician || '—'}</td>
                 </tr>
-              );
-            })}
+            ))}
           </tbody>
         </table>
       </div>
@@ -854,14 +797,14 @@ export default function AssetRegistry() {
         <p style={{ fontSize: 14, color: 'var(--gray-500)' }}>Real Estate Asset Development Portfolio</p>
       </div>
 
-      <div style={{ display: 'flex', gap: 4, marginBottom: 24, background: 'var(--gray-100)', borderRadius: 12, padding: 4, width: 'fit-content' }}>
+      <div style={{ display: 'flex', gap: 4, marginBottom: 24, background: 'var(--gray-100)', borderRadius: 'var(--radius-md)', padding: 4, width: 'fit-content' }}>
         {TABS.map((tab) => (
-          <button
+          <button type="button"
             key={tab.id}
             data-testid={tab.testId}
             onClick={() => setActiveTab(tab.id)}
             style={{
-              padding: '8px 20px', borderRadius: 9, border: 'none', fontSize: 13.5, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.15s',
+              padding: '8px 20px', borderRadius: 'var(--radius-md)', border: 'none', fontSize: 13.5, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.15s',
               background: activeTab === tab.id ? 'var(--surface)' : 'transparent',
               color:      activeTab === tab.id ? 'var(--gray-900)' : 'var(--gray-500)',
               boxShadow:  activeTab === tab.id ? 'var(--shadow-sm)' : 'none',
@@ -881,15 +824,15 @@ export default function AssetRegistry() {
 
 // ── Shared style tokens ───────────────────────────────────────────────────────
 const btn = {
-  retry:    { padding: '8px 20px', background: '#DD1D21', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 600, fontSize: 14, fontFamily: 'inherit' },
-  primary:  { padding: '9px 16px', background: 'linear-gradient(135deg,#DD1D21,#9b0000)', color: '#fff', border: 'none', borderRadius: 9, fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', boxShadow: '0 2px 8px rgba(221,29,33,0.30)' },
-  saveForm: { padding: '9px 20px', background: '#DD1D21', color: '#fff', border: 'none', borderRadius: 9, fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' },
-  cancel:   { padding: '9px 20px', background: 'var(--gray-100)', color: 'var(--gray-600)', border: '1px solid var(--gray-200)', borderRadius: 9, fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' },
+  retry:    { padding: '8px 20px', background: 'var(--shell-red)', color: '#fff', border: 'none', borderRadius: 'var(--radius-md)', cursor: 'pointer', fontWeight: 600, fontSize: 14, fontFamily: 'inherit' },
+  primary:  { padding: '9px 16px', background: 'linear-gradient(135deg,var(--shell-red),var(--shell-red-dark))', color: '#fff', border: 'none', borderRadius: 'var(--radius-md)', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', boxShadow: '0 2px 8px rgba(221,29,33,0.30)' },
+  saveForm: { padding: '9px 20px', background: 'var(--shell-red)', color: '#fff', border: 'none', borderRadius: 'var(--radius-md)', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' },
+  cancel:   { padding: '9px 20px', background: 'var(--gray-100)', color: 'var(--gray-600)', border: '1px solid var(--gray-200)', borderRadius: 'var(--radius-md)', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' },
 };
 
 const frm = {
   label: { display: 'block', fontSize: 12, fontWeight: 500, color: 'var(--gray-500)', marginBottom: 5 },
-  input: { width: '100%', padding: '9px 12px', border: '1px solid var(--gray-200)', borderRadius: 8, fontSize: 13.5, fontFamily: 'inherit', color: 'var(--gray-900)', background: 'var(--gray-50)', outline: 'none', boxSizing: 'border-box' },
+  input: { width: '100%', padding: '9px 12px', border: '1px solid var(--gray-200)', borderRadius: 'var(--radius-md)', fontSize: 13.5, fontFamily: 'inherit', color: 'var(--gray-900)', background: 'var(--gray-50)', outline: 'none', boxSizing: 'border-box' },
 };
 
 const exp = {

@@ -20,9 +20,22 @@
 
 :root {
   /* ── Shell brand ─────────────────────────────────────────────────────────── */
-  --shell-red:    #DD1D21;   /* primary interactive accent — buttons, active states, CTAs */
-  --shell-yellow: #FFD500;   /* secondary accent — highlights, badges, charts */
-  --shell-navy:   #003366;   /* dark background surfaces only — never for interactive elements */
+  --shell-red:      #DD1D21;   /* primary interactive accent — buttons, active states, CTAs */
+  --shell-red-dark: #B8161B;   /* primary-button border / pressed */
+  --shell-yellow:   #FFD500;   /* secondary accent — highlights, badges, charts */
+  --shell-navy:     #003366;   /* dark background surfaces only — never for interactive elements */
+
+  /* ── Module accent identity (Capex gold / PR red / Assets amber) ──────────── */
+  --accent-gold:       var(--shell-yellow);  --accent-gold-bg:  var(--bg-tertiary);
+  --accent-red:        var(--shell-red);     --accent-red-bg:   #fff1f1;  --accent-red-line:  #ffd3d3;
+  --accent-amber:      #b45309;              --accent-amber-bg: #fff7ed;  --accent-amber-line: #f1d36a;  --accent-amber-text: #8a5d00;
+
+  /* ── Semantic status — the ONLY status palette (accent / text / soft-bg) ──── */
+  --success:      #16a34a;  --success-text: #166534;  --success-bg: #f0fdf4;
+  --warning:      #f59e0b;  --warning-text: #92400e;  --warning-bg: #fff8cc;
+  --danger:       #DD1D21;  --danger-text:  #991b1b;  --danger-bg:  #fee2e2;
+  --info:         #1d4ed8;  --info-text:    #1d4ed8;  --info-bg:    #dbeafe;
+  --neutral:      #6b7280;  --neutral-text: #6b7280;  --neutral-bg: #f4f4f4;
 
   /* ── Apple semantic colours — dark mode ──────────────────────────────────── */
   /* Labels */
@@ -73,12 +86,15 @@
   /* Card-specific shadow */
   --shadow-card: 0 1px 2px rgba(0,0,0,0.06), 0 8px 20px rgba(0,0,0,0.06);
 
-  /* ── Radius — Apple uses generous rounding ───────────────────────────────── */
-  --radius-sm:   8px;
-  --radius-md:   12px;
-  --radius-lg:   16px;
-  --radius-xl:   20px;
-  --radius-2xl:  24px;
+  /* ── Radius — tight enterprise scale (4 / 6 / 8) ─────────────────────────── */
+  --radius-xs:   4px;    /* chips, badges, small controls */
+  --radius-sm:   6px;    /* buttons */
+  --radius-md:   8px;    /* inputs, cards, panels, tables, modals, headers */
+  /* legacy aliases collapse to 8 so old references never over-round */
+  --radius-lg:   8px;
+  --radius-xl:   8px;
+  --radius-2xl:  8px;
+  --radius-pill: 9999px;
   --radius-full: 9999px;
 
   /* ── Transitions ─────────────────────────────────────────────────────────── */

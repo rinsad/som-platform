@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { createPR, uploadDocumentFile } from '../../services/prService';
+import SelectField from '../../components/SelectField';
 
 const DEPARTMENTS = [
   'Admin', 'Finance', 'HR', 'Infrastructure',
@@ -14,9 +15,9 @@ function calcTier(value) {
 }
 
 const TIER_CONFIG = {
-  LOW:    { label: 'LOW — Department Manager approval',    bg: 'rgba(52,211,153,0.12)',  color: '#34d399', border: 'rgba(52,211,153,0.30)' },
-  MEDIUM: { label: 'MEDIUM — Dept + Finance approval',     bg: 'rgba(251,191,36,0.12)',  color: '#fbbf24', border: 'rgba(251,191,36,0.30)' },
-  HIGH:   { label: 'HIGH — Executive Committee approval',  bg: 'rgba(220,38,38,0.12)',   color: '#ff6b6b', border: 'rgba(220,38,38,0.30)' },
+  LOW:    { label: 'LOW — Department Manager approval',    bg: 'var(--success-bg)',  color: 'var(--success)', border: 'var(--success)' },
+  MEDIUM: { label: 'MEDIUM — Dept + Finance approval',     bg: 'var(--warning-bg)',  color: 'var(--warning)', border: 'var(--warning)' },
+  HIGH:   { label: 'HIGH — Executive Committee approval',  bg: 'var(--danger-bg)',   color: 'var(--danger)', border: 'var(--danger)' },
 };
 
 function emptyRow() {
@@ -107,7 +108,7 @@ export default function NewPurchaseRequest() {
     <div style={s.page}>
       {/* Header */}
       <div style={s.pageHeader}>
-        <button onClick={() => navigate('/purchase-requests')} style={s.backBtn}>← Back</button>
+        <button type="button" onClick={() => navigate('/purchase-requests')} style={s.backBtn}>← Back</button>
         <div>
           <h1 style={s.heading}>New Purchase Request</h1>
           <p style={s.subheading}>Complete all sections before submitting</p>
@@ -139,17 +140,16 @@ export default function NewPurchaseRequest() {
               <div style={s.row2}>
                 <div style={s.field}>
                   <label style={s.label}>Department <span style={s.req}>*</span></label>
-                  <select
-                    value={department}
-                    onChange={(e) => setDepartment(e.target.value)}
+                  <SelectField
+                    name="department"
                     required
+                    value={department}
+                    onChange={setDepartment}
+                    options={DEPARTMENTS}
+                    placeholder="Select department…"
                     style={s.select}
-                  >
-                    <option value="">Select department…</option>
-                    {DEPARTMENTS.map((d) => (
-                      <option key={d} value={d}>{d}</option>
-                    ))}
-                  </select>
+                    aria-label="Department"
+                  />
                 </div>
               </div>
 
@@ -263,9 +263,9 @@ export default function NewPurchaseRequest() {
                 </label>
                 <span style={{
                   ...s.quoteCount,
-                  color: needsJustification ? '#ff6b6b' : '#34d399',
-                  background: needsJustification ? 'rgba(220,38,38,0.12)' : 'rgba(52,211,153,0.12)',
-                  border: `1px solid ${needsJustification ? 'rgba(220,38,38,0.30)' : 'rgba(52,211,153,0.30)'}`,
+                  color: needsJustification ? 'var(--danger)' : 'var(--success)',
+                  background: needsJustification ? 'var(--danger-bg)' : 'var(--success-bg)',
+                  border: `1px solid ${needsJustification ? 'var(--danger)' : 'var(--success)'}`,
                 }}>
                   {quoteCount} of 3 quotes
                 </span>
@@ -333,7 +333,7 @@ export default function NewPurchaseRequest() {
               </div>
               <div style={s.summaryRow}>
                 <span style={s.summaryLabel}>Quotes attached</span>
-                <span style={{ ...s.summaryVal, color: needsJustification ? '#dc2626' : '#15803d' }}>
+                <span style={{ ...s.summaryVal, color: needsJustification ? 'var(--danger)' : 'var(--success)' }}>
                   {quoteCount} / 3
                 </span>
               </div>
@@ -368,7 +368,7 @@ const s = {
   page: { animation: 'fadeIn 0.25s ease' },
 
   pageHeader: { display: 'flex', alignItems: 'flex-start', gap: '16px', marginBottom: '24px' },
-  backBtn: { background: 'var(--surface)', border: '1px solid var(--gray-200)', color: 'var(--gray-600)', padding: '8px 14px', borderRadius: '9px', fontSize: '13px', fontWeight: '500', cursor: 'pointer', fontFamily: 'inherit', marginTop: '4px', boxShadow: 'var(--shadow-xs)', flexShrink: 0 },
+  backBtn: { background: 'var(--surface)', border: '1px solid var(--gray-200)', color: 'var(--gray-600)', padding: '8px 14px', borderRadius: 'var(--radius-md)', fontSize: '13px', fontWeight: '500', cursor: 'pointer', fontFamily: 'inherit', marginTop: '4px', boxShadow: 'var(--shadow-xs)', flexShrink: 0 },
   heading: { fontSize: '24px', fontWeight: '700', color: 'var(--gray-900)', letterSpacing: '-0.4px', marginBottom: '4px' },
   subheading: { fontSize: '14px', color: 'var(--gray-500)' },
 
@@ -376,31 +376,31 @@ const s = {
   mainCol: { display: 'flex', flexDirection: 'column', gap: '16px' },
   sideCol: { display: 'flex', flexDirection: 'column', gap: '12px', position: 'sticky', top: '20px' },
 
-  card: { background: 'var(--surface)', border: '1px solid var(--gray-200)', borderRadius: '14px', padding: '24px', boxShadow: 'var(--shadow-sm)' },
+  card: { background: 'var(--surface)', border: '1px solid var(--gray-200)', borderRadius: 'var(--radius-md)', padding: '24px', boxShadow: 'var(--shadow-sm)' },
   cardTitle: { fontSize: '15px', fontWeight: '700', color: 'var(--gray-900)', marginBottom: '16px', letterSpacing: '-0.2px' },
   cardTitleRow: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' },
   cardHint: { fontSize: '13px', color: 'var(--gray-400)', marginBottom: '14px', marginTop: '-8px' },
 
   field: { display: 'flex', flexDirection: 'column', gap: '6px', marginBottom: '14px' },
   label: { fontSize: '13px', fontWeight: '500', color: 'var(--gray-600)' },
-  req:   { color: '#dc2626' },
+  req:   { color: 'var(--danger)' },
   row2:  { display: 'grid', gridTemplateColumns: '1fr', gap: '12px' },
 
-  input: { padding: '10px 13px', fontSize: '14px', border: '1px solid var(--gray-200)', borderRadius: '9px', outline: 'none', color: 'var(--gray-900)', background: 'var(--gray-50)', fontFamily: 'inherit', transition: 'border-color 0.15s', width: '100%' },
-  select: { padding: '10px 13px', fontSize: '14px', border: '1px solid var(--gray-200)', borderRadius: '9px', outline: 'none', color: 'var(--gray-900)', background: 'var(--gray-50)', fontFamily: 'inherit', width: '100%' },
-  textarea: { padding: '10px 13px', fontSize: '14px', border: '1px solid var(--gray-200)', borderRadius: '9px', outline: 'none', color: 'var(--gray-900)', background: 'var(--gray-50)', fontFamily: 'inherit', resize: 'vertical', width: '100%' },
+  input: { padding: '10px 13px', fontSize: '14px', border: '1px solid var(--gray-200)', borderRadius: 'var(--radius-md)', outline: 'none', color: 'var(--gray-900)', background: 'var(--gray-50)', fontFamily: 'inherit', transition: 'border-color 0.15s', width: '100%' },
+  select: { padding: '10px 13px', fontSize: '14px', border: '1px solid var(--gray-200)', borderRadius: 'var(--radius-md)', outline: 'none', color: 'var(--gray-900)', background: 'var(--gray-50)', fontFamily: 'inherit', width: '100%' },
+  textarea: { padding: '10px 13px', fontSize: '14px', border: '1px solid var(--gray-200)', borderRadius: 'var(--radius-md)', outline: 'none', color: 'var(--gray-900)', background: 'var(--gray-50)', fontFamily: 'inherit', resize: 'vertical', width: '100%' },
 
-  addRowBtn: { padding: '5px 13px', background: 'rgba(107,159,255,0.12)', border: '1px solid rgba(107,159,255,0.25)', color: '#6b9fff', borderRadius: '7px', fontSize: '12.5px', fontWeight: '600', cursor: 'pointer', fontFamily: 'inherit' },
+  addRowBtn: { padding: '5px 13px', background: 'var(--info-bg)', border: '1px solid var(--info)', color: 'var(--info)', borderRadius: 'var(--radius-sm)', fontSize: '12.5px', fontWeight: '600', cursor: 'pointer', fontFamily: 'inherit' },
 
   tableWrap: { overflowX: 'auto', marginBottom: '0' },
   table: { width: '100%', borderCollapse: 'collapse', fontSize: '13.5px' },
   th: { padding: '9px 10px', textAlign: 'left', fontSize: '11px', fontWeight: '600', color: 'var(--gray-400)', textTransform: 'uppercase', letterSpacing: '0.5px', borderBottom: '1px solid var(--gray-100)', whiteSpace: 'nowrap' },
-  td: { padding: '8px 10px', borderBottom: '1px solid rgba(255,255,255,0.06)', verticalAlign: 'middle' },
-  tdInput: { padding: '6px 6px', borderBottom: '1px solid rgba(255,255,255,0.06)' },
-  trAlt: { background: 'rgba(255,255,255,0.025)' },
+  td: { padding: '8px 10px', borderBottom: '1px solid var(--gray-50)', verticalAlign: 'middle' },
+  tdInput: { padding: '6px 6px', borderBottom: '1px solid var(--gray-50)' },
+  trAlt: { background: 'var(--gray-50)' },
 
-  cellInput: { width: '100%', padding: '7px 9px', fontSize: '13.5px', border: '1px solid var(--gray-200)', borderRadius: '7px', outline: 'none', background: 'var(--surface)', fontFamily: 'inherit', color: 'var(--gray-900)' },
-  removeBtn: { background: 'transparent', border: 'none', color: 'var(--gray-300)', cursor: 'pointer', fontSize: '14px', padding: '2px 6px', borderRadius: '5px', fontFamily: 'inherit', transition: 'color 0.15s' },
+  cellInput: { width: '100%', padding: '7px 9px', fontSize: '13.5px', border: '1px solid var(--gray-200)', borderRadius: 'var(--radius-sm)', outline: 'none', background: 'var(--surface)', fontFamily: 'inherit', color: 'var(--gray-900)' },
+  removeBtn: { background: 'transparent', border: 'none', color: 'var(--gray-300)', cursor: 'pointer', fontSize: '14px', padding: '2px 6px', borderRadius: 'var(--radius-xs)', fontFamily: 'inherit', transition: 'color 0.15s' },
 
   totalRow: { display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '12px', padding: '12px 10px 0', borderTop: '2px solid var(--gray-100)', marginTop: '4px' },
   totalLabel: { fontSize: '13px', fontWeight: '600', color: 'var(--gray-500)', textTransform: 'uppercase', letterSpacing: '0.4px' },
@@ -408,27 +408,27 @@ const s = {
 
   quoteRow: { display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '10px' },
   fileLabel: { cursor: 'pointer' },
-  fileBtn: { display: 'inline-block', padding: '8px 16px', background: 'rgba(107,159,255,0.12)', border: '1px solid rgba(107,159,255,0.25)', borderRadius: '8px', fontSize: '13px', fontWeight: '600', color: '#6b9fff', cursor: 'pointer' },
-  quoteCount: { padding: '5px 12px', borderRadius: '9999px', fontSize: '12.5px', fontWeight: '600' },
+  fileBtn: { display: 'inline-block', padding: '8px 16px', background: 'var(--info-bg)', border: '1px solid var(--info)', borderRadius: 'var(--radius-md)', fontSize: '13px', fontWeight: '600', color: 'var(--info)', cursor: 'pointer' },
+  quoteCount: { padding: '5px 12px', borderRadius: 'var(--radius-pill)', fontSize: '12.5px', fontWeight: '600' },
   fileList: { display: 'flex', flexDirection: 'column', gap: '6px', marginBottom: '12px' },
-  fileItem: { display: 'flex', alignItems: 'center', gap: '8px', background: 'var(--gray-50)', border: '1px solid var(--gray-100)', borderRadius: '7px', padding: '6px 10px' },
+  fileItem: { display: 'flex', alignItems: 'center', gap: '8px', background: 'var(--gray-50)', border: '1px solid var(--gray-100)', borderRadius: 'var(--radius-sm)', padding: '6px 10px' },
   fileIcon: { fontSize: '14px' },
   fileName: { fontSize: '12.5px', color: 'var(--gray-600)', fontWeight: '500' },
 
-  quoteWarning: { background: 'rgba(220,38,38,0.12)', border: '1px solid rgba(220,38,38,0.30)', color: '#ff6b6b', borderRadius: '9px', padding: '10px 14px', fontSize: '13px', fontWeight: '500' },
+  quoteWarning: { background: 'var(--danger-bg)', border: '1px solid var(--danger)', color: 'var(--danger)', borderRadius: 'var(--radius-md)', padding: '10px 14px', fontSize: '13px', fontWeight: '500' },
 
-  tierCard: { border: '1px solid', borderRadius: '12px', padding: '18px' },
+  tierCard: { border: '1px solid', borderRadius: 'var(--radius-md)', padding: '18px' },
   tierTitle: { fontSize: '11px', fontWeight: '600', color: 'var(--gray-400)', textTransform: 'uppercase', letterSpacing: '0.6px', marginBottom: '10px' },
-  tierBadge: { display: 'inline-block', padding: '6px 12px', borderRadius: '8px', fontSize: '13px', fontWeight: '700', border: '1px solid', marginBottom: '8px' },
+  tierBadge: { display: 'inline-block', padding: '6px 12px', borderRadius: 'var(--radius-md)', fontSize: '13px', fontWeight: '700', border: '1px solid', marginBottom: '8px' },
   tierHint: { fontSize: '12px', fontWeight: '400' },
 
-  summaryCard: { background: 'var(--surface)', border: '1px solid var(--gray-200)', borderRadius: '12px', padding: '16px', boxShadow: 'var(--shadow-xs)' },
+  summaryCard: { background: 'var(--surface)', border: '1px solid var(--gray-200)', borderRadius: 'var(--radius-md)', padding: '16px', boxShadow: 'var(--shadow-xs)' },
   summaryTitle: { fontSize: '12px', fontWeight: '600', color: 'var(--gray-400)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '12px' },
   summaryRow: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' },
   summaryLabel: { fontSize: '13px', color: 'var(--gray-500)' },
   summaryVal: { fontSize: '13.5px', fontWeight: '600', color: 'var(--gray-700)' },
 
-  submitBtn: { width: '100%', padding: '12px', background: 'linear-gradient(135deg, #003366, #DD1D21)', color: '#fff', border: 'none', borderRadius: '10px', fontSize: '14px', fontWeight: '700', cursor: 'pointer', fontFamily: 'inherit', boxShadow: '0 4px 12px rgba(0,51,102,0.25)', transition: 'opacity 0.15s' },
+  submitBtn: { width: '100%', padding: '12px', background: 'linear-gradient(135deg, var(--shell-navy), var(--shell-red))', color: '#fff', border: 'none', borderRadius: 'var(--radius-md)', fontSize: '14px', fontWeight: '700', cursor: 'pointer', fontFamily: 'inherit', boxShadow: '0 4px 12px rgba(0,51,102,0.25)', transition: 'opacity 0.15s' },
   submitBtnDisabled: { opacity: 0.6, cursor: 'not-allowed' },
-  submitError: { background: 'rgba(220,38,38,0.12)', border: '1px solid rgba(220,38,38,0.30)', color: '#ff6b6b', padding: '10px 14px', borderRadius: '9px', fontSize: '13px', fontWeight: '500', textAlign: 'center' },
+  submitError: { background: 'var(--danger-bg)', border: '1px solid var(--danger)', color: 'var(--danger)', padding: '10px 14px', borderRadius: 'var(--radius-md)', fontSize: '13px', fontWeight: '500', textAlign: 'center' },
 };

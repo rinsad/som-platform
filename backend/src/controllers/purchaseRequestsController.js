@@ -301,6 +301,24 @@ exports.approve = async (req, res, next) => {
 
     const workflow = getWorkflow(pr.department, pr.tier);
     const currentStep = workflow[pr.current_step_index] || null;
+
+    // Authority enforcement (previously UI-only): the caller must hold the role
+    // for the current workflow step, and a requester may not approve their own
+    // request. Admins may act on any step as an audited override.
+    const isAdmin = req.user?.role === 'Admin';
+    const userId = toUuid(req.user?.id);
+    const isRequester = !!(pr.requestor_id && userId && userId === pr.requestor_id);
+    if (isRequester && !isAdmin) {
+      await client.query('ROLLBACK');
+      return res.status(403).json({ error: 'You cannot approve or decide your own purchase request' });
+    }
+    if (!isAdmin && currentStep && req.user?.role !== currentStep.role) {
+      await client.query('ROLLBACK');
+      return res.status(403).json({
+        error: `Role '${req.user?.role || 'Unknown'}' is not authorised to decide step '${currentStep.label}' (requires: ${currentStep.role})`,
+      });
+    }
+
     const historyEntry = {
       approver: req.user?.full_name || req.user?.email || 'Unknown',
       role: req.user?.role || 'Unknown',

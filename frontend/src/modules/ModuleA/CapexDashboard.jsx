@@ -23,6 +23,10 @@ import {
 import usePermissions from '../../hooks/usePermissions';
 import Modal from '../../components/Modal';
 import Field from '../../components/Field';
+import DateField from '../../components/DateField';
+import SelectField from '../../components/SelectField';
+import Checkbox from '../../components/Checkbox';
+import Badge from '../../components/Badge';
 import { fieldInputStyle } from '../../components/fieldStyles';
 import ManualEntryModal        from './ManualEntryModal';
 import CapexInitiationForm     from './CapexInitiationForm';
@@ -41,50 +45,11 @@ function fmtOMR(val) {
 }
 
 function meterColor(pct) {
-  if (pct >= 90) return '#DD1D21';
-  if (pct >= 70) return '#BA7517';
-  return '#2e7d32';
+  if (pct >= 90) return 'var(--shell-red)';
+  if (pct >= 70) return 'var(--warning)';
+  return 'var(--success)';
 }
 
-function StatusBadge({ status }) {
-  const map = {
-    success:              { bg: '#E7F6EF', color: '#176B43', border: '#B8E2CD' },
-    error:                { bg: '#FDECEC', color: '#A91F23', border: '#F4B8BB' },
-    Posted:               { bg: '#E7F6EF', color: '#176B43', border: '#B8E2CD' },
-    Approved:             { bg: '#E7F6EF', color: '#176B43', border: '#B8E2CD' },
-    Completed:            { bg: '#E7F6EF', color: '#176B43', border: '#B8E2CD' },
-    Complete:             { bg: '#E7F6EF', color: '#176B43', border: '#B8E2CD' },
-    Signed:               { bg: '#E7F6EF', color: '#176B43', border: '#B8E2CD' },
-    'Under Review':       { bg: '#FFF7D1', color: '#805B00', border: '#F1D36A' },
-    'Pending Approval':   { bg: '#FFF7D1', color: '#805B00', border: '#F1D36A' },
-    Pending:              { bg: '#FFF7D1', color: '#805B00', border: '#F1D36A' },
-    Draft:                { bg: '#EEF2F7', color: '#4B5C6B', border: '#D6DEE8' },
-    'Partially Delivered':{ bg: '#E9F1FB', color: '#225C94', border: '#BDD3EA' },
-    Open:                 { bg: '#E9F1FB', color: '#225C94', border: '#BDD3EA' },
-    High:                 { bg: '#FDECEC', color: '#A91F23', border: '#F4B8BB' },
-    Red:                  { bg: '#FDECEC', color: '#A91F23', border: '#F4B8BB' },
-    Medium:               { bg: '#FFF7D1', color: '#805B00', border: '#F1D36A' },
-    Amber:                { bg: '#FFF7D1', color: '#805B00', border: '#F1D36A' },
-    Low:                  { bg: '#E7F6EF', color: '#176B43', border: '#B8E2CD' },
-    Green:                { bg: '#E7F6EF', color: '#176B43', border: '#B8E2CD' },
-    Rejected:             { bg: '#FDECEC', color: '#A91F23', border: '#F4B8BB' },
-    'Returned for correction': { bg: '#FFF7D1', color: '#805B00', border: '#F1D36A' },
-    Superseded:           { bg: '#EEF2F7', color: '#4B5C6B', border: '#D6DEE8' },
-  };
-  const style = map[status] || { bg: '#EEF2F7', color: '#4B5C6B', border: '#D6DEE8' };
-  return (
-    <span style={{
-      display: 'inline-flex', alignItems: 'center',
-      background: style.bg, color: style.color,
-      border: `1px solid ${style.border}`,
-      borderRadius: 'var(--radius-full)',
-      padding: '3px 10px', fontSize: 12, fontWeight: 800,
-      lineHeight: 1.2, whiteSpace: 'nowrap',
-    }}>
-      {status}
-    </span>
-  );
-}
 
 function SummaryCard({ label, value, color, sub }) {
   return (
@@ -108,7 +73,7 @@ function DataTable({ columns, rows, emptyMsg = 'No data available.' }) {
         </thead>
         <tbody>
           {rows.map((row, i) => (
-            <tr key={i} style={i % 2 === 0 ? {} : { background: '#FAFBFC' }}>
+            <tr key={i} style={i % 2 === 0 ? {} : { background: 'var(--gray-50)' }}>
               {columns.map((c) => (
                 <td key={c.key} style={s.td}>
                   {c.render ? c.render(row[c.field || c.key], row) : row[c.field || c.key]}
@@ -133,7 +98,7 @@ function WorkflowStepper({ steps = [], currentStepId }) {
       {visible.map((step, i) => {
         const isCurrent = step.id === currentStepId;
         const isDone = ['Approved', 'Completed', 'Complete', 'Signed', 'Posted'].includes(step.status);
-        const connColor = isDone ? '#BFE6CC' : '#E3E6EB';
+        const connColor = isDone ? 'var(--success-bg)' : 'var(--gray-200)';
         const node = {
           ...s.stepNode,
           ...(isDone ? s.stepNodeDone : {}),
@@ -145,7 +110,7 @@ function WorkflowStepper({ steps = [], currentStepId }) {
             <div style={s.stepConnectorRow}>
               <div style={{ ...s.stepConnector, background: i > 0 ? connColor : 'transparent' }} />
               <div style={node}>{isDone ? '✓' : step.stepOrder}</div>
-              <div style={{ ...s.stepConnector, background: i < visible.length - 1 ? (['Approved', 'Completed', 'Complete', 'Signed', 'Posted'].includes(visible[i + 1]?.status) || isDone ? '#BFE6CC' : '#E3E6EB') : 'transparent' }} />
+              <div style={{ ...s.stepConnector, background: i < visible.length - 1 ? (['Approved', 'Completed', 'Complete', 'Signed', 'Posted'].includes(visible[i + 1]?.status) || isDone ? 'var(--success-bg)' : 'var(--gray-200)') : 'transparent' }} />
             </div>
             <div style={s.stepLabel} title={step.label}>{step.label}</div>
             <span style={{ ...s.stepPill, ...pill }}>{isDone ? 'Approved' : isCurrent ? 'Current' : step.status}</span>
@@ -800,8 +765,8 @@ export default function CapexDashboard() {
       data: {
         labels: months,
         datasets: [
-          { label: 'Budgeted', data: budgeted, backgroundColor: 'rgba(255,213,0,0.75)', borderRadius: 4 },
-          { label: 'Actual',   data: actual,   backgroundColor: 'rgba(221,29,33,0.80)',  borderRadius: 4 },
+          { label: 'Budgeted', data: budgeted, backgroundColor: 'rgba(255,213,0,0.75)', borderRadius: 'var(--radius-xs)' },
+          { label: 'Actual',   data: actual,   backgroundColor: 'rgba(221,29,33,0.80)',  borderRadius: 'var(--radius-xs)' },
         ],
       },
       options: {
@@ -830,8 +795,8 @@ export default function CapexDashboard() {
       data: {
         labels: dept.monthlyData.map((m) => m.month),
         datasets: [
-          { label: 'Budgeted', data: dept.monthlyData.map((m) => m.budgeted), backgroundColor: 'rgba(255,213,0,0.75)', borderRadius: 4 },
-          { label: 'Actual',   data: dept.monthlyData.map((m) => m.actual),   backgroundColor: 'rgba(221,29,33,0.80)',  borderRadius: 4 },
+          { label: 'Budgeted', data: dept.monthlyData.map((m) => m.budgeted), backgroundColor: 'rgba(255,213,0,0.75)', borderRadius: 'var(--radius-xs)' },
+          { label: 'Actual',   data: dept.monthlyData.map((m) => m.actual),   backgroundColor: 'rgba(221,29,33,0.80)',  borderRadius: 'var(--radius-xs)' },
         ],
       },
       options: {
@@ -896,7 +861,7 @@ export default function CapexDashboard() {
   if (error) return (
     <div style={s.center}>
       <div style={s.errorBox}>{error}</div>
-      <button onClick={fetchAll} style={s.retryBtn}>Retry</button>
+      <button type="button" onClick={fetchAll} style={s.retryBtn}>Retry</button>
     </div>
   );
 
@@ -915,7 +880,7 @@ export default function CapexDashboard() {
       )}
       {/* Upload success toast */}
       {uploadToast && (
-        <div style={{ fontSize: 13, color: '#34d399', background: 'rgba(52,211,153,0.10)', border: '1px solid rgba(52,211,153,0.25)', borderRadius: 10, padding: '11px 16px', marginBottom: 16 }}>
+        <div style={{ fontSize: 13, color: 'var(--success)', background: 'var(--success-bg)', border: '1px solid var(--success)', borderRadius: 'var(--radius-md)', padding: '11px 16px', marginBottom: 16 }}>
           ✓ {uploadToast}
         </div>
       )}
@@ -932,10 +897,10 @@ export default function CapexDashboard() {
         </div>
         <div style={s.headerRight}>
           <div style={s.syncBadge}>
-            <span style={{ ...s.syncDot, background: syncStatus?.status === 'success' ? '#22c55e' : '#ef4444' }} />
+            <span style={{ ...s.syncDot, background: syncStatus?.status === 'success' ? 'var(--success)' : 'var(--danger)' }} />
             GSAP Synced · {lastSynced}
           </div>
-          <button style={s.refreshBtn} onClick={fetchAll}>Refresh</button>
+          <button type="button" style={s.refreshBtn} onClick={fetchAll}>Refresh</button>
         </div>
       </div>
 
@@ -961,7 +926,7 @@ export default function CapexDashboard() {
       {/* Tab navigation */}
       <div style={s.tabBar}>
         {TABS.map((t) => (
-          <button
+          <button type="button"
             key={t.id}
             style={{
               ...s.tabBtn,
@@ -989,10 +954,10 @@ export default function CapexDashboard() {
                 sub={`${Math.round((totalActual / totalBudget) * 100)}% of budget`} />
             )}
             {canView('capex.planning.dashboard.committed') && (
-              <SummaryCard label="PO Commitments" value={fmtOMR(totalCommitted)} color="#BA7517" />
+              <SummaryCard label="PO Commitments" value={fmtOMR(totalCommitted)} color="var(--warning)" />
             )}
             {canView('capex.planning.dashboard.remaining') && (
-              <SummaryCard label="Remaining Balance" value={fmtOMR(totalRemaining)} color="#2e7d32" />
+              <SummaryCard label="Remaining Balance" value={fmtOMR(totalRemaining)} color="var(--success)" />
             )}
           </div>
 
@@ -1061,7 +1026,7 @@ export default function CapexDashboard() {
             <h2 style={s.sectionTitle}>Department Dashboard</h2>
             <div style={s.deptTabs}>
               {depts.map((d) => (
-                <button
+                <button type="button"
                   key={d.name}
                   style={{ ...s.deptTab, ...(selectedDept === d.name ? s.deptTabActive : {}) }}
                   onClick={() => setSelectedDept(d.name)}
@@ -1084,10 +1049,10 @@ export default function CapexDashboard() {
                     sub={`${dept.percentUsed}% consumed`} />
                 )}
                 {canView('capex.planning.departments.committed') && (
-                  <SummaryCard label="PO Committed" value={fmtOMR(dept.committed)} color="#BA7517" />
+                  <SummaryCard label="PO Committed" value={fmtOMR(dept.committed)} color="var(--warning)" />
                 )}
                 {canView('capex.planning.departments.remaining') && (
-                  <SummaryCard label="Remaining" value={fmtOMR(dept.remaining)} color="#2e7d32" />
+                  <SummaryCard label="Remaining" value={fmtOMR(dept.remaining)} color="var(--success)" />
                 )}
               </div>
 
@@ -1143,7 +1108,7 @@ export default function CapexDashboard() {
             <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
               <span style={{
                 width: 10, height: 10, borderRadius: '50%',
-                background: gsapData.status === 'success' ? '#22c55e' : '#ef4444',
+                background: gsapData.status === 'success' ? 'var(--success)' : 'var(--danger)',
                 flexShrink: 0,
               }} />
               <div>
@@ -1153,7 +1118,7 @@ export default function CapexDashboard() {
                 <p style={{ margin: '2px 0 0', fontSize: 13, color: 'var(--label-secondary)' }}>
                   Source: <strong>{gsapData.source}</strong> &nbsp;|&nbsp;
                   Last sync: <strong>{new Date(gsapData.lastSynced).toLocaleString('en-GB', { dateStyle: 'short', timeStyle: 'short' })}</strong>
-                  &nbsp;|&nbsp; Status: <StatusBadge status={gsapData.status} />
+                  &nbsp;|&nbsp; Status: <Badge status={gsapData.status} />
                 </p>
               </div>
             </div>
@@ -1172,7 +1137,7 @@ export default function CapexDashboard() {
                 { key: 'variance',     label: 'Remaining (OMR)',
                   render: (_, row) => {
                     const rem = row.approvedAmount - row.postedAmount;
-                    return <span style={{ color: rem < 0 ? '#dc2626' : '#15803d', fontWeight: 600 }}>{fmtOMR(rem)}</span>;
+                    return <span style={{ color: rem < 0 ? 'var(--danger)' : 'var(--success)', fontWeight: 600 }}>{fmtOMR(rem)}</span>;
                   }
                 },
               ]}
@@ -1191,7 +1156,7 @@ export default function CapexDashboard() {
                 { key: 'description', label: 'Description' },
                 { key: 'amount',      label: 'Amount (OMR)', render: (v) => fmtOMR(v) },
                 { key: 'dueDate',     label: 'Due Date' },
-                { key: 'status',      label: 'Status', render: (v) => <StatusBadge status={v} /> },
+                { key: 'status',      label: 'Status', render: (v) => <Badge status={v} /> },
               ]}
               rows={gsapData.poCommitments}
             />
@@ -1224,27 +1189,25 @@ export default function CapexDashboard() {
               <p style={s.tabSubtitle}>Post budget adjustments, actuals, or PO commitments for non-GSAP items with a standardised structure.</p>
             </div>
             {canCreate('capex.tracking.manual-entry') && (
-              <button style={s.primaryBtn} onClick={() => setShowManual(true)}>+ Add Entry</button>
+              <button type="button" style={s.primaryBtn} onClick={() => setShowManual(true)}>+ Add Entry</button>
             )}
           </div>
 
-          <div style={s.section}>
-            <DataTable
-              columns={[
-                { key: 'id',              label: 'Entry ID' },
-                canView('capex.tracking.manual-entry.entry_type') && { key: 'entryTypeStatus', field: 'entryType', label: 'Type', render: (v) => <StatusBadge status={v === 'Actual' ? 'Posted' : v === 'PO Commitment' ? 'Open' : 'Under Review'} /> },
-                canView('capex.tracking.manual-entry.entry_type') && { key: 'entryType', label: 'Entry Type' },
-                canView('capex.tracking.manual-entry.department')       && { key: 'department',      label: 'Department' },
-                canView('capex.tracking.manual-entry.period')           && { key: 'period',          label: 'Period' },
-                canView('capex.tracking.manual-entry.amount')           && { key: 'amount',          label: 'Amount (OMR)', render: (v) => <strong>{fmtOMR(v)}</strong> },
-                canView('capex.tracking.manual-entry.reference_number') && { key: 'referenceNumber', label: 'Reference' },
-                canView('capex.tracking.manual-entry.entered_by')       && { key: 'enteredBy',       label: 'Entered By' },
-                canView('capex.tracking.manual-entry.status')           && { key: 'status',          label: 'Status', render: (v) => <StatusBadge status={v} /> },
-              ].filter(Boolean).filter((c, i, arr) => arr.findIndex((x) => x.key === c.key && x.label === c.label) === i)}
-              rows={manualEntries}
-              emptyMsg="No manual entries yet. Use 'Add Entry' to post a non-GSAP transaction."
-            />
-          </div>
+          <DataTable
+            columns={[
+              { key: 'id',              label: 'Entry ID' },
+              canView('capex.tracking.manual-entry.entry_type') && { key: 'entryTypeStatus', field: 'entryType', label: 'Type', render: (v) => <Badge status={v === 'Actual' ? 'Posted' : v === 'PO Commitment' ? 'Open' : 'Under Review'} /> },
+              canView('capex.tracking.manual-entry.entry_type') && { key: 'entryType', label: 'Entry Type' },
+              canView('capex.tracking.manual-entry.department')       && { key: 'department',      label: 'Department' },
+              canView('capex.tracking.manual-entry.period')           && { key: 'period',          label: 'Period' },
+              canView('capex.tracking.manual-entry.amount')           && { key: 'amount',          label: 'Amount (OMR)', render: (v) => <strong>{fmtOMR(v)}</strong> },
+              canView('capex.tracking.manual-entry.reference_number') && { key: 'referenceNumber', label: 'Reference' },
+              canView('capex.tracking.manual-entry.entered_by')       && { key: 'enteredBy',       label: 'Entered By' },
+              canView('capex.tracking.manual-entry.status')           && { key: 'status',          label: 'Status', render: (v) => <Badge status={v} /> },
+            ].filter(Boolean).filter((c, i, arr) => arr.findIndex((x) => x.key === c.key && x.label === c.label) === i)}
+            rows={manualEntries}
+            emptyMsg="No manual entries yet. Use 'Add Entry' to post a non-GSAP transaction."
+          />
         </div>
       )}
 
@@ -1261,7 +1224,7 @@ export default function CapexDashboard() {
                 <a href={getCapexReportCsvUrl()} style={{ ...s.secondaryBtn, textDecoration: 'none' }}>Export CSV</a>
               )}
               {canCreate('capex.requests') && (
-                <button style={s.primaryBtn} onClick={() => setShowRequestForm(true)}>+ New CAPEX Request</button>
+                <button type="button" style={s.primaryBtn} onClick={() => setShowRequestForm(true)}>+ New CAPEX Request</button>
               )}
             </div>
           </div>
@@ -1281,15 +1244,9 @@ export default function CapexDashboard() {
                 value={reqSearch}
                 onChange={(e) => setReqSearch(e.target.value)}
               />
-              <select style={s.reqFilter} value={reqStatusFilter} onChange={(e) => setReqStatusFilter(e.target.value)}>
-                <option value="">All statuses</option>
-                {requestStatusOptions.map((v) => <option key={v} value={v}>{v}</option>)}
-              </select>
-              <select style={s.reqFilter} value={reqDeptFilter} onChange={(e) => setReqDeptFilter(e.target.value)}>
-                <option value="">All departments</option>
-                {requestDeptOptions.map((v) => <option key={v} value={v}>{v}</option>)}
-              </select>
-              {requestFiltersActive && <button style={s.secondaryBtn} onClick={clearRequestFilters}>Clear</button>}
+              <SelectField style={s.reqFilter} value={reqStatusFilter} onChange={setReqStatusFilter} options={requestStatusOptions} placeholder="All statuses" aria-label="Filter by status" />
+              <SelectField style={s.reqFilter} value={reqDeptFilter} onChange={setReqDeptFilter} options={requestDeptOptions} placeholder="All departments" aria-label="Filter by department" />
+              {requestFiltersActive && <button type="button" style={s.secondaryBtn} onClick={clearRequestFilters}>Clear</button>}
               <span style={s.reqCount}>Showing {filteredRequests.length} of {capexRequests.length}</span>
             </div>
 
@@ -1300,7 +1257,7 @@ export default function CapexDashboard() {
             ) : !filteredRequests.length ? (
               <div style={{ padding: '24px 0', textAlign: 'center' }}>
                 <p style={{ color: 'var(--label-secondary)', fontSize: 14, marginBottom: 10 }}>No requests match your filters.</p>
-                <button style={s.secondaryBtn} onClick={clearRequestFilters}>Clear filters</button>
+                <button type="button" style={s.secondaryBtn} onClick={clearRequestFilters}>Clear filters</button>
               </div>
             ) : (
               <div style={s.tableWrap}>
@@ -1321,13 +1278,13 @@ export default function CapexDashboard() {
                       <tr key={r.id} className="capex-req-row" onClick={() => openCapexRequest(r.id)}>
                         <td style={s.td}>{r.id}</td>
                         <td style={s.td}>
-                          <button className="capex-req-title" style={s.rowTitleBtn} onClick={() => openCapexRequest(r.id)}>{r.title}</button>
+                          <button type="button" className="capex-req-title" style={s.rowTitleBtn} onClick={() => openCapexRequest(r.id)}>{r.title}</button>
                         </td>
                         <td style={s.td}>{r.department}</td>
                         <td style={{ ...s.td, textAlign: 'right', fontWeight: 700 }}>{fmtOMR(r.estimatedValue)}</td>
-                        <td style={s.td}><StatusBadge status={r.valueBand === 'LOW' ? 'Low' : r.valueBand === 'MEDIUM' ? 'Medium' : 'High'} /></td>
-                        <td style={s.td}><StatusBadge status={r.status} /></td>
-                        <td style={{ ...s.td, textAlign: 'right', color: '#98A2B3', fontWeight: 900 }}>›</td>
+                        <td style={s.td}><Badge status={r.valueBand === 'LOW' ? 'Low' : r.valueBand === 'MEDIUM' ? 'Medium' : 'High'} /></td>
+                        <td style={s.td}><Badge status={r.status} /></td>
+                        <td style={{ ...s.td, textAlign: 'right', color: 'var(--gray-400)', fontWeight: 900 }}>›</td>
                       </tr>
                     ))}
                   </tbody>
@@ -1340,7 +1297,7 @@ export default function CapexDashboard() {
 
       {activeTab === 'requests' && selectedRequest && (
         <div>
-          <button style={s.backBtn} onClick={closeRequestDetail}>← All Requests</button>
+          <button type="button" style={s.backBtn} onClick={closeRequestDetail}>← All Requests</button>
 
           <div style={s.dHeaderCard}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 16, flexWrap: 'wrap' }}>
@@ -1348,10 +1305,10 @@ export default function CapexDashboard() {
                 <div style={s.dEyebrow}>CAPEX Request</div>
                 <h3 style={s.dTitle}>{selectedRequest.title}</h3>
                 <div style={s.dMeta}>
-                  {selectedRequest.id} · {selectedRequest.department} · <span style={{ color: '#1A2233', fontWeight: 700 }}>{fmtOMR(selectedRequest.estimatedValue)}</span>
+                  {selectedRequest.id} · {selectedRequest.department} · <span style={{ color: 'var(--label)', fontWeight: 700 }}>{fmtOMR(selectedRequest.estimatedValue)}</span>
                 </div>
               </div>
-              <StatusBadge status={selectedRequest.status} />
+              <Badge status={selectedRequest.status} />
             </div>
 
             <WorkflowStepper steps={selectedRequest.approvalSteps} currentStepId={selectedRequest.currentStepId} />
@@ -1375,7 +1332,7 @@ export default function CapexDashboard() {
                     onClick={() => scrollToSection(sec.key)}
                     style={{ ...s.dNavItem, ...(active ? s.dNavItemActive : {}) }}
                   >
-                    <span style={{ ...s.dNavDot, background: active ? '#DD1D21' : '#D5D9DF' }} />{sec.label}
+                    <span style={{ ...s.dNavDot, background: active ? 'var(--shell-red)' : 'var(--gray-200)' }} />{sec.label}
                   </a>
                 );
               })}
@@ -1404,7 +1361,7 @@ export default function CapexDashboard() {
                           {step.stepOrder}. {step.label}
                           {step.assignedTo ? ` — assigned to ${step.assignedTo}` : ''}
                         </span>
-                        <StatusBadge status={step.status} />
+                        <Badge status={step.status} />
                       </div>
                     ))}
                   </div>
@@ -1432,8 +1389,8 @@ export default function CapexDashboard() {
                           onChange={e => setReturnedEditForm(p => ({ ...p, fewerThan3Justification: e.target.value }))} /></Field>
                       </div>
                       <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
-                        <button style={s.warnBtn} onClick={handleSaveReturnedEdit}>Save Changes</button>
-                        <button style={s.primaryBtn} onClick={handleResubmitRequest}>Resubmit for Approval</button>
+                        <button type="button" style={s.warnBtn} onClick={handleSaveReturnedEdit}>Save Changes</button>
+                        <button type="button" style={s.primaryBtn} onClick={handleResubmitRequest}>Resubmit for Approval</button>
                       </div>
                     </>
                   )}
@@ -1453,9 +1410,7 @@ export default function CapexDashboard() {
 
                   <h4 style={s.detailTitle}>Attachments</h4>
                   <div style={s.lifecycleGrid}>
-                    <select style={s.compactInput} value={attachmentType} onChange={e => setAttachmentType(e.target.value)}>
-                      {['Scope Document', 'Supplier Quotation', 'HSSE Evidence', 'PO Document', 'Milestone Evidence', 'CAPEX Closure Form'].map(v => <option key={v}>{v}</option>)}
-                    </select>
+                    <SelectField style={s.compactInput} value={attachmentType} onChange={setAttachmentType} options={['Scope Document', 'Supplier Quotation', 'HSSE Evidence', 'PO Document', 'Milestone Evidence', 'CAPEX Closure Form']} aria-label="Attachment type" />
                     {canCreate('capex.documents') && (
                       <input style={s.compactInput} type="file" onChange={handleAttachmentUpload} />
                     )}
@@ -1464,7 +1419,7 @@ export default function CapexDashboard() {
                     {(selectedRequest.attachments || []).map((a) => (
                       <div key={a.id} style={s.compactRow}>
                         <span>{a.type}: {a.name}</span>
-                        <button style={s.linkBtn} onClick={() => downloadCapexAttachment(selectedRequest.id, a)}>Download</button>
+                        <button type="button" style={s.linkBtn} onClick={() => downloadCapexAttachment(selectedRequest.id, a)}>Download</button>
                       </div>
                     ))}
                     {!(selectedRequest.attachments || []).length && <p style={s.detailText}>No documents uploaded yet.</p>}
@@ -1475,30 +1430,22 @@ export default function CapexDashboard() {
                   <div style={s.dSubLabel}>Compliance & vendor setup</div>
                   <div style={s.lifecycleGrid}>
                     <Field label="NDA">
-                      <label style={s.checkInline}><input type="checkbox" checked={!!procurementForm.ndaRequired} onChange={e => setProcurementForm(p => ({ ...p, ndaRequired: e.target.checked, ndaStatus: e.target.checked ? 'Pending' : 'Not required' }))} /> Required</label>
+                      <Checkbox style={s.checkInline} checked={!!procurementForm.ndaRequired} onChange={c => setProcurementForm(p => ({ ...p, ndaRequired: c, ndaStatus: c ? 'Pending' : 'Not required' }))} label="Required" />
                     </Field>
                     <Field label="NDA status">
-                      <select style={s.fieldInput} value={procurementForm.ndaStatus || 'Not required'} onChange={e => setProcurementForm(p => ({ ...p, ndaStatus: e.target.value }))}>
-                        {['Not required', 'Pending', 'Completed'].map(v => <option key={v}>{v}</option>)}
-                      </select>
+                      <SelectField style={s.fieldInput} value={procurementForm.ndaStatus || 'Not required'} onChange={v => setProcurementForm(p => ({ ...p, ndaStatus: v }))} options={['Not required', 'Pending', 'Completed']} aria-label="NDA status" />
                     </Field>
                     <Field label="DPA">
-                      <label style={s.checkInline}><input type="checkbox" checked={!!procurementForm.dpaRequired} onChange={e => setProcurementForm(p => ({ ...p, dpaRequired: e.target.checked, dpaStatus: e.target.checked ? 'Pending' : 'Not required' }))} /> Required</label>
+                      <Checkbox style={s.checkInline} checked={!!procurementForm.dpaRequired} onChange={c => setProcurementForm(p => ({ ...p, dpaRequired: c, dpaStatus: c ? 'Pending' : 'Not required' }))} label="Required" />
                     </Field>
                     <Field label="DPA status">
-                      <select style={s.fieldInput} value={procurementForm.dpaStatus || 'Not required'} onChange={e => setProcurementForm(p => ({ ...p, dpaStatus: e.target.value }))}>
-                        {['Not required', 'Pending', 'Completed'].map(v => <option key={v}>{v}</option>)}
-                      </select>
+                      <SelectField style={s.fieldInput} value={procurementForm.dpaStatus || 'Not required'} onChange={v => setProcurementForm(p => ({ ...p, dpaStatus: v }))} options={['Not required', 'Pending', 'Completed']} aria-label="DPA status" />
                     </Field>
                     <Field label="Vendor registration">
-                      <select style={s.fieldInput} value={procurementForm.vendorRegistrationStatus || 'Pending'} onChange={e => setProcurementForm(p => ({ ...p, vendorRegistrationStatus: e.target.value }))}>
-                        {['Not required', 'Pending', 'Completed'].map(v => <option key={v}>{v}</option>)}
-                      </select>
+                      <SelectField style={s.fieldInput} value={procurementForm.vendorRegistrationStatus || 'Pending'} onChange={v => setProcurementForm(p => ({ ...p, vendorRegistrationStatus: v }))} options={['Not required', 'Pending', 'Completed']} aria-label="Vendor registration" />
                     </Field>
                     <Field label="Agreement status">
-                      <select style={s.fieldInput} value={procurementForm.agreementStatus || 'Pending'} onChange={e => setProcurementForm(p => ({ ...p, agreementStatus: e.target.value }))}>
-                        {['Not required', 'Pending', 'Completed'].map(v => <option key={v}>{v}</option>)}
-                      </select>
+                      <SelectField style={s.fieldInput} value={procurementForm.agreementStatus || 'Pending'} onChange={v => setProcurementForm(p => ({ ...p, agreementStatus: v }))} options={['Not required', 'Pending', 'Completed']} aria-label="Agreement status" />
                     </Field>
                   </div>
 
@@ -1511,13 +1458,11 @@ export default function CapexDashboard() {
                     <Field label="PO value (OMR)"><input style={s.fieldInput} type="number" placeholder="0" value={procurementForm.poValue || ''} onChange={e => setProcurementForm(p => ({ ...p, poValue: e.target.value }))} /></Field>
                     <Field label="PO attachment"><input style={s.fieldInput} placeholder="PO attachment filename" value={procurementForm.poAttachmentName || ''} onChange={e => setProcurementForm(p => ({ ...p, poAttachmentName: e.target.value }))} /></Field>
                     <Field label="PO status">
-                      <select style={s.fieldInput} value={procurementForm.poStatus || ''} onChange={e => setProcurementForm(p => ({ ...p, poStatus: e.target.value }))}>
-                        {['', 'Draft', 'Created', 'Released', 'Uploaded'].map(v => <option key={v} value={v}>{v || 'Select…'}</option>)}
-                      </select>
+                      <SelectField style={s.fieldInput} value={procurementForm.poStatus || ''} onChange={v => setProcurementForm(p => ({ ...p, poStatus: v }))} options={['Draft', 'Created', 'Released', 'Uploaded']} placeholder="Select…" aria-label="PO status" />
                     </Field>
                   </div>
                   {canEdit('capex.procurement') && (
-                    <div><button style={s.primaryBtn} onClick={handleSaveProcurement}>Save Procurement</button></div>
+                    <div><button type="button" style={s.primaryBtn} onClick={handleSaveProcurement}>Save Procurement</button></div>
                   )}
               </section>
 
@@ -1528,8 +1473,8 @@ export default function CapexDashboard() {
                       <div key={m.id} style={s.compactRow}>
                         <span>{m.stageName} - {m.milestoneName}</span>
                         <span style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                          <StatusBadge status={m.status} />
-                          {canEdit('capex.requests') && m.status !== 'Completed' && <button style={s.miniBtn} onClick={() => handleCompleteMilestone(m)}>Complete</button>}
+                          <Badge status={m.status} />
+                          {canEdit('capex.requests') && m.status !== 'Completed' && <button type="button" style={s.miniBtn} onClick={() => handleCompleteMilestone(m)}>Complete</button>}
                         </span>
                       </div>
                     ))}
@@ -1537,7 +1482,7 @@ export default function CapexDashboard() {
                   {canEdit('capex.requests') && <form onSubmit={handleAddMilestone} style={s.lifecycleGrid}>
                     <Field label="Stage"><input style={s.fieldInput} placeholder="Stage" value={milestoneForm.stageName} onChange={e => setMilestoneForm(p => ({ ...p, stageName: e.target.value }))} /></Field>
                     <Field label="Milestone"><input style={s.fieldInput} placeholder="Milestone" value={milestoneForm.milestoneName} onChange={e => setMilestoneForm(p => ({ ...p, milestoneName: e.target.value }))} /></Field>
-                    <Field label="Planned date"><input style={s.fieldInput} type="date" value={milestoneForm.plannedDate} onChange={e => setMilestoneForm(p => ({ ...p, plannedDate: e.target.value }))} /></Field>
+                    <Field label="Planned date"><DateField style={s.fieldInput} value={milestoneForm.plannedDate} onChange={v => setMilestoneForm(p => ({ ...p, plannedDate: v }))} /></Field>
                     <Field label="Payment %"><input style={s.fieldInput} type="number" placeholder="Payment %" value={milestoneForm.paymentPercentage} onChange={e => setMilestoneForm(p => ({ ...p, paymentPercentage: e.target.value }))} /></Field>
                     <Field label="Payment amount (OMR)"><input style={s.fieldInput} type="number" placeholder="Payment amount" value={milestoneForm.paymentAmount} onChange={e => setMilestoneForm(p => ({ ...p, paymentAmount: e.target.value }))} /></Field>
                     <Field label="Evidence filename"><input style={s.fieldInput} placeholder="Evidence filename" value={milestoneForm.completionEvidence} onChange={e => setMilestoneForm(p => ({ ...p, completionEvidence: e.target.value }))} /></Field>
@@ -1557,8 +1502,8 @@ export default function CapexDashboard() {
                   </div>
                   {canEdit('capex.finance') && (
                     <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
-                      <button style={s.warnBtn} onClick={() => handleSaveClosure(false)}>Save Closure Draft</button>
-                      <button style={s.primaryBtn} onClick={() => handleSaveClosure(true)}>Close Request</button>
+                      <button type="button" style={s.warnBtn} onClick={() => handleSaveClosure(false)}>Save Closure Draft</button>
+                      <button type="button" style={s.primaryBtn} onClick={() => handleSaveClosure(true)}>Close Request</button>
                     </div>
                   )}
               </section>
@@ -1570,45 +1515,39 @@ export default function CapexDashboard() {
                   <div style={s.lifecycleGrid}>
                     <Field label="AUC account"><input style={s.fieldInput} placeholder="AUC account" value={aucForm.aucAccount} onChange={e => setAucForm(p => ({ ...p, aucAccount: e.target.value }))} /></Field>
                     <Field label="AUC value (OMR)"><input style={s.fieldInput} type="number" placeholder="0" value={aucForm.aucValue} onChange={e => setAucForm(p => ({ ...p, aucValue: e.target.value }))} /></Field>
-                    <Field label="AUC start date"><input style={s.fieldInput} type="date" value={aucForm.aucStartDate} onChange={e => setAucForm(p => ({ ...p, aucStartDate: e.target.value }))} /></Field>
+                    <Field label="AUC start date"><DateField style={s.fieldInput} value={aucForm.aucStartDate} onChange={v => setAucForm(p => ({ ...p, aucStartDate: v }))} /></Field>
                     <Field label="AUC status">
-                      <select style={s.fieldInput} value={aucForm.status} onChange={e => setAucForm(p => ({ ...p, status: e.target.value }))}>
-                        {['Open', 'In Review', 'Capitalized'].map(v => <option key={v}>{v}</option>)}
-                      </select>
+                      <SelectField style={s.fieldInput} value={aucForm.status} onChange={v => setAucForm(p => ({ ...p, status: v }))} options={['Open', 'In Review', 'Capitalized']} aria-label="AUC status" />
                     </Field>
-                    <label style={s.check}><input type="checkbox" checked={aucForm.capitalizationReady} onChange={e => setAucForm(p => ({ ...p, capitalizationReady: e.target.checked }))} /> Capitalization ready</label>
+                    <Checkbox style={s.checkInline} checked={aucForm.capitalizationReady} onChange={c => setAucForm(p => ({ ...p, capitalizationReady: c }))} label="Capitalization ready" />
                   </div>
-                  {canEdit('capex.finance') && <div><button style={s.primaryBtn} onClick={handleSaveAuc}>Save AUC</button></div>}
+                  {canEdit('capex.finance') && <div><button type="button" style={s.primaryBtn} onClick={handleSaveAuc}>Save AUC</button></div>}
 
                   <div style={s.dDivider} />
                   <div style={s.dSubLabel}>Capitalization</div>
                   <div style={s.lifecycleGrid}>
                     <Field label="Capitalization status">
-                      <select style={s.fieldInput} value={capitalizationForm.status} onChange={e => setCapitalizationForm(p => ({ ...p, status: e.target.value }))}>
-                        {['Not Started', 'Ready', 'Pending Approval', 'In Progress', 'Capitalized'].map(v => <option key={v}>{v}</option>)}
-                      </select>
+                      <SelectField style={s.fieldInput} value={capitalizationForm.status} onChange={v => setCapitalizationForm(p => ({ ...p, status: v }))} options={['Not Started', 'Ready', 'Pending Approval', 'In Progress', 'Capitalized']} aria-label="Capitalization status" />
                     </Field>
                     <Field label="Asset master number"><input style={s.fieldInput} placeholder="Asset master number" value={capitalizationForm.assetMasterNumber} onChange={e => setCapitalizationForm(p => ({ ...p, assetMasterNumber: e.target.value }))} /></Field>
                     <Field label="Asset category"><input style={s.fieldInput} placeholder="Asset category" value={capitalizationForm.assetCategory} onChange={e => setCapitalizationForm(p => ({ ...p, assetCategory: e.target.value }))} /></Field>
                     <Field label="Capitalized value (OMR)"><input style={s.fieldInput} type="number" placeholder="0" value={capitalizationForm.capitalizedValue} onChange={e => setCapitalizationForm(p => ({ ...p, capitalizedValue: e.target.value }))} /></Field>
-                    <Field label="Capitalization request date"><input style={s.fieldInput} type="date" value={capitalizationForm.capitalizationRequestDate} onChange={e => setCapitalizationForm(p => ({ ...p, capitalizationRequestDate: e.target.value }))} /></Field>
+                    <Field label="Capitalization request date"><DateField style={s.fieldInput} value={capitalizationForm.capitalizationRequestDate} onChange={v => setCapitalizationForm(p => ({ ...p, capitalizationRequestDate: v }))} /></Field>
                   </div>
-                  {canEdit('capex.finance') && <div><button style={s.primaryBtn} onClick={handleSaveCapitalization}>Save Capitalization</button></div>}
+                  {canEdit('capex.finance') && <div><button type="button" style={s.primaryBtn} onClick={handleSaveCapitalization}>Save Capitalization</button></div>}
 
                   <div style={s.dDivider} />
                   <div style={s.dSubLabel}>PO closure</div>
                   <div style={s.lifecycleGrid}>
                     <Field label="Closure status">
-                      <select style={s.fieldInput} value={poClosureForm.closureStatus} onChange={e => setPoClosureForm(p => ({ ...p, closureStatus: e.target.value }))}>
-                        {['Open', 'In Progress', 'Closed'].map(v => <option key={v}>{v}</option>)}
-                      </select>
+                      <SelectField style={s.fieldInput} value={poClosureForm.closureStatus} onChange={v => setPoClosureForm(p => ({ ...p, closureStatus: v }))} options={['Open', 'In Progress', 'Closed']} aria-label="Closure status" />
                     </Field>
                     <Field label="Open commitment (OMR)"><input style={s.fieldInput} type="number" placeholder="Open commitment" value={poClosureForm.openCommitmentValue} onChange={e => setPoClosureForm(p => ({ ...p, openCommitmentValue: e.target.value }))} /></Field>
                     <Field label="Unutilized commitment (OMR)"><input style={s.fieldInput} type="number" placeholder="Unutilized commitment" value={poClosureForm.unutilizedCommitment} onChange={e => setPoClosureForm(p => ({ ...p, unutilizedCommitment: e.target.value }))} /></Field>
-                    <Field label="Closure due date"><input style={s.fieldInput} type="date" value={poClosureForm.closureDueDate} onChange={e => setPoClosureForm(p => ({ ...p, closureDueDate: e.target.value }))} /></Field>
-                    <label style={s.check}><input type="checkbox" checked={poClosureForm.finalInvoiceReceived} onChange={e => setPoClosureForm(p => ({ ...p, finalInvoiceReceived: e.target.checked }))} /> Final invoice</label>
+                    <Field label="Closure due date"><DateField style={s.fieldInput} value={poClosureForm.closureDueDate} onChange={v => setPoClosureForm(p => ({ ...p, closureDueDate: v }))} /></Field>
+                    <Checkbox style={s.checkInline} checked={poClosureForm.finalInvoiceReceived} onChange={c => setPoClosureForm(p => ({ ...p, finalInvoiceReceived: c }))} label="Final invoice" />
                   </div>
-                  {canEdit('capex.closure') && <div><button style={s.primaryBtn} onClick={handleSavePoClosure}>Save PO Closure</button></div>}
+                  {canEdit('capex.closure') && <div><button type="button" style={s.primaryBtn} onClick={handleSavePoClosure}>Save PO Closure</button></div>}
               </section>
 
               <section id="capex-sec-checklist" style={s.dCard}>
@@ -1618,8 +1557,8 @@ export default function CapexDashboard() {
                       <div key={item.id} style={s.compactRow}>
                         <span>{item.label}</span>
                         <span style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                          <StatusBadge status={item.status} />
-                          {canEdit('capex.closure') && item.status !== 'Completed' && <button style={s.miniBtn} onClick={() => handleChecklistStatus(item, 'Completed')}>Done</button>}
+                          <Badge status={item.status} />
+                          {canEdit('capex.closure') && item.status !== 'Completed' && <button type="button" style={s.miniBtn} onClick={() => handleChecklistStatus(item, 'Completed')}>Done</button>}
                         </span>
                       </div>
                     ))}
@@ -1631,12 +1570,12 @@ export default function CapexDashboard() {
                   <h4 style={s.detailTitle}>MOA, Variation & Decision Gates</h4>
                   <div style={s.dGroupHead}>
                     <div style={{ ...s.dSubLabel, margin: 0 }}>Memorandum of agreement</div>
-                    {canCreate('capex.moa') && <button style={s.dAddBtn} onClick={() => setShowMoaModal(true)}>+ Add MOA</button>}
+                    {canCreate('capex.moa') && <button type="button" style={s.dAddBtn} onClick={() => setShowMoaModal(true)}>+ Add MOA</button>}
                   </div>
                   <DataTable
                     columns={[
                       { key: 'moaNumber', label: 'MOA' },
-                      { key: 'approvalStatus', label: 'Status', render: v => <StatusBadge status={v} /> },
+                      { key: 'approvalStatus', label: 'Status', render: v => <Badge status={v} /> },
                       { key: 'matrixValidated', label: 'Matrix', render: v => v ? 'Valid' : 'Review' },
                     ]}
                     rows={selectedRequest.moaRecords || []}
@@ -1646,7 +1585,7 @@ export default function CapexDashboard() {
                   <div style={s.dDivider} />
                   <div style={s.dGroupHead}>
                     <div style={{ ...s.dSubLabel, margin: 0 }}>Budget variation</div>
-                    {canCreate('capex.variations') && <button style={s.dAddBtn} onClick={() => setShowVariationModal(true)}>+ Create variation</button>}
+                    {canCreate('capex.variations') && <button type="button" style={s.dAddBtn} onClick={() => setShowVariationModal(true)}>+ Create variation</button>}
                   </div>
 
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 12 }}>
@@ -1659,11 +1598,11 @@ export default function CapexDashboard() {
                           {' '}· requested by {v.requestedBy}
                         </span>
                         <span style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                          <StatusBadge status={v.approvalStatus} />
+                          <Badge status={v.approvalStatus} />
                           {canEdit('capex.approvals') && v.approvalStatus === 'Pending' && (
                             <>
-                              <button style={s.miniBtn} onClick={() => handleVariationDecision(v.id, 'Approved')}>Approve</button>
-                              <button style={s.miniBtn} onClick={() => handleVariationDecision(v.id, 'Rejected')}>Reject</button>
+                              <button type="button" style={s.miniBtn} onClick={() => handleVariationDecision(v.id, 'Approved')}>Approve</button>
+                              <button type="button" style={s.miniBtn} onClick={() => handleVariationDecision(v.id, 'Rejected')}>Reject</button>
                             </>
                           )}
                         </span>
@@ -1678,8 +1617,8 @@ export default function CapexDashboard() {
                       <div key={gate.gateKey} style={s.compactRow}>
                         <span>{gate.gateName}</span>
                         <span style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                          <StatusBadge status={gate.status} />
-                          {canEdit('capex.approvals') && gate.status !== 'Passed' && <button style={s.miniBtn} onClick={() => handleDecisionGate(gate)}>Pass</button>}
+                          <Badge status={gate.status} />
+                          {canEdit('capex.approvals') && gate.status !== 'Passed' && <button type="button" style={s.miniBtn} onClick={() => handleDecisionGate(gate)}>Pass</button>}
                         </span>
                       </div>
                     ))}
@@ -1691,37 +1630,33 @@ export default function CapexDashboard() {
 
                   <div style={s.dSubLabel}>Procurement KPIs</div>
                   <div style={s.lifecycleGrid}>
-                    <Field label="RFQ issued"><input style={s.fieldInput} type="date" value={procPerfForm.rfqIssuedAt} onChange={e => setProcPerfForm(p => ({ ...p, rfqIssuedAt: e.target.value }))} /></Field>
-                    <Field label="Tender completed"><input style={s.fieldInput} type="date" value={procPerfForm.tenderCompletedAt} onChange={e => setProcPerfForm(p => ({ ...p, tenderCompletedAt: e.target.value }))} /></Field>
+                    <Field label="RFQ issued"><DateField style={s.fieldInput} value={procPerfForm.rfqIssuedAt} onChange={v => setProcPerfForm(p => ({ ...p, rfqIssuedAt: v }))} /></Field>
+                    <Field label="Tender completed"><DateField style={s.fieldInput} value={procPerfForm.tenderCompletedAt} onChange={v => setProcPerfForm(p => ({ ...p, tenderCompletedAt: v }))} /></Field>
                     <Field label="Vendor responses"><input style={s.fieldInput} type="number" placeholder="0" value={procPerfForm.vendorResponseCount} onChange={e => setProcPerfForm(p => ({ ...p, vendorResponseCount: e.target.value }))} /></Field>
                     <Field label="Invited vendors"><input style={s.fieldInput} type="number" placeholder="0" value={procPerfForm.invitedVendorCount} onChange={e => setProcPerfForm(p => ({ ...p, invitedVendorCount: e.target.value }))} /></Field>
                     <Field label="Budget estimate (OMR)"><input style={s.fieldInput} type="number" placeholder="0" value={procPerfForm.budgetEstimate} onChange={e => setProcPerfForm(p => ({ ...p, budgetEstimate: e.target.value }))} /></Field>
                     <Field label="Awarded value (OMR)"><input style={s.fieldInput} type="number" placeholder="0" value={procPerfForm.awardedValue} onChange={e => setProcPerfForm(p => ({ ...p, awardedValue: e.target.value }))} /></Field>
                   </div>
-                  {canEdit('capex.procurement') && <div><button style={s.primaryBtn} onClick={handleSaveProcurementPerformance}>Save Procurement KPIs</button></div>}
+                  {canEdit('capex.procurement') && <div><button type="button" style={s.primaryBtn} onClick={handleSaveProcurementPerformance}>Save Procurement KPIs</button></div>}
 
                   <div style={s.dDivider} />
                   <div style={s.dSubLabel}>Benefit review</div>
                   <div style={s.lifecycleGrid}>
                     <Field label="Review period">
-                      <select style={s.fieldInput} value={benefitForm.reviewPeriodMonths} onChange={e => setBenefitForm(p => ({ ...p, reviewPeriodMonths: Number(e.target.value) }))}>
-                        {[6, 12, 24].map(v => <option key={v} value={v}>{v} months</option>)}
-                      </select>
+                      <SelectField style={s.fieldInput} value={String(benefitForm.reviewPeriodMonths)} onChange={v => setBenefitForm(p => ({ ...p, reviewPeriodMonths: Number(v) }))} options={[{ value: '6', label: '6 months' }, { value: '12', label: '12 months' }, { value: '24', label: '24 months' }]} aria-label="Review period" />
                     </Field>
                     <Field label="Actual ROI %"><input style={s.fieldInput} type="number" placeholder="0" value={benefitForm.actualRoi} onChange={e => setBenefitForm(p => ({ ...p, actualRoi: e.target.value }))} /></Field>
                     <Field label="Actual savings (OMR)"><input style={s.fieldInput} type="number" placeholder="0" value={benefitForm.actualSavings} onChange={e => setBenefitForm(p => ({ ...p, actualSavings: e.target.value }))} /></Field>
                     <Field label="Status">
-                      <select style={s.fieldInput} value={benefitForm.status} onChange={e => setBenefitForm(p => ({ ...p, status: e.target.value }))}>
-                        {['Planned', 'In Review', 'Completed'].map(v => <option key={v}>{v}</option>)}
-                      </select>
+                      <SelectField style={s.fieldInput} value={benefitForm.status} onChange={v => setBenefitForm(p => ({ ...p, status: v }))} options={['Planned', 'In Review', 'Completed']} aria-label="Benefit status" />
                     </Field>
                   </div>
-                  {canEdit('capex.finance') && <div><button style={s.primaryBtn} onClick={handleSaveBenefitReview}>Save Benefit Review</button></div>}
+                  {canEdit('capex.finance') && <div><button type="button" style={s.primaryBtn} onClick={handleSaveBenefitReview}>Save Benefit Review</button></div>}
 
                   <div style={s.dDivider} />
                   <div style={s.dGroupHead}>
                     <div style={{ ...s.dSubLabel, margin: 0 }}>Risk register</div>
-                    {canCreate('capex.risks') && <button style={s.dAddBtn} onClick={() => setShowRiskModal(true)}>+ Add risk</button>}
+                    {canCreate('capex.risks') && <button type="button" style={s.dAddBtn} onClick={() => setShowRiskModal(true)}>+ Add risk</button>}
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                     {!(selectedRequest.risks || []).length && <p style={s.detailText}>No risks recorded.</p>}
@@ -1729,11 +1664,11 @@ export default function CapexDashboard() {
                       <div key={r.id} style={s.compactRow}>
                         <span>
                           <strong>{r.title}</strong>
-                          <span style={{ color: '#98A0AC' }}> · {r.category}</span>
+                          <span style={{ color: 'var(--label-quaternary)' }}> · {r.category}</span>
                         </span>
                         <span style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                          <StatusBadge status={r.severity} />
-                          <StatusBadge status={r.status} />
+                          <Badge status={r.severity} />
+                          <Badge status={r.status} />
                         </span>
                       </div>
                     ))}
@@ -1749,28 +1684,20 @@ export default function CapexDashboard() {
                     <Field label="Version"><input style={s.fieldInput} placeholder="Version" value={docVersionForm.versionLabel} onChange={e => setDocVersionForm(p => ({ ...p, versionLabel: e.target.value }))} /></Field>
                     <Field label="Changelog" full><input style={s.fieldInput} placeholder="What changed in this version" value={docVersionForm.changelog} onChange={e => setDocVersionForm(p => ({ ...p, changelog: e.target.value }))} /></Field>
                   </div>
-                  {canCreate('capex.documents') && <div><button style={s.primaryBtn} onClick={handleCreateDocumentVersion}>Save Version</button></div>}
+                  {canCreate('capex.documents') && <div><button type="button" style={s.primaryBtn} onClick={handleCreateDocumentVersion}>Save Version</button></div>}
 
                   <div style={s.dDivider} />
                   <div style={s.dSubLabel}>Signature</div>
                   <div style={s.lifecycleGrid}>
                     <Field label="Linked to">
-                      <select style={s.fieldInput} value={signatureForm.linkedType} onChange={e => setSignatureForm(p => ({ ...p, linkedType: e.target.value }))}>
-                        <option value="MOA">MOA</option>
-                        <option value="Approval">Approval</option>
-                        <option value="Closure">Closure</option>
-                      </select>
+                      <SelectField style={s.fieldInput} value={signatureForm.linkedType} onChange={v => setSignatureForm(p => ({ ...p, linkedType: v }))} options={['MOA', 'Approval', 'Closure']} aria-label="Linked to" />
                     </Field>
                     <Field label="Linked ID (optional)"><input style={s.fieldInput} placeholder="Linked ID (optional)" value={signatureForm.linkedId} onChange={e => setSignatureForm(p => ({ ...p, linkedId: e.target.value }))} /></Field>
                     <Field label="Decision">
-                      <select style={s.fieldInput} value={signatureForm.decision} onChange={e => setSignatureForm(p => ({ ...p, decision: e.target.value }))}>
-                        <option value="Signed">Signed</option>
-                        <option value="Approved">Approved</option>
-                        <option value="Acknowledged">Acknowledged</option>
-                      </select>
+                      <SelectField style={s.fieldInput} value={signatureForm.decision} onChange={v => setSignatureForm(p => ({ ...p, decision: v }))} options={['Signed', 'Approved', 'Acknowledged']} aria-label="Decision" />
                     </Field>
                   </div>
-                  {canCreate('capex.documents') && <div><button style={s.primaryBtn} onClick={handleCreateSignature}>Capture Signature</button></div>}
+                  {canCreate('capex.documents') && <div><button type="button" style={s.primaryBtn} onClick={handleCreateSignature}>Capture Signature</button></div>}
               </section>
 
               <section id="capex-sec-audit" style={s.dCard}>
@@ -1793,14 +1720,12 @@ export default function CapexDashboard() {
                 <input style={s.compactInput} placeholder="MOA number" value={moaForm.moaNumber} onChange={e => setMoaForm(p => ({ ...p, moaNumber: e.target.value }))} />
                 <input style={s.compactInput} placeholder="MOA title" value={moaForm.title} onChange={e => setMoaForm(p => ({ ...p, title: e.target.value }))} />
                 <input style={s.compactInput} placeholder="Authority" value={moaForm.approvalAuthority} onChange={e => setMoaForm(p => ({ ...p, approvalAuthority: e.target.value }))} />
-                <select style={s.compactInput} value={moaForm.approvalStatus} onChange={e => setMoaForm(p => ({ ...p, approvalStatus: e.target.value }))}>
-                  {['Draft', 'Pending', 'Approved', 'Active'].map(v => <option key={v}>{v}</option>)}
-                </select>
-                <input style={{ ...s.compactInput, gridColumn: '1 / -1' }} type="date" value={moaForm.expiryDate} onChange={e => setMoaForm(p => ({ ...p, expiryDate: e.target.value }))} />
+                <SelectField style={s.compactInput} value={moaForm.approvalStatus} onChange={v => setMoaForm(p => ({ ...p, approvalStatus: v }))} options={['Draft', 'Pending', 'Approved', 'Active']} aria-label="MOA approval status" />
+                <DateField style={{ ...s.compactInput, gridColumn: '1 / -1' }} value={moaForm.expiryDate} onChange={v => setMoaForm(p => ({ ...p, expiryDate: v }))} />
               </div>
               <div style={s.modalFoot}>
-                <button style={s.secondaryBtn} onClick={() => setShowMoaModal(false)}>Cancel</button>
-                {canCreate('capex.moa') && <button style={s.primaryBtn} onClick={submitMoaModal}>Save MOA</button>}
+                <button type="button" style={s.secondaryBtn} onClick={() => setShowMoaModal(false)}>Cancel</button>
+                {canCreate('capex.moa') && <button type="button" style={s.primaryBtn} onClick={submitMoaModal}>Save MOA</button>}
               </div>
             </Modal>
           )}
@@ -1814,8 +1739,8 @@ export default function CapexDashboard() {
                 <input style={{ ...s.compactInput, gridColumn: '1 / -1' }} placeholder="Financial impact analysis" value={variationForm.financialImpactAnalysis} onChange={e => setVariationForm(p => ({ ...p, financialImpactAnalysis: e.target.value }))} />
               </div>
               <div style={s.modalFoot}>
-                <button style={s.secondaryBtn} onClick={() => setShowVariationModal(false)}>Cancel</button>
-                {canCreate('capex.variations') && <button style={s.primaryBtn} onClick={submitVariationModal}>Create Variation</button>}
+                <button type="button" style={s.secondaryBtn} onClick={() => setShowVariationModal(false)}>Cancel</button>
+                {canCreate('capex.variations') && <button type="button" style={s.primaryBtn} onClick={submitVariationModal}>Create Variation</button>}
               </div>
             </Modal>
           )}
@@ -1824,21 +1749,17 @@ export default function CapexDashboard() {
             <Modal title="Add risk" subtitle="Record a project risk with severity and mitigation." onClose={() => setShowRiskModal(false)}>
               <div style={s.lifecycleGrid}>
                 <Field label="Category">
-                  <select style={s.fieldInput} value={riskForm.category} onChange={e => setRiskForm(p => ({ ...p, category: e.target.value }))}>
-                    {['Budget Risk', 'Schedule Risk', 'Vendor Risk', 'HSE Risk', 'Capitalization Risk', 'Operational Risk'].map(v => <option key={v}>{v}</option>)}
-                  </select>
+                  <SelectField style={s.fieldInput} value={riskForm.category} onChange={v => setRiskForm(p => ({ ...p, category: v }))} options={['Budget Risk', 'Schedule Risk', 'Vendor Risk', 'HSE Risk', 'Capitalization Risk', 'Operational Risk']} aria-label="Risk category" />
                 </Field>
                 <Field label="Severity">
-                  <select style={s.fieldInput} value={riskForm.severity} onChange={e => setRiskForm(p => ({ ...p, severity: e.target.value }))}>
-                    {['Green', 'Amber', 'Red'].map(v => <option key={v}>{v}</option>)}
-                  </select>
+                  <SelectField style={s.fieldInput} value={riskForm.severity} onChange={v => setRiskForm(p => ({ ...p, severity: v }))} options={['Green', 'Amber', 'Red']} aria-label="Risk severity" />
                 </Field>
                 <Field label="Risk title" full><input style={s.fieldInput} placeholder="Risk title" value={riskForm.title} onChange={e => setRiskForm(p => ({ ...p, title: e.target.value }))} /></Field>
                 <Field label="Mitigation plan" full><input style={s.fieldInput} placeholder="Mitigation plan" value={riskForm.mitigationPlan} onChange={e => setRiskForm(p => ({ ...p, mitigationPlan: e.target.value }))} /></Field>
               </div>
               <div style={s.modalFoot}>
-                <button style={s.secondaryBtn} onClick={() => setShowRiskModal(false)}>Cancel</button>
-                {canCreate('capex.risks') && <button style={s.primaryBtn} onClick={submitRiskModal}>Add Risk</button>}
+                <button type="button" style={s.secondaryBtn} onClick={() => setShowRiskModal(false)}>Cancel</button>
+                {canCreate('capex.risks') && <button type="button" style={s.primaryBtn} onClick={submitRiskModal}>Add Risk</button>}
               </div>
             </Modal>
           )}
@@ -1857,10 +1778,10 @@ export default function CapexDashboard() {
                 value={delegateTo}
                 onChange={e => setDelegateTo(e.target.value)}
               />
-              <button style={s.warnBtn} onClick={handleDelegateStep} disabled={!delegateTo.trim()}>Delegate</button>
-              <button style={s.warnBtn} onClick={() => handleCapexDecision('RETURNED')}>Return</button>
-              <button style={s.dangerBtn} onClick={() => handleCapexDecision('REJECTED')}>Reject</button>
-              <button style={s.primaryBtn} onClick={() => handleCapexDecision('APPROVED')}>Approve Step</button>
+              <button type="button" style={s.warnBtn} onClick={handleDelegateStep} disabled={!delegateTo.trim()}>Delegate</button>
+              <button type="button" style={s.warnBtn} onClick={() => handleCapexDecision('RETURNED')}>Return</button>
+              <button type="button" style={s.dangerBtn} onClick={() => handleCapexDecision('REJECTED')}>Reject</button>
+              <button type="button" style={s.primaryBtn} onClick={() => handleCapexDecision('APPROVED')}>Approve Step</button>
             </div>
           )}
         </div>
@@ -1877,15 +1798,15 @@ export default function CapexDashboard() {
               {canView('capex.reports') && (
                 <a href={getCapexGovernanceExportUrl('csv')} style={{ ...s.secondaryBtn, textDecoration: 'none' }}>Export Governance CSV</a>
               )}
-              <button style={s.primaryBtn} onClick={() => refreshGovernance()}>Refresh</button>
+              <button type="button" style={s.primaryBtn} onClick={() => refreshGovernance()}>Refresh</button>
             </div>
           </div>
 
           <div style={s.cardRow}>
             <SummaryCard label="Approved Budget" value={fmtOMR(governance?.portfolio?.approvedBudget || 0)} color="var(--label)" sub={`${governance?.portfolio?.totalProjects || 0} projects`} />
             <SummaryCard label="Forecast Spend" value={fmtOMR(governance?.portfolio?.forecastSpend || 0)} color="var(--shell-red)" sub={`${governance?.portfolio?.budgetUtilizationPercent || 0}% utilized`} />
-            <SummaryCard label="Open AUC" value={fmtOMR(governance?.auc?.totalValue || 0)} color="#BA7517" sub={`${governance?.auc?.agedOver180Days || 0} over 180 days`} />
-            <SummaryCard label="Red Risks" value={governance?.risk?.redRisks || 0} color="#DD1D21" sub={`${governance?.generatedAlerts?.length || 0} alerts`} />
+            <SummaryCard label="Open AUC" value={fmtOMR(governance?.auc?.totalValue || 0)} color="var(--warning)" sub={`${governance?.auc?.agedOver180Days || 0} over 180 days`} />
+            <SummaryCard label="Red Risks" value={governance?.risk?.redRisks || 0} color="var(--shell-red)" sub={`${governance?.generatedAlerts?.length || 0} alerts`} />
           </div>
 
           <div style={s.section}>
@@ -1935,7 +1856,7 @@ export default function CapexDashboard() {
               <div style={s.sectionHead}>
                 <h3 style={s.sectionTitle}>Scheduled Reports</h3>
                 {canCreate('capex.reports') && (
-                  <button style={s.dAddBtn} onClick={() => setShowScheduleModal(true)}>+ Add schedule</button>
+                  <button type="button" style={s.dAddBtn} onClick={() => setShowScheduleModal(true)}>+ Add schedule</button>
                 )}
               </div>
               <DataTable
@@ -1955,27 +1876,21 @@ export default function CapexDashboard() {
                 <div style={s.lifecycleGrid}>
                   <Field label="Report name" full><input style={s.fieldInput} placeholder="Report name" value={scheduleForm.reportName} onChange={e => setScheduleForm(p => ({ ...p, reportName: e.target.value }))} /></Field>
                   <Field label="Report type">
-                    <select style={s.fieldInput} value={scheduleForm.reportType} onChange={e => setScheduleForm(p => ({ ...p, reportType: e.target.value }))}>
-                      {['governance', 'auc', 'po-closure', 'moa-compliance', 'benefits'].map(v => <option key={v}>{v}</option>)}
-                    </select>
+                    <SelectField style={s.fieldInput} value={scheduleForm.reportType} onChange={v => setScheduleForm(p => ({ ...p, reportType: v }))} options={['governance', 'auc', 'po-closure', 'moa-compliance', 'benefits']} aria-label="Report type" />
                   </Field>
                   <Field label="Audience"><input style={s.fieldInput} placeholder="e.g. CEO/CFO" value={scheduleForm.audience} onChange={e => setScheduleForm(p => ({ ...p, audience: e.target.value }))} /></Field>
                   <Field label="Frequency">
-                    <select style={s.fieldInput} value={scheduleForm.frequency} onChange={e => setScheduleForm(p => ({ ...p, frequency: e.target.value }))}>
-                      {['Weekly', 'Monthly', 'Quarterly'].map(v => <option key={v}>{v}</option>)}
-                    </select>
+                    <SelectField style={s.fieldInput} value={scheduleForm.frequency} onChange={v => setScheduleForm(p => ({ ...p, frequency: v }))} options={['Weekly', 'Monthly', 'Quarterly']} aria-label="Frequency" />
                   </Field>
                   <Field label="Format">
-                    <select style={s.fieldInput} value={scheduleForm.format} onChange={e => setScheduleForm(p => ({ ...p, format: e.target.value }))}>
-                      {['PDF', 'CSV', 'XLSX'].map(v => <option key={v}>{v}</option>)}
-                    </select>
+                    <SelectField style={s.fieldInput} value={scheduleForm.format} onChange={v => setScheduleForm(p => ({ ...p, format: v }))} options={['PDF', 'CSV', 'XLSX']} aria-label="Format" />
                   </Field>
-                  <Field label="Next run date"><input style={s.fieldInput} type="date" value={scheduleForm.nextRunDate} onChange={e => setScheduleForm(p => ({ ...p, nextRunDate: e.target.value }))} /></Field>
+                  <Field label="Next run date"><DateField style={s.fieldInput} value={scheduleForm.nextRunDate} onChange={v => setScheduleForm(p => ({ ...p, nextRunDate: v }))} /></Field>
                   <Field label="Recipients (comma separated)" full><input style={s.fieldInput} placeholder="name@shell.com, ..." value={scheduleForm.recipients} onChange={e => setScheduleForm(p => ({ ...p, recipients: e.target.value }))} /></Field>
                 </div>
                 <div style={s.modalFoot}>
-                  <button style={s.secondaryBtn} onClick={() => setShowScheduleModal(false)}>Cancel</button>
-                  {canCreate('capex.reports') && <button style={s.primaryBtn} onClick={submitScheduleModal}>Add Schedule</button>}
+                  <button type="button" style={s.secondaryBtn} onClick={() => setShowScheduleModal(false)}>Cancel</button>
+                  {canCreate('capex.reports') && <button type="button" style={s.primaryBtn} onClick={submitScheduleModal}>Add Schedule</button>}
                 </div>
               </Modal>
             )}
@@ -1984,9 +1899,7 @@ export default function CapexDashboard() {
           <div style={s.section}>
             <div style={s.sectionHead}>
               <h3 style={s.sectionTitle}>Dashboard Drill-Down</h3>
-              <select style={s.compactInput} value={drilldownType} onChange={e => handleDrilldownChange(e.target.value)}>
-                {['businessUnit', 'aucAging', 'moaCompliance', 'risks', 'variations', 'procurementPerformance', 'decisionGates'].map(v => <option key={v}>{v}</option>)}
-              </select>
+              <SelectField style={s.compactInput} value={drilldownType} onChange={handleDrilldownChange} options={['businessUnit', 'aucAging', 'moaCompliance', 'risks', 'variations', 'procurementPerformance', 'decisionGates']} aria-label="Drill-down type" />
             </div>
             <DataTable
               columns={Object.keys(drilldownRows[0] || {}).slice(0, 7).map(key => ({ key, label: key.replace(/[A-Z]/g, m => ` ${m}`).trim() }))}
@@ -2015,7 +1928,7 @@ export default function CapexDashboard() {
               <MiniInfo label="Medium Value Max" value={`OMR ${Number(thresholdForm.mediumMaxOmr).toLocaleString()}`} />
             </div>
             {canEdit('capex.admin') && (
-              <button style={s.primaryBtn} onClick={handleSaveThresholds}>Save Thresholds</button>
+              <button type="button" style={s.primaryBtn} onClick={handleSaveThresholds}>Save Thresholds</button>
             )}
           </div>
 
@@ -2035,10 +1948,10 @@ export default function CapexDashboard() {
                   render: (v, row) => <input style={s.compactInput} value={v} onChange={e => handleWorkflowRuleChange(row, 'label', e.target.value)} />
                 },
                 { key: 'isActive', label: 'Active',
-                  render: (v, row) => <input type="checkbox" checked={!!v} onChange={e => handleWorkflowRuleChange(row, 'isActive', e.target.checked)} />
+                  render: (v, row) => <Checkbox checked={!!v} onChange={c => handleWorkflowRuleChange(row, 'isActive', c)} aria-label="Active" />
                 },
                 { key: 'id', label: 'Action',
-                  render: (_, row) => canEdit('capex.admin') ? <button style={s.miniBtn} onClick={() => handleSaveWorkflowRule(row)}>Save</button> : '-'
+                  render: (_, row) => canEdit('capex.admin') ? <button type="button" style={s.miniBtn} onClick={() => handleSaveWorkflowRule(row)}>Save</button> : '-'
                 },
               ]}
               rows={adminConfig?.workflowRules || []}
@@ -2057,7 +1970,7 @@ export default function CapexDashboard() {
             </div>
             <div style={{ display: 'flex', gap: 10, flexShrink: 0 }}>
               {canCreate('capex.finance') && (
-              <button
+              <button type="button"
                 style={{ ...s.primaryBtn, background: 'var(--surface)', color: 'var(--shell-red)', border: '1px solid rgba(221,29,33,0.30)', boxShadow: 'none' }}
                 onClick={() => setShowBudgetUpload(true)}
               >
@@ -2065,7 +1978,7 @@ export default function CapexDashboard() {
               </button>
               )}
               {canCreate('capex.initiations') && !showInitForm && (
-                <button style={s.primaryBtn} onClick={() => setShowInitForm(true)}>+ New Initiation</button>
+                <button type="button" style={s.primaryBtn} onClick={() => setShowInitForm(true)}>+ New Initiation</button>
               )}
             </div>
           </div>
@@ -2089,8 +2002,8 @@ export default function CapexDashboard() {
                 { key: 'department',       label: 'Department' },
                 { key: 'projectType',      label: 'Type' },
                 { key: 'estimatedBudget',  label: 'Est. Budget', render: (v) => fmtOMR(v) },
-                { key: 'priority',         label: 'Priority', render: (v) => <StatusBadge status={v} /> },
-                { key: 'status',           label: 'Status',   render: (v) => <StatusBadge status={v} /> },
+                { key: 'priority',         label: 'Priority', render: (v) => <Badge status={v} /> },
+                { key: 'status',           label: 'Status',   render: (v) => <Badge status={v} /> },
                 { key: 'createdAt',        label: 'Submitted' },
               ]}
               rows={initiations}
@@ -2126,9 +2039,9 @@ function MiniInfo({ label, value }) {
 
 const s = {
   experience: {
-    background: '#F4F6F8',
-    border: '1px solid #E0E5EB',
-    borderRadius: 8,
+    background: 'var(--gray-50)',
+    border: '1px solid var(--gray-200)',
+    borderRadius: 'var(--radius-md)',
     padding: 20,
     minHeight: 'calc(100vh - 120px)',
   },
@@ -2144,8 +2057,8 @@ const s = {
     animation: 'spin 0.8s linear infinite',
   },
   errorBox: {
-    background: 'rgba(220,38,38,0.12)', border: '1px solid rgba(220,38,38,0.30)',
-    color: '#ff6b6b', padding: '12px 20px', borderRadius: 'var(--radius-sm)', marginBottom: 12,
+    background: 'var(--danger-bg)', border: '1px solid var(--danger)',
+    color: 'var(--danger)', padding: '12px 20px', borderRadius: 'var(--radius-sm)', marginBottom: 12,
   },
   retryBtn: {
     padding: '8px 20px', background: 'var(--shell-red)',
@@ -2158,9 +2071,9 @@ const s = {
     alignItems: 'flex-start',
     gap: 20,
     background: '#FFFFFF',
-    border: '1px solid #E0E5EB',
+    border: '1px solid var(--gray-200)',
     borderLeft: '5px solid var(--shell-red)',
-    borderRadius: 8,
+    borderRadius: 'var(--radius-md)',
     padding: '22px 24px',
     marginBottom: 14,
     boxShadow: '0 1px 2px rgba(15,23,42,0.05)',
@@ -2179,32 +2092,32 @@ const s = {
     minWidth: 46,
     padding: '0 9px',
     background: 'var(--shell-yellow)',
-    border: '1px solid #D9B800',
-    borderRadius: 4,
-    color: '#2B2B2B',
+    border: '1px solid var(--accent-amber-line)',
+    borderRadius: 'var(--radius-xs)',
+    color: 'var(--gray-800)',
     fontSize: 12,
     fontWeight: 900,
   },
   brandText: {
-    color: '#4B5563',
+    color: 'var(--gray-600)',
     fontSize: 12,
     fontWeight: 800,
     textTransform: 'uppercase',
   },
-  heading:    { margin: 0, fontSize: 28, fontWeight: 800, color: '#1F2933' },
-  subheading: { margin: '6px 0 0', fontSize: 14, color: '#5B6773', maxWidth: 760 },
+  heading:    { margin: 0, fontSize: 28, fontWeight: 800, color: 'var(--label)' },
+  subheading: { margin: '6px 0 0', fontSize: 14, color: 'var(--label-secondary)', maxWidth: 760 },
   headerRight:{ display: 'flex', alignItems: 'center', gap: 12 },
   syncBadge: {
     display: 'flex', alignItems: 'center', gap: 7,
-    background: '#F9FAFB', border: '1px solid #D9DEE5',
-    borderRadius: 999, padding: '7px 12px',
-    fontSize: 12, fontWeight: 700, color: '#4B5563',
+    background: 'var(--gray-50)', border: '1px solid var(--separator)',
+    borderRadius: 'var(--radius-pill)', padding: '7px 12px',
+    fontSize: 12, fontWeight: 700, color: 'var(--gray-600)',
   },
   syncDot: { width: 7, height: 7, borderRadius: '50%', flexShrink: 0 },
   refreshBtn: {
     padding: '8px 16px', background: '#FFFFFF',
-    border: '1px solid #C8D0D9', borderRadius: 6,
-    fontSize: 13, fontWeight: 800, cursor: 'pointer', color: '#344054',
+    border: '1px solid var(--gray-300)', borderRadius: 'var(--radius-sm)',
+    fontSize: 13, fontWeight: 800, cursor: 'pointer', color: 'var(--gray-700)',
   },
   commandBar: {
     display: 'grid',
@@ -2214,21 +2127,21 @@ const s = {
   },
   commandItem: {
     background: '#FFFFFF',
-    border: '1px solid #E0E5EB',
-    borderRadius: 8,
+    border: '1px solid var(--gray-200)',
+    borderRadius: 'var(--radius-md)',
     padding: '13px 16px',
     boxShadow: '0 1px 2px rgba(15,23,42,0.04)',
   },
   commandLabel: {
     display: 'block',
-    color: '#687586',
+    color: 'var(--gray-500)',
     fontSize: 11,
     fontWeight: 800,
     textTransform: 'uppercase',
   },
   commandValue: {
     display: 'block',
-    color: '#1F2933',
+    color: 'var(--label)',
     fontSize: 15,
     marginTop: 2,
   },
@@ -2238,16 +2151,16 @@ const s = {
     flexWrap: 'wrap',
     gap: 2,
     background: '#FFFFFF',
-    border: '1px solid #D9DEE5',
-    borderRadius: 8,
+    border: '1px solid var(--separator)',
+    borderRadius: 'var(--radius-md)',
     padding: 4,
     marginBottom: 18,
     boxShadow: '0 1px 2px rgba(15,23,42,0.05)',
   },
   tabBtn: {
     padding: '9px 16px', border: 'none',
-    borderRadius: 6, cursor: 'pointer',
-    fontSize: 13, fontWeight: 800, color: '#5B6773',
+    borderRadius: 'var(--radius-sm)', cursor: 'pointer',
+    fontSize: 13, fontWeight: 800, color: 'var(--label-secondary)',
     background: 'transparent', transition: 'all var(--transition-fast)',
   },
   tabBtnActive: {
@@ -2263,8 +2176,8 @@ const s = {
   },
   card: {
     background: '#FFFFFF',
-    border: '1px solid #E0E5EB',
-    borderRadius: 8,
+    border: '1px solid var(--gray-200)',
+    borderRadius: 'var(--radius-md)',
     padding: '18px 18px',
     boxShadow: '0 1px 2px rgba(15,23,42,0.05)',
   },
@@ -2277,8 +2190,8 @@ const s = {
 
   section: {
     background: '#FFFFFF',
-    border: '1px solid #E0E5EB',
-    borderRadius: 8,
+    border: '1px solid var(--gray-200)',
+    borderRadius: 'var(--radius-md)',
     padding: '22px',
     marginBottom: 18,
     boxShadow: '0 1px 2px rgba(15,23,42,0.05)',
@@ -2286,7 +2199,7 @@ const s = {
   sectionHead: {
     display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20,
   },
-  sectionTitle: { margin: '0 0 16px', fontSize: 16, fontWeight: 850, color: '#1F2933' },
+  sectionTitle: { margin: '0 0 16px', fontSize: 16, fontWeight: 850, color: 'var(--label)' },
 
   meterTrack: {
     height: 10, background: 'var(--gray-200)',
@@ -2317,28 +2230,28 @@ const s = {
     display: 'flex', justifyContent: 'space-between',
     alignItems: 'flex-start', gap: 18, marginBottom: 16,
   },
-  tabSubtitle: { margin: '4px 0 0', fontSize: 13, color: '#5B6773' },
+  tabSubtitle: { margin: '4px 0 0', fontSize: 13, color: 'var(--label-secondary)' },
   primaryBtn: {
     padding: '9px 18px', background: 'var(--shell-red)',
-    border: '1px solid #B8161B', borderRadius: 6,
+    border: '1px solid var(--shell-red-dark)', borderRadius: 'var(--radius-sm)',
     fontSize: 13, fontWeight: 850, color: '#fff', cursor: 'pointer',
     boxShadow: '0 1px 2px rgba(15,23,42,0.08)', flexShrink: 0,
   },
   secondaryBtn: {
     padding: '9px 14px', background: '#FFFFFF',
-    border: '1px solid #C8D0D9', borderRadius: 6,
-    fontSize: 13, fontWeight: 800, color: '#344054', cursor: 'pointer',
+    border: '1px solid var(--gray-300)', borderRadius: 'var(--radius-sm)',
+    fontSize: 13, fontWeight: 800, color: 'var(--gray-700)', cursor: 'pointer',
     boxShadow: '0 1px 2px rgba(15,23,42,0.04)', flexShrink: 0,
   },
   warnBtn: {
-    padding: '9px 14px', background: '#FFF7D1',
-    border: '1px solid #F1D36A', borderRadius: 6,
-    fontSize: 13, fontWeight: 800, color: '#805B00', cursor: 'pointer',
+    padding: '9px 14px', background: 'var(--accent-amber-bg)',
+    border: '1px solid var(--accent-amber-line)', borderRadius: 'var(--radius-sm)',
+    fontSize: 13, fontWeight: 800, color: 'var(--accent-amber-text)', cursor: 'pointer',
   },
   dangerBtn: {
-    padding: '9px 14px', background: '#FDECEC',
-    border: '1px solid #F4B8BB', borderRadius: 6,
-    fontSize: 13, fontWeight: 800, color: '#A91F23', cursor: 'pointer',
+    padding: '9px 14px', background: 'var(--accent-red-bg)',
+    border: '1px solid var(--accent-red-line)', borderRadius: 'var(--radius-sm)',
+    fontSize: 13, fontWeight: 800, color: 'var(--shell-red-dark)', cursor: 'pointer',
   },
   linkBtn: {
     background: 'transparent', border: 'none', padding: 0,
@@ -2346,34 +2259,34 @@ const s = {
     textAlign: 'left', font: 'inherit',
   },
   miniInfo: {
-    background: '#F8FAFC', border: '1px solid #E0E5EB',
-    borderRadius: 6, padding: '11px 12px',
+    background: 'var(--gray-50)', border: '1px solid var(--gray-200)',
+    borderRadius: 'var(--radius-sm)', padding: '11px 12px',
   },
   miniLabel: {
     display: 'block', fontSize: 10, fontWeight: 700,
     color: 'var(--label-secondary)', textTransform: 'uppercase', letterSpacing: '0.4px',
   },
   miniValue: { display: 'block', marginTop: 4, fontSize: 13, color: 'var(--label)' },
-  detailTitle: { margin: '4px 0 12px', fontSize: 15, fontWeight: 800, color: '#1A2233', letterSpacing: '-.005em' },
-  detailText: { margin: '0 0 4px', fontSize: 13.5, color: '#4B5563', lineHeight: 1.55 },
+  detailTitle: { margin: '4px 0 12px', fontSize: 15, fontWeight: 800, color: 'var(--label)', letterSpacing: '-.005em' },
+  detailText: { margin: '0 0 4px', fontSize: 13.5, color: 'var(--gray-600)', lineHeight: 1.55 },
   compactRow: {
     display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12,
-    background: '#FFFFFF', border: '1px solid #F1F2F4',
-    borderRadius: 10, padding: '11px 14px', fontSize: 13.5,
+    background: '#FFFFFF', border: '1px solid var(--separator-clear)',
+    borderRadius: 'var(--radius-md)', padding: '11px 14px', fontSize: 13.5,
   },
   lifecycleGrid: {
     display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
     gap: 14, marginBottom: 14,
   },
   compactInput: {
-    border: '1px solid #E0E3E8', borderRadius: 8,
-    padding: '10px 12px', fontSize: 13, color: '#1A2233',
+    border: '1px solid var(--gray-200)', borderRadius: 'var(--radius-md)',
+    padding: '10px 12px', fontSize: 13, color: 'var(--label)',
     background: '#FFFFFF', fontFamily: 'inherit', minWidth: 0,
   },
   miniBtn: {
-    padding: '5px 8px', border: '1px solid #C8D0D9',
-    borderRadius: 6, background: '#FFFFFF',
-    color: '#344054', fontSize: 11, fontWeight: 800, cursor: 'pointer',
+    padding: '5px 8px', border: '1px solid var(--gray-300)',
+    borderRadius: 'var(--radius-sm)', background: '#FFFFFF',
+    color: 'var(--gray-700)', fontSize: 11, fontWeight: 800, cursor: 'pointer',
   },
   inlineLink: {
     color: 'var(--shell-red)', fontSize: 12, fontWeight: 700,
@@ -2392,82 +2305,82 @@ const s = {
   },
   reqSearch: {
     flex: '1 1 280px', minWidth: 220,
-    border: '1px solid #C8D0D9', borderRadius: 6,
-    padding: '9px 12px', fontSize: 13, color: '#1F2933',
+    border: '1px solid var(--gray-300)', borderRadius: 'var(--radius-sm)',
+    padding: '9px 12px', fontSize: 13, color: 'var(--label)',
     background: '#FFFFFF', fontFamily: 'inherit',
   },
   reqFilter: {
-    border: '1px solid #C8D0D9', borderRadius: 6,
-    padding: '9px 10px', fontSize: 13, color: '#1F2933',
+    border: '1px solid var(--gray-300)', borderRadius: 'var(--radius-sm)',
+    padding: '9px 10px', fontSize: 13, color: 'var(--label)',
     background: '#FFFFFF', fontFamily: 'inherit', cursor: 'pointer',
   },
-  reqCount: { marginLeft: 'auto', fontSize: 12, color: '#687586', fontWeight: 700, whiteSpace: 'nowrap' },
+  reqCount: { marginLeft: 'auto', fontSize: 12, color: 'var(--gray-500)', fontWeight: 700, whiteSpace: 'nowrap' },
   rowTitleBtn: {
     background: 'transparent', border: 'none', padding: 0,
-    color: '#1F2933', fontWeight: 800, cursor: 'pointer',
+    color: 'var(--label)', fontWeight: 800, cursor: 'pointer',
     textAlign: 'left', font: 'inherit',
   },
   backBtn: {
     display: 'inline-flex', alignItems: 'center', gap: 6,
     padding: '8px 14px', background: '#FFFFFF',
-    border: '1px solid #C8D0D9', borderRadius: 6,
-    fontSize: 13, fontWeight: 800, color: '#344054', cursor: 'pointer',
+    border: '1px solid var(--gray-300)', borderRadius: 'var(--radius-sm)',
+    fontSize: 13, fontWeight: 800, color: 'var(--gray-700)', cursor: 'pointer',
     marginBottom: 14,
   },
   actionBar: {
     position: 'sticky', bottom: 12, zIndex: 6,
     display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap',
-    background: '#FFFFFF', border: '1px solid #ECEEF1',
+    background: '#FFFFFF', border: '1px solid var(--gray-200)',
     boxShadow: '0 -2px 12px rgba(16,24,40,0.08)',
     padding: '14px 20px', marginTop: 18,
-    borderRadius: 14,
+    borderRadius: 'var(--radius-md)',
   },
-  actionBarLabel: { fontSize: 13, fontWeight: 800, color: '#1A2233', marginRight: 'auto' },
+  actionBarLabel: { fontSize: 13, fontWeight: 800, color: 'var(--label)', marginRight: 'auto' },
 
   // ── Detail redesign (CapexRail handoff) ──────────────────────────────────
   dHeaderCard: {
-    background: '#FFFFFF', border: '1px solid #ECEEF1', borderRadius: 16,
+    background: '#FFFFFF', border: '1px solid var(--gray-200)', borderRadius: 'var(--radius-md)',
     padding: '24px 26px', marginBottom: 18,
     boxShadow: '0 1px 3px rgba(16,24,40,0.05)',
     display: 'flex', flexDirection: 'column', gap: 22,
   },
-  dEyebrow: { fontSize: 12, fontWeight: 700, letterSpacing: '.06em', color: '#98A0AC', textTransform: 'uppercase', marginBottom: 5 },
-  dTitle: { fontSize: 25, fontWeight: 800, margin: '0 0 6px', color: '#1A2233', letterSpacing: '-.01em' },
-  dMeta: { fontSize: 14, color: '#6B7280', fontWeight: 500 },
+  dEyebrow: { fontSize: 12, fontWeight: 700, letterSpacing: '.06em', color: 'var(--label-quaternary)', textTransform: 'uppercase', marginBottom: 5 },
+  dTitle: { fontSize: 25, fontWeight: 800, margin: '0 0 6px', color: 'var(--label)', letterSpacing: '-.01em' },
+  dMeta: { fontSize: 14, color: 'var(--neutral)', fontWeight: 500 },
   dStatGrid: { display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0,1fr))', gap: 12 },
-  dStatTile: { background: '#F8F9FB', border: '1px solid #EEF0F3', borderRadius: 11, padding: '13px 15px' },
-  dStatLabel: { fontSize: 10.5, fontWeight: 700, letterSpacing: '.05em', color: '#98A0AC', textTransform: 'uppercase' },
-  dStatValue: { fontSize: 17, fontWeight: 800, marginTop: 4, color: '#1A2233' },
+  dStatTile: { background: 'var(--gray-50)', border: '1px solid var(--gray-50)', borderRadius: 'var(--radius-md)', padding: '13px 15px' },
+  dStatLabel: { fontSize: 10.5, fontWeight: 700, letterSpacing: '.05em', color: 'var(--label-quaternary)', textTransform: 'uppercase' },
+  dStatValue: { fontSize: 17, fontWeight: 800, marginTop: 4, color: 'var(--label)' },
   dTwoPane: { display: 'grid', gridTemplateColumns: '212px minmax(0,1fr)', gap: 20, alignItems: 'start' },
   dNavRail: {
     position: 'sticky', top: 12, alignSelf: 'start',
     display: 'flex', flexDirection: 'column', gap: 6,
-    background: '#FFFFFF', border: '1px solid #ECEEF1', borderRadius: 14,
+    background: '#FFFFFF', border: '1px solid var(--gray-200)', borderRadius: 'var(--radius-md)',
     padding: '14px 12px', boxShadow: '0 1px 2px rgba(16,24,40,0.04)',
   },
-  dNavRailHead: { fontSize: 11, fontWeight: 800, letterSpacing: '.06em', color: '#98A0AC', textTransform: 'uppercase', padding: '4px 10px 8px' },
+  dNavRailHead: { fontSize: 11, fontWeight: 800, letterSpacing: '.06em', color: 'var(--label-quaternary)', textTransform: 'uppercase', padding: '4px 10px 8px' },
   dNavItem: {
     display: 'flex', alignItems: 'center', gap: 10,
-    padding: '8px 10px', borderRadius: 8, fontSize: 13.5, fontWeight: 500,
-    color: '#4B5563', cursor: 'pointer', textDecoration: 'none',
+    padding: '8px 10px', borderRadius: 'var(--radius-md)', fontSize: 13.5, fontWeight: 500,
+    color: 'var(--gray-600)', cursor: 'pointer', textDecoration: 'none',
   },
-  dNavItemActive: { background: '#FDECEC', color: '#DD1D21', fontWeight: 700 },
+  dNavItemActive: { background: 'var(--accent-red-bg)', color: 'var(--shell-red)', fontWeight: 700 },
   dNavDot: { width: 7, height: 7, borderRadius: '50%', flex: '0 0 auto' },
   dCardCol: { display: 'flex', flexDirection: 'column', gap: 18, minWidth: 0 },
-  dSubLabel: { fontSize: 12, fontWeight: 800, color: '#6B7280', textTransform: 'uppercase', letterSpacing: '.05em', margin: '0 0 12px' },
-  dSubNote: { fontSize: 12.5, color: '#98A0AC', margin: '-6px 0 12px', fontWeight: 500 },
-  dDivider: { height: 1, background: '#F1F2F4', margin: '20px 0 18px' },
+  dSubLabel: { fontSize: 12, fontWeight: 800, color: 'var(--neutral)', textTransform: 'uppercase', letterSpacing: '.05em', margin: '0 0 12px' },
+  dSubNote: { fontSize: 12.5, color: 'var(--label-quaternary)', margin: '-6px 0 12px', fontWeight: 500 },
+  dDivider: { height: 1, background: 'var(--separator-clear)', margin: '20px 0 18px' },
   dGroupHead: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 12 },
-  checkInline: { display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: '#1A2233', minHeight: 40, cursor: 'pointer' },
+  checkInline: { display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--label)', minHeight: 40, cursor: 'pointer' },
   fieldInput: fieldInputStyle,
   dAddBtn: {
-    height: 34, padding: '0 14px', border: '1px dashed #C7CBD2', borderRadius: 8,
-    background: '#FFFFFF', color: '#4B5563', fontSize: 13, fontWeight: 700,
+    height: 34, padding: '0 14px', border: '1px dashed var(--gray-300)', borderRadius: 'var(--radius-md)',
+    background: '#FFFFFF', color: 'var(--gray-600)', fontSize: 13, fontWeight: 700,
     cursor: 'pointer', fontFamily: 'inherit', flexShrink: 0,
   },
   modalFoot: { display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 6 },
   dCard: {
-    background: '#FFFFFF', border: '1px solid #ECEEF1', borderRadius: 14,
+    background: '#FFFFFF', border: '1px solid var(--gray-200)', borderRadius: 'var(--radius-md)',
     padding: '22px 24px', boxShadow: '0 1px 2px rgba(16,24,40,0.04)',
     scrollMarginTop: 16,
   },
@@ -2484,28 +2397,28 @@ const s = {
   stepConnector: { flex: 1, height: 2 },
   stepNode: {
     width: 34, height: 34, flex: '0 0 auto', display: 'inline-flex',
-    alignItems: 'center', justifyContent: 'center', borderRadius: 999,
-    background: '#EEF2F7', color: '#5B6773', border: '2px solid #D6DEE8',
+    alignItems: 'center', justifyContent: 'center', borderRadius: 'var(--radius-pill)',
+    background: 'var(--gray-50)', color: 'var(--label-secondary)', border: '2px solid var(--gray-200)',
     fontSize: 15, fontWeight: 800,
   },
-  stepNodeDone: { background: '#E7F5EC', color: '#1F8A4C', border: '2px solid #BFE6CC' },
+  stepNodeDone: { background: 'var(--success-bg)', color: 'var(--success)', border: '2px solid var(--success-bg)' },
   stepNodeCurrent: { background: 'var(--shell-red)', color: '#FFFFFF', border: '2px solid var(--shell-red)', boxShadow: '0 0 0 4px rgba(221,29,33,0.15)' },
-  stepLabel: { color: '#4B5563', fontSize: 12, fontWeight: 600, lineHeight: 1.25, padding: '0 6px' },
-  stepPill: { fontSize: 11, fontWeight: 700, borderRadius: 999, padding: '2px 9px', whiteSpace: 'nowrap' },
-  stepPillDone: { color: '#1F8A4C', background: '#E7F5EC' },
-  stepPillCurrent: { color: '#B45309', background: '#FFF7E6' },
-  stepPillPending: { color: '#6B7280', background: '#EEF0F3' },
-  tableWrap: { overflowX: 'auto', border: '1px solid #E0E5EB', borderRadius: 8 },
+  stepLabel: { color: 'var(--gray-600)', fontSize: 12, fontWeight: 600, lineHeight: 1.25, padding: '0 6px' },
+  stepPill: { fontSize: 11, fontWeight: 700, borderRadius: 'var(--radius-pill)', padding: '2px 9px', whiteSpace: 'nowrap' },
+  stepPillDone: { color: 'var(--success)', background: 'var(--success-bg)' },
+  stepPillCurrent: { color: 'var(--accent-amber)', background: 'var(--accent-amber-bg)' },
+  stepPillPending: { color: 'var(--neutral)', background: 'var(--gray-50)' },
+  tableWrap: { overflowX: 'auto', border: '1px solid var(--gray-200)', borderRadius: 'var(--radius-md)' },
   table: { width: '100%', borderCollapse: 'collapse', fontSize: 13, background: '#FFFFFF' },
   th: {
     padding: '11px 14px', textAlign: 'left',
-    fontSize: 11, fontWeight: 850, color: '#5B6773',
+    fontSize: 11, fontWeight: 850, color: 'var(--label-secondary)',
     textTransform: 'uppercase', letterSpacing: '0.4px',
-    borderBottom: '1px solid #D9DEE5', whiteSpace: 'nowrap',
-    background: '#F8FAFC',
+    borderBottom: '1px solid var(--separator)', whiteSpace: 'nowrap',
+    background: 'var(--gray-50)',
   },
   td: {
-    padding: '12px 14px', borderBottom: '1px solid #E9EDF2',
-    color: '#1F2933', verticalAlign: 'middle',
+    padding: '12px 14px', borderBottom: '1px solid var(--gray-100)',
+    color: 'var(--label)', verticalAlign: 'middle',
   },
 };

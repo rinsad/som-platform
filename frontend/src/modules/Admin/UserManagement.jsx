@@ -1,13 +1,12 @@
 import { useState, useEffect, useCallback } from 'react';
 import { usersService } from '../../services/usersService';
+import ConfirmModal from '../../components/ConfirmModal';
 import UserFormModal from './UserFormModal';
+import Badge from '../../components/Badge';
 
-const ROLE_COLOURS = {
-  Admin:    { bg: '#fff1f1', text: '#DD1D21' },
-  Manager:  { bg: '#fff8cc', text: '#8a5d00' },
-  Finance:  { bg: '#ecfdf5', text: '#047857' },
-  Employee: { bg: '#f4f4f4', text: '#525252' },
-};
+// Role labels are arbitrary identity tags, not a severity ladder, so each
+// gets an explicit tone; unlisted roles fall back to the Badge default (neutral).
+const ROLE_TONE = { Admin: 'danger', Manager: 'warning', Finance: 'success', Employee: 'neutral' };
 
 export default function UserManagement() {
   const [users, setUsers]         = useState([]);
@@ -64,6 +63,16 @@ export default function UserManagement() {
     setConfirm(null);
   };
 
+  const handleReactivate = async (user) => {
+    try {
+      await usersService.reactivate(user.id);
+      loadUsers();
+    } catch (err) {
+      setError(err.response?.data?.error ?? 'Failed to reactivate');
+    }
+    setConfirm(null);
+  };
+
   const handleDelete = async (user) => {
     try {
       await usersService.delete(user.id);
@@ -89,6 +98,30 @@ export default function UserManagement() {
     admins:   users.filter(u => u.role === 'Admin').length,
   };
 
+  const confirmContent = confirm && {
+    delete: {
+      title: 'Delete User',
+      message: `Permanently delete ${confirm.user.full_name}? This cannot be undone.`,
+      label: 'Delete',
+      color: 'var(--shell-red)',
+      action: handleDelete,
+    },
+    reactivate: {
+      title: 'Reactivate User',
+      message: `Reactivate ${confirm.user.full_name}? They will be able to log in again.`,
+      label: 'Reactivate',
+      color: 'var(--success)',
+      action: handleReactivate,
+    },
+    deactivate: {
+      title: 'Deactivate User',
+      message: `Deactivate ${confirm.user.full_name}? They will no longer be able to log in.`,
+      label: 'Deactivate',
+      color: 'var(--warning)',
+      action: handleDeactivate,
+    },
+  }[confirm.type];
+
   return (
     <div style={s.root}>
       {/* Page header */}
@@ -97,7 +130,7 @@ export default function UserManagement() {
           <h1 style={s.pageTitle}>User Management</h1>
           <p style={s.pageSubtitle}>Create users and manage application, module, page, and field-level permissions.</p>
         </div>
-        <button style={s.newBtn} onClick={openNew}>
+        <button type="button" style={s.newBtn} onClick={openNew}>
           <span style={s.plusIcon}>+</span> New User
         </button>
       </div>
@@ -105,10 +138,10 @@ export default function UserManagement() {
       {/* Stats */}
       <div style={s.statsRow}>
         {[
-          { label: 'Total Users',    value: stats.total,    colour: '#7EB3FF' },
-          { label: 'Active',         value: stats.active,   colour: '#34C759' },
-          { label: 'Inactive',       value: stats.inactive, colour: '#FF8A8A' },
-          { label: 'Administrators', value: stats.admins,   colour: '#FFD500' },
+          { label: 'Total Users',    value: stats.total,    colour: 'var(--info)' },
+          { label: 'Active',         value: stats.active,   colour: 'var(--success)' },
+          { label: 'Inactive',       value: stats.inactive, colour: 'var(--danger)' },
+          { label: 'Administrators', value: stats.admins,   colour: 'var(--shell-yellow)' },
         ].map(({ label, value, colour }) => (
           <div key={label} style={s.statCard}>
             <span style={{ ...s.statValue, color: colour }}>{value}</span>
@@ -154,9 +187,8 @@ export default function UserManagement() {
             </thead>
             <tbody>
               {filtered.map((user, i) => {
-                const rc = ROLE_COLOURS[user.role] ?? ROLE_COLOURS.Employee;
                 return (
-                  <tr key={user.id} style={{ ...s.tr, background: i % 2 === 0 ? 'transparent' : '#fafafa' }}>
+                  <tr key={user.id} style={{ ...s.tr, background: i % 2 === 0 ? 'transparent' : 'var(--gray-50)' }}>
                     <td style={s.td}>
                       <span style={s.empId}>{user.employee_id ?? '—'}</span>
                     </td>
@@ -170,28 +202,32 @@ export default function UserManagement() {
                     </td>
                     <td style={s.td}><span style={s.email}>{user.email}</span></td>
                     <td style={s.td}>
-                      <span style={{ ...s.roleBadge, background: rc.bg, color: rc.text }}>
-                        {user.role}
-                      </span>
+                      <Badge status={user.role} tone={ROLE_TONE[user.role]} />
                     </td>
                     <td style={s.td}><span style={s.dept}>{user.department ?? '—'}</span></td>
                     <td style={s.td}>
-                      <span style={user.is_active ? s.activeChip : s.inactiveChip}>
-                        {user.is_active ? 'Active' : 'Inactive'}
-                      </span>
+                      <Badge status={user.is_active ? 'Active' : 'Inactive'} tone={user.is_active ? 'success' : 'danger'} />
                     </td>
                     <td style={s.td}>
                       <div style={s.actions}>
-                        <button style={s.actionBtn} onClick={() => openEdit(user)} title="Edit">✎</button>
-                        {user.is_active && (
-                          <button
-                            style={{ ...s.actionBtn, color: '#8a5d00' }}
+                        <button type="button" style={s.actionBtn} onClick={() => openEdit(user)} title="Edit">✎</button>
+                        {user.is_active ? (
+                          <button type="button"
+                            style={{ ...s.actionBtn, color: 'var(--accent-amber-text)' }}
                             onClick={() => setConfirm({ type: 'deactivate', user })}
                             title="Deactivate"
+                            aria-label={`Deactivate ${user.full_name}`}
                           >⊘</button>
+                        ) : (
+                          <button type="button"
+                            style={{ ...s.actionBtn, color: 'var(--success)' }}
+                            onClick={() => setConfirm({ type: 'reactivate', user })}
+                            title="Reactivate"
+                            aria-label={`Reactivate ${user.full_name}`}
+                          >↻</button>
                         )}
-                        <button
-                          style={{ ...s.actionBtn, color: '#DD1D21' }}
+                        <button type="button"
+                          style={{ ...s.actionBtn, color: 'var(--shell-red)' }}
                           onClick={() => setConfirm({ type: 'delete', user })}
                           title="Delete"
                         >✕</button>
@@ -214,30 +250,15 @@ export default function UserManagement() {
         />
       )}
 
-      {/* Confirm dialog */}
-      {confirm && (
-        <div style={s.overlay} onClick={e => e.target === e.currentTarget && setConfirm(null)}>
-          <div style={s.confirmBox}>
-            <p style={s.confirmTitle}>
-              {confirm.type === 'delete' ? 'Delete User' : 'Deactivate User'}
-            </p>
-            <p style={s.confirmBody}>
-              {confirm.type === 'delete'
-                ? `Permanently delete ${confirm.user.full_name}? This cannot be undone.`
-                : `Deactivate ${confirm.user.full_name}? They will no longer be able to log in.`}
-            </p>
-            <div style={s.confirmActions}>
-              <button style={s.cancelBtn} onClick={() => setConfirm(null)}>Cancel</button>
-              <button
-                style={{ ...s.dangerBtn, background: confirm.type === 'delete' ? '#DD1D21' : '#f59e0b' }}
-                onClick={() => confirm.type === 'delete' ? handleDelete(confirm.user) : handleDeactivate(confirm.user)}
-              >
-                {confirm.type === 'delete' ? 'Delete' : 'Deactivate'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <ConfirmModal
+        open={Boolean(confirm)}
+        title={confirmContent?.title}
+        message={confirmContent?.message}
+        confirmLabel={confirmContent?.label}
+        confirmColor={confirmContent?.color}
+        onConfirm={() => confirmContent?.action(confirm.user)}
+        onCancel={() => setConfirm(null)}
+      />
     </div>
   );
 }
@@ -252,16 +273,16 @@ const s = {
     gap: '12px',
   },
   pageTitle: {
-    fontSize: '24px', fontWeight: '800', color: '#222', margin: 0,
+    fontSize: '24px', fontWeight: '800', color: 'var(--label)', margin: 0,
   },
   pageSubtitle: {
-    fontSize: '13px', color: '#666', margin: '4px 0 0',
+    fontSize: '13px', color: 'var(--gray-500)', margin: '4px 0 0',
   },
   newBtn: {
     display: 'flex', alignItems: 'center', gap: '6px',
     padding: '10px 20px',
-    background: '#DD1D21',
-    border: 'none', borderRadius: '4px',
+    background: 'var(--shell-red)',
+    border: 'none', borderRadius: 'var(--radius-xs)',
     color: '#fff', fontSize: '14px', fontWeight: '800',
     cursor: 'pointer',
   },
@@ -273,8 +294,8 @@ const s = {
   },
   statCard: {
     background: '#fff',
-    border: '1px solid #e1e1e1',
-    borderRadius: '4px',
+    border: '1px solid var(--gray-200)',
+    borderRadius: 'var(--radius-xs)',
     padding: '16px 18px',
     display: 'flex',
     flexDirection: 'column',
@@ -284,7 +305,7 @@ const s = {
     fontSize: '28px', fontWeight: '700', lineHeight: 1,
   },
   statLabel: {
-    fontSize: '12px', color: '#666', fontWeight: '700',
+    fontSize: '12px', color: 'var(--gray-500)', fontWeight: '700',
   },
   toolbar: {
     display: 'flex', alignItems: 'center', gap: '12px',
@@ -292,27 +313,27 @@ const s = {
   searchWrap: {
     flex: 1, display: 'flex', alignItems: 'center',
     background: '#fff',
-    border: '1px solid #e1e1e1',
-    borderRadius: '4px', overflow: 'hidden',
+    border: '1px solid var(--gray-200)',
+    borderRadius: 'var(--radius-xs)', overflow: 'hidden',
   },
   searchIcon: {
-    padding: '0 10px 0 14px', fontSize: '16px', color: '#8a8a8a',
+    padding: '0 10px 0 14px', fontSize: '16px', color: 'var(--gray-400)',
   },
   searchInput: {
     flex: 1, background: 'none', border: 'none', outline: 'none',
-    color: '#222', fontSize: '13px', padding: '10px 12px 10px 0',
+    color: 'var(--label)', fontSize: '13px', padding: '10px 12px 10px 0',
   },
   errorBanner: {
     padding: '12px 16px',
-    background: '#fff1f1',
-    border: '1px solid #ffd3d3',
-    borderRadius: '4px',
-    color: '#DD1D21', fontSize: '13px', fontWeight: 700,
+    background: 'var(--accent-red-bg)',
+    border: '1px solid var(--accent-red-line)',
+    borderRadius: 'var(--radius-xs)',
+    color: 'var(--shell-red)', fontSize: '13px', fontWeight: 700,
   },
   tableWrap: {
     overflowX: 'auto',
-    border: '1px solid #e1e1e1',
-    borderRadius: '4px',
+    border: '1px solid var(--gray-200)',
+    borderRadius: 'var(--radius-xs)',
     background: '#fff',
     boxShadow: 'var(--shadow-sm)',
   },
@@ -322,10 +343,10 @@ const s = {
   th: {
     padding: '12px 14px',
     fontSize: '11px', fontWeight: '600',
-    color: '#777',
+    color: 'var(--label-tertiary)',
     textTransform: 'uppercase', letterSpacing: '0.5px',
     textAlign: 'left',
-    borderBottom: '1px solid #e1e1e1',
+    borderBottom: '1px solid var(--gray-200)',
     whiteSpace: 'nowrap',
   },
   tr: {
@@ -333,45 +354,30 @@ const s = {
   },
   td: {
     padding: '12px 14px',
-    fontSize: '13px', color: '#333',
-    borderBottom: '1px solid #f0f0f0',
+    fontSize: '13px', color: 'var(--gray-700)',
+    borderBottom: '1px solid var(--gray-100)',
     verticalAlign: 'middle',
   },
   empId: {
     fontFamily: 'monospace', fontSize: '12px',
-    color: '#777',
+    color: 'var(--label-tertiary)',
   },
   avatar: { display: 'flex', alignItems: 'center', gap: '10px' },
   avatarCircle: {
     width: '30px', height: '30px', borderRadius: '50%',
-    background: '#FFD500',
+    background: 'var(--shell-yellow)',
     display: 'flex', alignItems: 'center', justifyContent: 'center',
-    fontSize: '12px', fontWeight: '800', color: '#DD1D21', flexShrink: 0,
+    fontSize: '12px', fontWeight: '800', color: 'var(--shell-red)', flexShrink: 0,
   },
-  name: { fontWeight: '700', color: '#222' },
-  email: { color: '#666', fontSize: '12px' },
-  roleBadge: {
-    display: 'inline-block',
-    padding: '3px 10px', borderRadius: '20px',
-    fontSize: '11px', fontWeight: '600',
-  },
-  dept: { color: '#666' },
-  activeChip: {
-    display: 'inline-block', padding: '3px 10px', borderRadius: '20px',
-    background: '#ecfdf5', color: '#047857',
-    fontSize: '11px', fontWeight: '600',
-  },
-  inactiveChip: {
-    display: 'inline-block', padding: '3px 10px', borderRadius: '20px',
-    background: '#f4f4f4', color: '#777',
-    fontSize: '11px', fontWeight: '600',
-  },
+  name: { fontWeight: '700', color: 'var(--label)' },
+  email: { color: 'var(--gray-500)', fontSize: '12px' },
+  dept: { color: 'var(--gray-500)' },
   actions: { display: 'flex', gap: '4px', alignItems: 'center' },
   actionBtn: {
     background: '#fff',
-    border: '1px solid #e1e1e1',
-    borderRadius: '4px',
-    color: '#555',
+    border: '1px solid var(--gray-200)',
+    borderRadius: 'var(--radius-xs)',
+    color: 'var(--gray-600)',
     fontSize: '14px', cursor: 'pointer',
     width: '30px', height: '30px',
     display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -379,43 +385,13 @@ const s = {
   center: { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px', padding: '60px 0' },
   spinner: {
     width: '32px', height: '32px', borderRadius: '50%',
-    border: '3px solid #e1e1e1',
-    borderTopColor: '#DD1D21',
+    border: '3px solid var(--gray-200)',
+    borderTopColor: 'var(--shell-red)',
     animation: 'spin 0.8s linear infinite',
   },
-  loadingText: { fontSize: '13px', color: '#777' },
+  loadingText: { fontSize: '13px', color: 'var(--label-tertiary)' },
   empty: {
     textAlign: 'center', padding: '60px 0',
-    color: '#777', fontSize: '14px',
-  },
-  overlay: {
-    position: 'fixed', inset: 0, zIndex: 900,
-    background: 'rgba(0,0,0,0.45)', backdropFilter: 'blur(4px)',
-    display: 'flex', alignItems: 'center', justifyContent: 'center',
-  },
-  confirmBox: {
-    background: '#fff',
-    border: '1px solid #e1e1e1',
-    borderRadius: '4px', padding: '28px 28px 20px',
-    maxWidth: '380px', width: '100%',
-    boxShadow: 'var(--shadow-xl)',
-  },
-  confirmTitle: {
-    fontSize: '17px', fontWeight: '800', color: '#222', margin: '0 0 10px',
-  },
-  confirmBody: {
-    fontSize: '13px', color: '#666', margin: '0 0 20px', lineHeight: 1.5,
-  },
-  confirmActions: { display: 'flex', justifyContent: 'flex-end', gap: '10px' },
-  cancelBtn: {
-    padding: '8px 18px', borderRadius: '4px',
-    border: '1px solid #d6d6d6',
-    background: '#fff', color: '#333',
-    fontSize: '13px', fontWeight: '800', cursor: 'pointer',
-  },
-  dangerBtn: {
-    padding: '8px 18px', borderRadius: '4px',
-    border: 'none', color: '#fff',
-    fontSize: '13px', fontWeight: '800', cursor: 'pointer',
+    color: 'var(--label-tertiary)', fontSize: '14px',
   },
 };

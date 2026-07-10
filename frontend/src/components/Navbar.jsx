@@ -78,7 +78,7 @@ export default function Navbar({ user, onLogout, showDashboardLink = false, vari
               {user ? (
                 <>
                   {showDashboardLink && <a href="/dashboard" style={styles.utilityLink}>Dashboard</a>}
-                  <button onClick={onLogout} style={styles.utilityButton}>Sign out</button>
+                  <button type="button" onClick={onLogout} style={styles.utilityButton}>Sign out</button>
                 </>
               ) : (
                 <a href="/login" style={styles.utilityButton}>Sign in</a>
@@ -229,7 +229,7 @@ export default function Navbar({ user, onLogout, showDashboardLink = false, vari
                   <span style={styles.userRole}>{user.role}</span>
                 </div>
               </div>
-              <button onClick={onLogout} style={styles.logoutBtn}>Sign out</button>
+              <button type="button" onClick={onLogout} style={styles.logoutBtn}>Sign out</button>
             </>
           ) : (
             <a href="/login" style={styles.signInBtn}>Sign in</a>
@@ -296,8 +296,8 @@ const appStyles = {
   navbar: {
     minHeight: 96,
     background: '#fff',
-    borderTop: '5px solid #FFD500',
-    borderBottom: '1px solid #e5e5e5',
+    borderTop: '5px solid var(--shell-yellow)',
+    borderBottom: '1px solid var(--gray-200)',
     display: 'flex',
     alignItems: 'center',
     padding: '0 34px',
@@ -307,73 +307,73 @@ const appStyles = {
   },
   brandName: {
     display: 'block',
-    color: '#222',
+    color: 'var(--label)',
     fontSize: 16,
     fontWeight: 700,
     lineHeight: 1.15,
   },
   brandSub: {
     display: 'block',
-    color: '#666',
+    color: 'var(--gray-500)',
     fontSize: 12,
     lineHeight: 1.25,
   },
   navLink: {
-    color: '#222',
+    color: 'var(--label)',
     fontSize: 13,
     fontWeight: 700,
     padding: '8px 14px',
-    borderRadius: 4,
-    border: '1px solid #d6d6d6',
+    borderRadius: 'var(--radius-xs)',
+    border: '1px solid var(--gray-300)',
   },
   signInBtn: {
     color: '#fff',
     fontSize: 14,
     fontWeight: 700,
     padding: '10px 18px',
-    borderRadius: 4,
-    background: '#DD1D21',
+    borderRadius: 'var(--radius-xs)',
+    background: 'var(--shell-red)',
   },
   userPill: {
     display: 'flex',
     alignItems: 'center',
     gap: 9,
-    background: '#f7f7f7',
-    border: '1px solid #e1e1e1',
-    borderRadius: 9999,
+    background: 'var(--bg)',
+    border: '1px solid var(--gray-200)',
+    borderRadius: 'var(--radius-pill)',
     padding: '5px 14px 5px 5px',
   },
   avatar: {
     width: 28,
     height: 28,
     borderRadius: '50%',
-    background: '#FFD500',
+    background: 'var(--shell-yellow)',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
     fontSize: 12,
     fontWeight: 800,
-    color: '#DD1D21',
+    color: 'var(--shell-red)',
   },
   userName: {
-    color: '#222',
+    color: 'var(--label)',
     fontSize: 12.5,
     fontWeight: 700,
     lineHeight: 1.2,
   },
   userRole: {
-    color: '#777',
+    color: 'var(--label-tertiary)',
     fontSize: 10.5,
     lineHeight: 1.2,
   },
   logoutBtn: {
     background: '#fff',
-    border: '1px solid #d6d6d6',
-    color: '#333',
+    border: '1px solid var(--gray-300)',
+    color: 'var(--gray-700)',
     fontSize: 12.5,
     fontWeight: 700,
     padding: '8px 13px',
-    borderRadius: 4,
+    borderRadius: 'var(--radius-xs)',
   },
 };
 
@@ -381,7 +381,7 @@ const publicStyles = {
   ...base,
   navbar: {
     background: '#fff',
-    borderBottom: '1px solid #e5e5e5',
+    borderBottom: '1px solid var(--gray-200)',
     position: 'sticky',
     top: 0,
     zIndex: 100,
@@ -410,17 +410,17 @@ const publicStyles = {
     gap: 22,
   },
   utilityLink: {
-    color: '#30343b',
+    color: 'var(--label)',
     fontSize: 13,
     fontWeight: 500,
   },
   utilityCompany: {
-    color: '#1f2933',
+    color: 'var(--label)',
     fontSize: 14,
     fontWeight: 600,
   },
   utilityButton: {
-    color: '#1f2933',
+    color: 'var(--label)',
     fontSize: 13,
     fontWeight: 700,
     background: 'transparent',
@@ -428,14 +428,14 @@ const publicStyles = {
     padding: 0,
   },
   globe: {
-    color: '#3b3b3b',
+    color: 'var(--gray-700)',
     fontSize: 20,
     lineHeight: 1,
   },
   mainRow: {
     minHeight: 92,
     borderTop: '1px solid transparent',
-    borderBottom: '1px solid #d9d9d9',
+    borderBottom: '1px solid var(--gray-200)',
     display: 'flex',
     alignItems: 'center',
     padding: '0 28px',
@@ -464,14 +464,14 @@ const publicStyles = {
   },
   brandName: {
     display: 'block',
-    color: '#222',
+    color: 'var(--label)',
     fontSize: 16,
     fontWeight: 700,
     lineHeight: 1.15,
   },
   brandSub: {
     display: 'block',
-    color: '#666',
+    color: 'var(--gray-500)',
     fontSize: 12,
     lineHeight: 1.25,
   },
@@ -493,7 +493,7 @@ const publicStyles = {
     display: 'inline-flex',
     alignItems: 'center',
     gap: 8,
-    color: '#333',
+    color: 'var(--gray-700)',
     fontSize: 18,
     fontWeight: 600,
     padding: '0 18px',
@@ -506,11 +506,11 @@ const publicStyles = {
     padding: '0 18px',
   },
   navTextActive: {
-    borderBottomColor: '#FFD500',
+    borderBottomColor: 'var(--shell-yellow)',
   },
   navTextHighlight: {
-    background: '#f0f0f0',
-    borderRadius: 4,
+    background: 'var(--gray-100)',
+    borderRadius: 'var(--radius-xs)',
   },
   dropdown: {
     position: 'absolute',
@@ -518,8 +518,8 @@ const publicStyles = {
     left: 0,
     minWidth: 360,
     background: '#fff',
-    color: '#202124',
-    borderRadius: 10,
+    color: 'var(--label)',
+    borderRadius: 'var(--radius-md)',
     boxShadow: '0 3px 18px rgba(0,0,0,0.18)',
     padding: '18px 20px',
     display: 'grid',
@@ -530,7 +530,7 @@ const publicStyles = {
     fontWeight: 800,
   },
   dropdownLink: {
-    color: '#1f2933',
+    color: 'var(--label)',
     fontSize: 18,
     fontWeight: 500,
     display: 'flex',
@@ -541,67 +541,67 @@ const publicStyles = {
   searchButton: {
     width: 64,
     height: 64,
-    color: '#3b3b3b',
+    color: 'var(--gray-700)',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
     flexShrink: 0,
   },
   navLink: {
-    color: '#222',
+    color: 'var(--label)',
     fontSize: 13,
     fontWeight: 700,
     padding: '8px 14px',
-    borderRadius: 4,
-    border: '1px solid #d6d6d6',
+    borderRadius: 'var(--radius-xs)',
+    border: '1px solid var(--gray-300)',
   },
   signInBtn: {
     color: '#fff',
     fontSize: 14,
     fontWeight: 700,
     padding: '10px 18px',
-    borderRadius: 4,
-    background: '#DD1D21',
+    borderRadius: 'var(--radius-xs)',
+    background: 'var(--shell-red)',
   },
   userPill: {
     display: 'flex',
     alignItems: 'center',
     gap: 9,
-    background: '#f7f7f7',
-    border: '1px solid #e1e1e1',
-    borderRadius: 9999,
+    background: 'var(--bg)',
+    border: '1px solid var(--gray-200)',
+    borderRadius: 'var(--radius-pill)',
     padding: '5px 14px 5px 5px',
   },
   avatar: {
     width: 28,
     height: 28,
     borderRadius: '50%',
-    background: '#FFD500',
+    background: 'var(--shell-yellow)',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
     fontSize: 12,
     fontWeight: 800,
-    color: '#DD1D21',
+    color: 'var(--shell-red)',
   },
   userName: {
-    color: '#222',
+    color: 'var(--label)',
     fontSize: 12.5,
     fontWeight: 700,
     lineHeight: 1.2,
   },
   userRole: {
-    color: '#777',
+    color: 'var(--label-tertiary)',
     fontSize: 10.5,
     lineHeight: 1.2,
   },
   logoutBtn: {
     background: '#fff',
-    border: '1px solid #d6d6d6',
-    color: '#333',
+    border: '1px solid var(--gray-300)',
+    color: 'var(--gray-700)',
     fontSize: 12.5,
     fontWeight: 700,
     padding: '8px 13px',
-    borderRadius: 4,
+    borderRadius: 'var(--radius-xs)',
   },
 };
