@@ -846,7 +846,8 @@ export default function CapexDashboard() {
   const totalRemaining = depts.reduce((s, d) => s + d.remaining, 0);
   const overallPct     = totalBudget ? Math.round(((totalActual + totalCommitted) / totalBudget) * 100) : 0;
 
-  const lastSynced = syncStatus
+  const isGsapLive  = syncStatus?.mode === 'gsap' && syncStatus?.status === 'success';
+  const lastSynced  = syncStatus?.lastSynced
     ? new Date(syncStatus.lastSynced).toLocaleString('en-GB', { dateStyle: 'short', timeStyle: 'short' })
     : '—';
 
@@ -896,9 +897,9 @@ export default function CapexDashboard() {
           <p style={s.subheading}>FY 2026 portfolio control, approval routing, procurement tracking, and closure assurance.</p>
         </div>
         <div style={s.headerRight}>
-          <div style={s.syncBadge}>
-            <span style={{ ...s.syncDot, background: syncStatus?.status === 'success' ? 'var(--success)' : 'var(--danger)' }} />
-            GSAP Synced · {lastSynced}
+          <div style={{ ...s.syncBadge, opacity: isGsapLive ? 1 : 0.6 }} title={syncStatus?.message || ''}>
+            <span style={{ ...s.syncDot, background: isGsapLive ? 'var(--success)' : 'var(--gray-400)' }} />
+            {isGsapLive ? `GSAP Synced · ${lastSynced}` : 'GSAP Sync Disabled · Manual Mode'}
           </div>
           <button type="button" style={s.refreshBtn} onClick={fetchAll}>Refresh</button>
         </div>
