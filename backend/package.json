@@ -8,7 +8,7 @@
     "dev": "nodemon src/index.js",
     "migrate": "node src/database/migrate.js",
     "seed:capex-video-users": "node scripts/seedCapexVideoUsers.js",
-    "test": "jest --runInBand"
+    "test": "node scripts/runTests.js"
   },
   "keywords": [],
   "author": "",

@@ -62,6 +62,7 @@ export const USER_ROLES = [
   'Internal Audit',
   'Asset Team',
   'HSSE Focal',
+  'Department Manager',
   'Manager',
   'Finance',
   'Employee',
@@ -155,7 +156,6 @@ export const PERMISSION_TREE = [
             fields: [
               { key: 'capex.requests.scope',       label: 'Scope & Business Case' },
               { key: 'capex.requests.quotations',  label: 'Supplier Quotations' },
-              { key: 'capex.requests.milestones',  label: 'Milestones' },
               { key: 'capex.requests.attachments', label: 'Attachments' },
             ],
           },
@@ -178,6 +178,16 @@ export const PERMISSION_TREE = [
               { key: 'capex.procurement.po',          label: 'PO Tracking' },
               { key: 'capex.procurement.vendor',      label: 'Vendor Controls' },
               { key: 'capex.procurement.performance', label: 'Procurement KPIs' },
+            ],
+          },
+          {
+            key: 'capex.execution',
+            label: 'Project Execution',
+            level: 'page',
+            fields: [
+              { key: 'capex.execution.milestones', label: 'Milestones' },
+              { key: 'capex.execution.evidence',   label: 'Completion Evidence' },
+              { key: 'capex.execution.payments',   label: 'Stage Payments' },
             ],
           },
           {

@@ -1,12 +1,15 @@
 import { useEffect, useId } from 'react';
+import { createPortal } from 'react-dom';
 
 export default function ConfirmModal({
   open,
   title,
   message,
+  children,
   confirmLabel = 'Confirm',
   cancelLabel = 'Cancel',
   confirmColor = 'var(--shell-red)',
+  confirmDisabled = false,
   onConfirm,
   onCancel,
   busy = false,
@@ -27,7 +30,7 @@ export default function ConfirmModal({
 
   if (!open) return null;
 
-  return (
+  return createPortal(
     <div
       style={s.overlay}
       onClick={(event) => event.target === event.currentTarget && !busy && onCancel()}
@@ -41,21 +44,23 @@ export default function ConfirmModal({
       >
         <h2 id={titleId} style={s.title}>{title}</h2>
         <p id={messageId} style={s.message}>{message}</p>
+        {children && <div style={s.content}>{children}</div>}
         <div style={s.actions}>
           <button type="button" style={s.cancelButton} onClick={onCancel} disabled={busy}>
             {cancelLabel}
           </button>
           <button type="button"
-            style={{ ...s.confirmButton, background: confirmColor }}
+            style={{ ...s.confirmButton, background: confirmColor, ...((busy || confirmDisabled) ? s.confirmButtonDisabled : {}) }}
             onClick={onConfirm}
-            disabled={busy}
+            disabled={busy || confirmDisabled}
             autoFocus
           >
             {busy ? 'Please wait…' : confirmLabel}
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
 
@@ -79,6 +84,7 @@ const s = {
   message: {
     fontSize: '13px', color: 'var(--gray-500)', margin: '0 0 20px', lineHeight: 1.5,
   },
+  content: { margin: '-4px 0 18px' },
   actions: { display: 'flex', justifyContent: 'flex-end', gap: '10px' },
   cancelButton: {
     padding: '8px 18px', borderRadius: 'var(--radius-xs)',
@@ -90,5 +96,9 @@ const s = {
     padding: '8px 18px', borderRadius: 'var(--radius-xs)',
     border: 'none', color: '#fff',
     fontSize: '13px', fontWeight: '800', cursor: 'pointer',
+  },
+  confirmButtonDisabled: {
+    opacity: 0.55,
+    cursor: 'not-allowed',
   },
 };

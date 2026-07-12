@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { getKnowledgeAdmin, deleteKBDocument, uploadDocument, searchKnowledge, embedDocument } from '../../services/portalService';
 import SelectField from '../../components/SelectField';
+import { notifyError, notifySuccess } from '../../utils/toast';
 
 const SOURCE_BADGES = {
   pdf:    { label: 'PDF',    bg: 'var(--danger-bg)',   color: 'var(--danger)', border: 'var(--danger)' },
@@ -160,7 +161,6 @@ export default function KBManagement() {
   const [ftsIds, setFtsIds]           = useState(null);
   const [showUpload, setShowUpload]   = useState(false);
   const [confirmDoc, setConfirmDoc]   = useState(null);
-  const [toast, setToast]             = useState('');
   const [embeddingId, setEmbeddingId] = useState(null); // doc currently being embedded
   const debounceRef                   = useRef(null);
 
@@ -188,14 +188,9 @@ export default function KBManagement() {
     return () => clearTimeout(debounceRef.current);
   }, [search]);
 
-  function showToast(msg) {
-    setToast(msg);
-    setTimeout(() => setToast(''), 4000);
-  }
-
   async function handleUploadSuccess(result) {
     setShowUpload(false);
-    showToast(`"${result.title}" uploaded and indexed (${result.chunks} chunk${result.chunks !== 1 ? 's' : ''}).`);
+    notifySuccess(`"${result.title}" uploaded and indexed (${result.chunks} chunk${result.chunks !== 1 ? 's' : ''}).`);
     load();
   }
 
@@ -204,10 +199,10 @@ export default function KBManagement() {
     setConfirmDoc(null);
     try {
       await deleteKBDocument(doc.id);
-      showToast(`"${doc.title}" removed from knowledge base.`);
+      notifySuccess(`"${doc.title}" removed from knowledge base.`);
       load();
-    } catch {
-      setError(`Failed to delete "${doc.title}".`);
+    } catch (err) {
+      notifyError(err, `Failed to delete "${doc.title}".`);
     }
   }
 
@@ -215,12 +210,12 @@ export default function KBManagement() {
     setEmbeddingId(doc.id);
     try {
       const result = await embedDocument(doc.id);
-      showToast(`"${doc.title}" — ${result.chunksEmbedded} chunk${result.chunksEmbedded !== 1 ? 's' : ''} embedded for semantic search.`);
+      notifySuccess(`"${doc.title}" - ${result.chunksEmbedded} chunk${result.chunksEmbedded !== 1 ? 's' : ''} embedded for semantic search.`);
       load();
     } catch (err) {
-      setError(err.message?.includes('OPENAI_API_KEY')
+      notifyError(err.message?.includes('OPENAI_API_KEY')
         ? 'Semantic search is not configured — add OPENAI_API_KEY to the server environment.'
-        : `Failed to embed "${doc.title}".`);
+        : err, `Failed to embed "${doc.title}".`);
     } finally {
       setEmbeddingId(null);
     }
@@ -257,13 +252,6 @@ export default function KBManagement() {
           ↑ Upload Document
         </button>
       </div>
-
-      {/* Toast */}
-      {toast && (
-        <div style={{ fontSize: 13, color: 'var(--success)', background: 'var(--success-bg)', border: '1px solid var(--success)', borderRadius: 'var(--radius-md)', padding: '11px 16px', marginBottom: 16 }}>
-          ✓ {toast}
-        </div>
-      )}
 
       {/* Error */}
       {error && (

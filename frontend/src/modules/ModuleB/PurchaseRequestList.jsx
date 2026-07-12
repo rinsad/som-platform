@@ -1,7 +1,10 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { getAllPRs } from '../../services/prService';
+import Pagination from '../../components/Pagination';
 import Badge from '../../components/Badge';
+import usePaginationQuery from '../../hooks/usePaginationQuery';
+import usePermissions from '../../hooks/usePermissions';
+import { getPRPage } from '../../services/prService';
 
 const TABS = [
   { label: 'All',      value: 'ALL' },
@@ -21,33 +24,85 @@ function fmtValue(v) {
   return 'OMR ' + Number(v).toLocaleString('en-GB');
 }
 
+function buildRowMeta(pr) {
+  const meta = [];
+  if (pr.requestorName) meta.push(pr.requestorName);
+
+  const quotes = Number(pr.quoteCount) || 0;
+  if (quotes > 0) {
+    meta.push(`${quotes} quote${quotes === 1 ? '' : 's'}`);
+  }
+
+  if (pr.requiresJustification) {
+    meta.push('Justification required');
+  } else if (quotes >= 3) {
+    meta.push('Quote set complete');
+  }
+
+  const raisedRisks = [pr.hsseRisk, pr.workerWelfareRisk].filter((level) => level && level !== 'Low');
+  if (raisedRisks.length) {
+    meta.push(`Risk review: ${raisedRisks.join(' / ')}`);
+  }
+
+  return meta.slice(0, 3);
+}
+
 export default function PurchaseRequestList() {
-  const [prs, setPrs]         = useState([]);
+  const [prs, setPrs] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError]     = useState('');
-  const [activeTab, setActiveTab] = useState('ALL');
+  const [error, setError] = useState('');
+  const [refreshTick, setRefreshTick] = useState(0);
+  const [counts, setCounts] = useState({
+    all: 0,
+    pending: 0,
+    approved: 0,
+    rejected: 0,
+    draft: 0,
+    needsJustification: 0,
+  });
+  const [pagination, setPagination] = useState({
+    page: 1,
+    pageSize: 10,
+    totalItems: 0,
+    totalPages: 0,
+    hasPreviousPage: false,
+    hasNextPage: false,
+  });
   const navigate = useNavigate();
+  const { canCreate } = usePermissions();
+  const {
+    page,
+    pageSize,
+    pageSizeOptions,
+    filters,
+    setPage,
+    setPageSize,
+    setFilter,
+  } = usePaginationQuery({
+    defaultPageSize: 10,
+    pageSizeOptions: [10, 25, 50],
+    defaults: { status: 'ALL' },
+  });
+  const activeTab = filters.status;
 
-  const fetchPRs = async () => {
-    setLoading(true);
-    setError('');
-    try {
-      const data = await getAllPRs();
-      setPrs(data);
-    } catch {
-      setError('Failed to load purchase requests. Please try again.');
-    } finally {
-      setLoading(false);
+  useEffect(() => {
+    async function fetchPRs() {
+      setLoading(true);
+      setError('');
+      try {
+        const data = await getPRPage({ status: activeTab, page, pageSize });
+        setPrs(data.items || []);
+        setCounts((current) => ({ ...current, ...(data.counts || {}) }));
+        setPagination((current) => ({ ...current, ...(data.pagination || {}), page, pageSize }));
+      } catch {
+        setError('Failed to load purchase requests. Please try again.');
+      } finally {
+        setLoading(false);
+      }
     }
-  };
 
-  useEffect(() => { fetchPRs(); }, []);
-
-  const filtered = activeTab === 'ALL'
-    ? prs
-    : prs.filter((pr) => pr.status === activeTab);
-
-  const needsJustification = prs.filter((pr) => pr.requiresJustification);
+    fetchPRs();
+  }, [activeTab, page, pageSize, refreshTick]);
 
   if (loading) return (
     <div style={s.center}>
@@ -57,9 +112,9 @@ export default function PurchaseRequestList() {
   );
 
   if (error) return (
-    <div style={s.center}>
-      <div style={s.errorBox}>{error}</div>
-      <button type="button" onClick={fetchPRs} style={s.retryBtn}>Retry</button>
+      <div style={s.center}>
+        <div style={s.errorBox}>{error}</div>
+      <button type="button" onClick={() => setRefreshTick((value) => value + 1)} style={s.retryBtn}>Retry</button>
     </div>
   );
 
@@ -71,18 +126,20 @@ export default function PurchaseRequestList() {
           <h1 style={s.heading}>Purchase Requests</h1>
           <p style={s.subheading}>Manage and track procurement approvals</p>
         </div>
-        <button type="button" style={s.newBtn} onClick={() => navigate('/purchase-requests/new')}>
-          + New Request
-        </button>
+        {canCreate('purchase-requests') && (
+          <button type="button" style={s.newBtn} onClick={() => navigate('/purchase-requests/new')}>
+            + New Request
+          </button>
+        )}
       </div>
 
       {/* Justification warning */}
-      {needsJustification.length > 0 && (
+      {counts.needsJustification > 0 && (
         <div style={s.warningBanner}>
           <span style={s.warningIcon}>⚠</span>
           <span>
-            <strong>{needsJustification.length} request{needsJustification.length > 1 ? 's' : ''}</strong>
-            {' '}need{needsJustification.length === 1 ? 's' : ''} justification — fewer than 3 quotes attached
+            <strong>{counts.needsJustification} request{counts.needsJustification > 1 ? 's' : ''}</strong>
+            {' '}need{counts.needsJustification === 1 ? 's' : ''} justification — fewer than 3 quotes attached
           </span>
         </div>
       )}
@@ -92,14 +149,17 @@ export default function PurchaseRequestList() {
         {/* Filter tabs */}
         <div style={s.tabs}>
           {TABS.map((tab) => {
-            const count = tab.value === 'ALL'
-              ? prs.length
-              : prs.filter((p) => p.status === tab.value).length;
+            const countKey = tab.value === 'ALL'
+              ? 'all'
+              : tab.value === 'PENDING_APPROVAL'
+                ? 'pending'
+                : tab.value.toLowerCase();
+            const count = counts[countKey] ?? 0;
             const active = activeTab === tab.value;
             return (
               <button type="button"
                 key={tab.value}
-                onClick={() => setActiveTab(tab.value)}
+                onClick={() => setFilter('status', tab.value)}
                 style={{ ...s.tab, ...(active ? s.tabActive : {}) }}
               >
                 {tab.label}
@@ -112,7 +172,7 @@ export default function PurchaseRequestList() {
         </div>
 
         {/* Table */}
-        {filtered.length === 0 ? (
+        {prs.length === 0 ? (
           <div style={s.empty}>
             <div style={s.emptyIcon}>📋</div>
             <p style={s.emptyTitle}>No requests found</p>
@@ -129,14 +189,18 @@ export default function PurchaseRequestList() {
                 </tr>
               </thead>
               <tbody>
-                {filtered.map((pr, i) => (
+                {prs.map((pr, i) => (
                   <tr
                     key={pr.id}
                     style={{ ...s.tr, ...(i % 2 === 0 ? {} : s.trAlt) }}
                   >
                     <td style={s.td}>
                       <div style={s.prTitle}>{pr.title}</div>
-                      <div style={s.prId}>{pr.id}</div>
+                      <div style={s.prMetaRow}>
+                        {buildRowMeta(pr).map((item) => (
+                          <span key={`${pr.id}-${item}`} style={s.prMetaChip}>{item}</span>
+                        ))}
+                      </div>
                     </td>
                     <td style={s.td}>
                       <span style={s.dept}>{pr.department}</span>
@@ -167,12 +231,17 @@ export default function PurchaseRequestList() {
             </table>
           </div>
         )}
-      </div>
 
-      {/* Footer count */}
-      <p style={s.footerCount}>
-        Showing {filtered.length} of {prs.length} requests
-      </p>
+        <Pagination
+          page={pagination.page}
+          pageSize={pagination.pageSize}
+          totalItems={pagination.totalItems}
+          totalPages={pagination.totalPages}
+          pageSizeOptions={pageSizeOptions}
+          onPageChange={setPage}
+          onPageSizeChange={setPageSize}
+        />
+      </div>
     </div>
   );
 }
@@ -247,10 +316,10 @@ const s = {
     transition: 'all var(--transition-fast)',
   },
   tabActive: {
-    color: '#fff',
-    background: 'var(--shell-red)',
+    color: 'var(--shell-red)',
+    background: '#FADCDD',
     fontWeight: '900',
-    boxShadow: '0 1px 2px rgba(0,0,0,0.14)',
+    boxShadow: 'none',
   },
   tabCount: {
     background: 'var(--gray-200)',
@@ -261,8 +330,8 @@ const s = {
     borderRadius: 'var(--radius-pill)',
   },
   tabCountActive: {
-    background: 'rgba(255,255,255,0.25)',
-    color: '#fff',
+    background: 'rgba(221, 29, 33, 0.14)',
+    color: 'var(--shell-red)',
   },
 
   tableWrap: { overflowX: 'auto' },
@@ -283,8 +352,25 @@ const s = {
   trAlt: { background: 'var(--gray-50)' },
   td: { padding: '13px 16px', borderBottom: '1px solid var(--gray-100)', verticalAlign: 'middle' },
 
-  prTitle: { fontSize: '13.5px', fontWeight: '600', color: 'var(--gray-800)', marginBottom: '2px' },
-  prId:    { fontSize: '11px', color: 'var(--gray-400)', fontWeight: '500' },
+  prTitle: { fontSize: '13.5px', fontWeight: '600', color: 'var(--gray-800)', marginBottom: '6px' },
+  prMetaRow: {
+    display: 'flex',
+    flexWrap: 'wrap',
+    gap: '6px',
+  },
+  prMetaChip: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    minHeight: '22px',
+    padding: '0 8px',
+    background: 'var(--gray-100)',
+    border: '1px solid var(--gray-200)',
+    borderRadius: 'var(--radius-pill)',
+    fontSize: '11px',
+    fontWeight: '700',
+    color: 'var(--gray-600)',
+    whiteSpace: 'nowrap',
+  },
   dept:    { fontSize: '13px', color: 'var(--gray-600)' },
   value:   { fontSize: '13.5px', fontWeight: '600', color: 'var(--gray-800)', fontVariantNumeric: 'tabular-nums' },
   date:    { fontSize: '12.5px', color: 'var(--gray-500)' },
@@ -307,6 +393,4 @@ const s = {
   emptyIcon:  { fontSize: '36px', marginBottom: '12px' },
   emptyTitle: { fontSize: '15px', fontWeight: '600', color: 'var(--gray-700)', marginBottom: '6px' },
   emptyMsg:   { fontSize: '13px', color: 'var(--gray-400)' },
-
-  footerCount: { marginTop: '12px', fontSize: '12px', color: 'var(--gray-400)', textAlign: 'right' },
 };

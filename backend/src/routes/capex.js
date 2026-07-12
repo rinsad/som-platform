@@ -3,15 +3,16 @@ const router = express.Router();
 const capexController = require('../controllers/capexController');
 const verifyToken = require('../middleware/auth');
 const requirePermission = require('../middleware/requirePermission');
+const requireAdmin = require('../middleware/requireAdmin');
 
 router.get('/summary',         verifyToken, requirePermission('capex.planning.dashboard'), capexController.getSummary);
 router.get('/departments',     verifyToken, requirePermission('capex.planning.departments'), capexController.getDepartmentsList);
 router.get('/sync-status',     verifyToken, requirePermission('capex.planning.dashboard'), capexController.getSyncStatus);
 router.get('/department/:name', verifyToken, requirePermission('capex.planning.departments'), capexController.getDepartment);
 router.get('/gsap-data',       verifyToken, requirePermission('capex.planning.dashboard'), capexController.getGsapData);
-router.get('/admin-config',    verifyToken, requirePermission('capex.admin'), capexController.getAdminConfig);
-router.patch('/admin-config/thresholds', verifyToken, requirePermission('capex.admin', 'can_edit'), capexController.updateThresholds);
-router.patch('/admin-config/workflow-rules/:ruleId', verifyToken, requirePermission('capex.admin', 'can_edit'), capexController.updateWorkflowRule);
+router.get('/admin-config',    verifyToken, requireAdmin, capexController.getAdminConfig);
+router.patch('/admin-config/thresholds', verifyToken, requireAdmin, capexController.updateThresholds);
+router.patch('/admin-config/workflow-rules/:ruleId', verifyToken, requireAdmin, capexController.updateWorkflowRule);
 router.get('/process-reference', verifyToken, requirePermission('capex.governance.dashboard'), capexController.getProcessReferenceData);
 router.get('/requests',        verifyToken, requirePermission('capex.requests'), capexController.getRequests);
 router.post('/requests',       verifyToken, requirePermission('capex.requests', 'can_create'), capexController.createRequest);
@@ -25,6 +26,7 @@ router.get('/dashboard/drilldown', verifyToken, requirePermission('capex.governa
 router.get('/requests/:id',    verifyToken, requirePermission('capex.requests'), capexController.getRequestById);
 router.patch('/requests/:id',  verifyToken, requirePermission('capex.requests', 'can_edit'), capexController.updateRequest);
 router.post('/requests/:id/resubmit', verifyToken, requirePermission('capex.requests', 'can_edit'), capexController.resubmitRequest);
+router.get('/requests/:id/steps/:stepId/delegate-candidates', verifyToken, requirePermission('capex.approvals', 'can_edit'), capexController.getDelegateCandidates);
 router.patch('/requests/:id/steps/:stepId/delegate', verifyToken, requirePermission('capex.approvals', 'can_edit'), capexController.delegateStep);
 router.patch('/requests/:id/steps/:stepId/escalate', verifyToken, requirePermission('capex.approvals', 'can_edit'), capexController.escalateStep);
 router.patch('/requests/:id/budget-variations/:variationId/decision', verifyToken, requirePermission('capex.approvals', 'can_edit'), capexController.decideBudgetVariation);
@@ -32,8 +34,8 @@ router.post('/requests/:id/attachments', verifyToken, requirePermission('capex.d
 router.get('/requests/:id/attachments/:attachmentId/download', verifyToken, requirePermission('capex.documents'), capexController.downloadAttachment);
 router.patch('/requests/:id/decision', verifyToken, requirePermission('capex.approvals', 'can_edit'), capexController.decideRequest);
 router.patch('/requests/:id/procurement', verifyToken, requirePermission('capex.procurement', 'can_edit'), capexController.updateProcurement);
-router.post('/requests/:id/milestones', verifyToken, requirePermission('capex.requests', 'can_edit'), capexController.createMilestone);
-router.patch('/requests/:id/milestones/:milestoneId', verifyToken, requirePermission('capex.requests', 'can_edit'), capexController.updateMilestone);
+router.post('/requests/:id/milestones', verifyToken, requirePermission('capex.execution', 'can_edit'), capexController.createMilestone);
+router.patch('/requests/:id/milestones/:milestoneId', verifyToken, requirePermission('capex.execution', 'can_edit'), capexController.updateMilestone);
 router.patch('/requests/:id/financial-closure', verifyToken, requirePermission('capex.finance', 'can_edit'), capexController.saveFinancialClosure);
 router.patch('/requests/:id/auc', verifyToken, requirePermission('capex.finance', 'can_edit'), capexController.updateAucTracking);
 router.patch('/requests/:id/capitalization', verifyToken, requirePermission('capex.finance', 'can_edit'), capexController.updateCapitalizationTracking);

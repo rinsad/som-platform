@@ -1,12 +1,15 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { createPR, uploadDocumentFile } from '../../services/prService';
+import { createPR } from '../../services/prService';
 import SelectField from '../../components/SelectField';
+import { notifyError, notifySuccess, notifyWarning } from '../../utils/toast';
+import SupplierQuotationEditor, { completeQuotationCount, emptyQuotationRow, normalizeQuotationRows } from './SupplierQuotationEditor';
 
 const DEPARTMENTS = [
   'Admin', 'Finance', 'HR', 'Infrastructure',
   'IT', 'Logistics', 'Operations', 'QHSE', 'Retail',
 ];
+const RISK_LEVELS = ['Low', 'Medium', 'High'];
 
 function calcTier(value) {
   if (value <= 25000)  return 'LOW';
@@ -15,9 +18,9 @@ function calcTier(value) {
 }
 
 const TIER_CONFIG = {
-  LOW:    { label: 'LOW — Department Manager approval',    bg: 'var(--success-bg)',  color: 'var(--success)', border: 'var(--success)' },
-  MEDIUM: { label: 'MEDIUM — Dept + Finance approval',     bg: 'var(--warning-bg)',  color: 'var(--warning)', border: 'var(--warning)' },
-  HIGH:   { label: 'HIGH — Executive Committee approval',  bg: 'var(--danger-bg)',   color: 'var(--danger)', border: 'var(--danger)' },
+  LOW:    { label: 'LOW — Business GM authorization',       bg: 'var(--success-bg)',  color: 'var(--success)', border: 'var(--success)' },
+  MEDIUM: { label: 'MEDIUM — EMT + Head of CP authorization', bg: 'var(--warning-bg)', color: 'var(--warning)', border: 'var(--warning)' },
+  HIGH:   { label: 'HIGH — Contract Board authorization',    bg: 'var(--danger-bg)',   color: 'var(--danger)', border: 'var(--danger)' },
 };
 
 function emptyRow() {
@@ -34,11 +37,14 @@ export default function NewPurchaseRequest() {
   const [department, setDepartment] = useState(storedUser.department || '');
   const [description, setDescription] = useState('');
   const [rows, setRows]             = useState([emptyRow()]);
-  const [quotes, setQuotes]         = useState([]);
   const [justification, setJustification] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState('');
   const [tier, setTier]             = useState('LOW');
+  const [hsseRisk, setHsseRisk] = useState('Low');
+  const [workerWelfareRisk, setWorkerWelfareRisk] = useState('Low');
+  const [quotations, setQuotations] = useState([emptyQuotationRow()]);
+  const [currentBudget, setCurrentBudget] = useState('');
 
   const totalValue = rows.reduce((sum, r) => {
     const qty = parseFloat(r.quantity) || 0;
@@ -46,7 +52,7 @@ export default function NewPurchaseRequest() {
     return sum + qty * up;
   }, 0);
 
-  const quoteCount = quotes.length;
+  const quoteCount = completeQuotationCount(quotations);
   const needsJustification = quoteCount < 3;
 
   // Live tier recalculation
@@ -70,6 +76,17 @@ export default function NewPurchaseRequest() {
       setSubmitError('Justification is required when fewer than 3 quotes are attached.');
       return;
     }
+    let quotationPayload;
+    try {
+      quotationPayload = normalizeQuotationRows(quotations);
+    } catch (err) {
+      setSubmitError(err.message);
+      return;
+    }
+    if (quotationPayload.length === 0) {
+      setSubmitError('Add at least one supplier quotation entry before submitting the purchase request.');
+      return;
+    }
     setSubmitting(true);
     setSubmitError('');
 
@@ -77,10 +94,15 @@ export default function NewPurchaseRequest() {
       title,
       department,
       description,
-      requestorName: storedUser.name || 'Unknown',
+      // The stored user object uses `full_name`; omit when unknown so the
+      // backend fills it from the authenticated user rather than storing "Unknown".
+      requestorName: storedUser.full_name || storedUser.name || undefined,
       totalValue,
-      quoteCount,
       justification: needsJustification ? justification : undefined,
+      hsseRisk,
+      workerWelfareRisk,
+      quotations: quotationPayload,
+      currentBudget: currentBudget || undefined,
       lineItems: rows.map((r) => ({
         description: r.description,
         quantity:  parseFloat(r.quantity)  || 0,
@@ -91,13 +113,12 @@ export default function NewPurchaseRequest() {
 
     try {
       const created = await createPR(payload);
-      // Upload the attached quote files against the new PR (previously discarded).
-      for (const f of quotes) {
-        try { await uploadDocumentFile(created.id, f, 'Quote'); } catch { /* continue */ }
-      }
+      notifySuccess('Purchase request submitted.');
+      if (!created.selectedSupplier) notifyWarning('Supplier selection can be completed by CP while approval is pending.');
       navigate('/purchase-requests');
     } catch (err) {
       setSubmitError(err.message || 'Something went wrong. Please try again.');
+      notifyError(err, 'Something went wrong. Please try again.');
       setSubmitting(false);
     }
   };
@@ -162,6 +183,35 @@ export default function NewPurchaseRequest() {
                   rows={3}
                   style={s.textarea}
                 />
+              </div>
+            </div>
+
+            {/* Risk classification */}
+            <div style={s.card}>
+              <h2 style={s.cardTitle}>Risk Classification</h2>
+              <div style={s.row2Cols}>
+                <div style={s.field}>
+                  <label style={s.label}>HSSE Risk</label>
+                  <SelectField
+                    name="hsseRisk"
+                    value={hsseRisk}
+                    onChange={setHsseRisk}
+                    options={RISK_LEVELS}
+                    style={s.select}
+                    aria-label="HSSE Risk"
+                  />
+                </div>
+                <div style={s.field}>
+                  <label style={s.label}>Worker Welfare Risk</label>
+                  <SelectField
+                    name="workerWelfareRisk"
+                    value={workerWelfareRisk}
+                    onChange={setWorkerWelfareRisk}
+                    options={RISK_LEVELS}
+                    style={s.select}
+                    aria-label="Worker Welfare Risk"
+                  />
+                </div>
               </div>
             </div>
 
@@ -245,48 +295,20 @@ export default function NewPurchaseRequest() {
               </div>
             </div>
 
-            {/* Quotes */}
+            {/* Sourcing essentials */}
             <div style={s.card}>
-              <h2 style={s.cardTitle}>Quote Attachments</h2>
-              <p style={s.cardHint}>Minimum 3 competitive quotes are required per sourcing policy.</p>
-
-              <div style={s.quoteRow}>
-                <label style={s.fileLabel}>
-                  <span style={s.fileBtn}>Attach Quotes</span>
-                  <input
-                    type="file"
-                    multiple
-                    accept=".pdf,.doc,.docx,.xls,.xlsx"
-                    onChange={(e) => setQuotes(Array.from(e.target.files))}
-                    style={{ display: 'none' }}
-                  />
-                </label>
-                <span style={{
-                  ...s.quoteCount,
-                  color: needsJustification ? 'var(--danger)' : 'var(--success)',
-                  background: needsJustification ? 'var(--danger-bg)' : 'var(--success-bg)',
-                  border: `1px solid ${needsJustification ? 'var(--danger)' : 'var(--success)'}`,
-                }}>
-                  {quoteCount} of 3 quotes
-                </span>
-              </div>
-
-              {/* Quote file list */}
-              {quotes.length > 0 && (
-                <div style={s.fileList}>
-                  {quotes.map((f, i) => (
-                    <div key={i} style={s.fileItem}>
-                      <span style={s.fileIcon}>📄</span>
-                      <span style={s.fileName}>{f.name}</span>
-                    </div>
-                  ))}
-                </div>
-              )}
+              <SupplierQuotationEditor
+                rows={quotations}
+                onChange={setQuotations}
+                currentBudget={currentBudget}
+                onBudgetChange={setCurrentBudget}
+                styles={s}
+              />
 
               {/* Quote warning */}
               {needsJustification && (
                 <div data-testid="quote-warning" style={s.quoteWarning}>
-                  ⚠ Minimum 3 quotes required. Add justification or attach more quotes.
+                  Minimum 3 quotes required. Add justification or attach more quotes.
                 </div>
               )}
 
@@ -337,6 +359,14 @@ export default function NewPurchaseRequest() {
                   {quoteCount} / 3
                 </span>
               </div>
+              <div style={s.summaryRow}>
+                <span style={s.summaryLabel}>HSSE risk</span>
+                <span style={s.summaryVal}>{hsseRisk}</span>
+              </div>
+              <div style={s.summaryRow}>
+                <span style={s.summaryLabel}>Worker welfare</span>
+                <span style={s.summaryVal}>{workerWelfareRisk}</span>
+              </div>
               <div style={{ ...s.summaryRow, borderTop: '1px solid var(--gray-100)', paddingTop: '10px', marginTop: '4px' }}>
                 <span style={s.summaryLabel}>Total Value</span>
                 <span style={{ ...s.summaryVal, fontWeight: 700, color: 'var(--gray-900)' }}>
@@ -374,7 +404,7 @@ const s = {
 
   layout: { display: 'grid', gridTemplateColumns: '1fr 280px', gap: '20px', alignItems: 'flex-start' },
   mainCol: { display: 'flex', flexDirection: 'column', gap: '16px' },
-  sideCol: { display: 'flex', flexDirection: 'column', gap: '12px', position: 'sticky', top: '20px' },
+  sideCol: { display: 'flex', flexDirection: 'column', gap: '12px', position: 'sticky', top: '20px', alignSelf: 'start', height: 'fit-content' },
 
   card: { background: 'var(--surface)', border: '1px solid var(--gray-200)', borderRadius: 'var(--radius-md)', padding: '24px', boxShadow: 'var(--shadow-sm)' },
   cardTitle: { fontSize: '15px', fontWeight: '700', color: 'var(--gray-900)', marginBottom: '16px', letterSpacing: '-0.2px' },
@@ -385,6 +415,7 @@ const s = {
   label: { fontSize: '13px', fontWeight: '500', color: 'var(--gray-600)' },
   req:   { color: 'var(--danger)' },
   row2:  { display: 'grid', gridTemplateColumns: '1fr', gap: '12px' },
+  row2Cols: { display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: '12px' },
 
   input: { padding: '10px 13px', fontSize: '14px', border: '1px solid var(--gray-200)', borderRadius: 'var(--radius-md)', outline: 'none', color: 'var(--gray-900)', background: 'var(--gray-50)', fontFamily: 'inherit', transition: 'border-color 0.15s', width: '100%' },
   select: { padding: '10px 13px', fontSize: '14px', border: '1px solid var(--gray-200)', borderRadius: 'var(--radius-md)', outline: 'none', color: 'var(--gray-900)', background: 'var(--gray-50)', fontFamily: 'inherit', width: '100%' },
@@ -416,6 +447,11 @@ const s = {
   fileName: { fontSize: '12.5px', color: 'var(--gray-600)', fontWeight: '500' },
 
   quoteWarning: { background: 'var(--danger-bg)', border: '1px solid var(--danger)', color: 'var(--danger)', borderRadius: 'var(--radius-md)', padding: '10px 14px', fontSize: '13px', fontWeight: '500' },
+
+  metricGrid: { display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: '12px', marginTop: '6px' },
+  metricBox: { background: 'var(--gray-50)', border: '1px solid var(--gray-100)', borderRadius: 'var(--radius-md)', padding: '12px 14px' },
+  metricLabel: { display: 'block', fontSize: '11px', fontWeight: 600, color: 'var(--gray-400)', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 4 },
+  metricValue: { display: 'block', fontSize: '15px', color: 'var(--gray-900)', fontVariantNumeric: 'tabular-nums' },
 
   tierCard: { border: '1px solid', borderRadius: 'var(--radius-md)', padding: '18px' },
   tierTitle: { fontSize: '11px', fontWeight: '600', color: 'var(--gray-400)', textTransform: 'uppercase', letterSpacing: '0.6px', marginBottom: '10px' },

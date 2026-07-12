@@ -199,6 +199,15 @@ exports.deleteUser = async (req, res, next) => {
     if (rows.length === 0) return res.status(404).json({ error: 'User not found' });
     res.json({ message: 'User deleted' });
   } catch (err) {
+    // Postgres foreign-key violation: the user is still referenced by records
+    // they created (purchase requests, CAPEX requests, budget entries, …).
+    // Deleting would orphan auditable history, so block it and steer the admin
+    // to deactivation instead.
+    if (err.code === '23503') {
+      return res.status(409).json({
+        error: 'This user has created records (e.g. purchase or CAPEX requests) and cannot be deleted. Deactivate the user instead to revoke access while preserving history.',
+      });
+    }
     next(err);
   }
 };

@@ -28,6 +28,14 @@ const approverToken = jwt.sign(
 );
 const approverAuth = { Authorization: `Bearer ${approverToken}` };
 
+const managerUserId = '00000000-0000-0000-0000-0000000000b8';
+const managerToken = jwt.sign(
+  { id: managerUserId, email: 'phase7.manager@shell.om', full_name: 'Phase 7 Manager', role: 'Manager', department: 'Operations' },
+  process.env.JWT_SECRET || 'som-super-secret-key-2026',
+  { expiresIn: '1h' }
+);
+const managerAuth = { Authorization: `Bearer ${managerToken}` };
+
 async function seedApproverPermission() {
   await pool.query(
     `INSERT INTO som_users (id, employee_id, full_name, email, password_hash, role, department)
@@ -46,6 +54,18 @@ async function seedApproverPermission() {
      VALUES ($1, 'page', 'capex.documents', true, false, false, false)
      ON CONFLICT (user_id, resource_key) DO UPDATE SET can_view = true`,
     [approverUserId]
+  );
+  await pool.query(
+    `INSERT INTO som_users (id, employee_id, full_name, email, password_hash, role, department)
+     VALUES ($1, 'P7M', 'Phase 7 Manager', 'phase7.manager@shell.om', 'test-only', 'Manager', 'Operations')
+     ON CONFLICT (id) DO UPDATE SET full_name = EXCLUDED.full_name, role = EXCLUDED.role, department = EXCLUDED.department`,
+    [managerUserId]
+  );
+  await pool.query(
+    `INSERT INTO som_permissions (user_id, level, resource_key, can_view, can_create, can_edit, can_delete)
+     VALUES ($1, 'page', 'capex.approvals', true, false, true, false)
+     ON CONFLICT (user_id, resource_key) DO UPDATE SET can_view = true, can_edit = true`,
+    [managerUserId]
   );
 }
 
@@ -132,9 +152,11 @@ describe('CAPEX role permission presets', () => {
     const preset = getRolePermissionPreset('Project Owner');
     const requests = preset.find((p) => p.resource_key === 'capex.requests');
     const finance = preset.find((p) => p.resource_key === 'capex.finance');
+    const closure = preset.find((p) => p.resource_key === 'capex.closure');
 
     expect(requests).toMatchObject({ can_view: true, can_create: true, can_edit: true });
     expect(finance?.can_edit).not.toBe(true);
+    expect(closure?.can_edit).not.toBe(true);
   });
 
   test('Finance Manager can edit finance controls and create reports', () => {
@@ -144,6 +166,51 @@ describe('CAPEX role permission presets', () => {
 
     expect(finance).toMatchObject({ can_view: true, can_edit: true });
     expect(reports).toMatchObject({ can_view: true, can_create: true });
+  });
+
+  test('CEO/Board can approve but cannot edit procurement controls', () => {
+    const preset = getRolePermissionPreset('CEO/Board');
+    const approvals = preset.find((p) => p.resource_key === 'capex.approvals');
+    const procurement = preset.find((p) => p.resource_key === 'capex.procurement');
+
+    expect(approvals).toMatchObject({ can_view: true, can_edit: true });
+    expect(procurement?.can_edit).not.toBe(true);
+  });
+
+  test('Project Engineer can edit procurement controls and upload related documents', () => {
+    const preset = getRolePermissionPreset('Project Engineer');
+    const procurement = preset.find((p) => p.resource_key === 'capex.procurement');
+    const execution = preset.find((p) => p.resource_key === 'capex.execution');
+    const documents = preset.find((p) => p.resource_key === 'capex.documents');
+
+    expect(procurement).toMatchObject({ can_view: true, can_create: true, can_edit: true });
+    expect(execution).toMatchObject({ can_view: true, can_create: true, can_edit: true });
+    expect(documents).toMatchObject({ can_view: true, can_create: true, can_edit: true });
+  });
+
+  test('Project Owner cannot edit execution controls', () => {
+    const preset = getRolePermissionPreset('Project Owner');
+    const execution = preset.find((p) => p.resource_key === 'capex.execution');
+
+    expect(execution?.can_edit).not.toBe(true);
+  });
+
+  test('CP roles can edit procurement but not closure controls', () => {
+    for (const role of ['CP Manager', 'CP Lead']) {
+      const preset = getRolePermissionPreset(role);
+      const procurement = preset.find((p) => p.resource_key === 'capex.procurement');
+      const closure = preset.find((p) => p.resource_key === 'capex.closure');
+
+      expect(procurement).toMatchObject({ can_view: true, can_create: true, can_edit: true });
+      expect(closure?.can_edit).not.toBe(true);
+    }
+  });
+
+  test('Asset Team cannot edit closure controls', () => {
+    const preset = getRolePermissionPreset('Asset Team');
+    const closure = preset.find((p) => p.resource_key === 'capex.closure');
+
+    expect(closure?.can_edit).not.toBe(true);
   });
 });
 
@@ -201,7 +268,7 @@ describe('CAPEX approval and gating hardening', () => {
     }
   });
 
-  test('empty authority matrix permits decision and audit-flags AUTHORITY_UNVERIFIED', async () => {
+  test('empty authority matrix rejects decisions from non-admin users', async () => {
     const created = await createCapex();
     const detail = await request(app).get(`/api/capex/requests/${created.id}`).set(auth);
     const role = detail.body.approvalSteps.find(step => step.id === detail.body.currentStepId).approverRole;
@@ -211,13 +278,65 @@ describe('CAPEX approval and gating hardening', () => {
       .patch(`/api/capex/requests/${created.id}/decision`)
       .set(approverAuth)
       .send({ decision: 'APPROVED' });
-    expect(decided.statusCode).toBe(200);
+    expect(decided.statusCode).toBe(403);
+    expect(decided.body.error).toMatch(/no authorised user roles configured/i);
+  });
 
-    const { rows } = await pool.query(
-      `SELECT event_type FROM capex_audit_logs WHERE request_id = $1 AND event_type = 'AUTHORITY_UNVERIFIED'`,
-      [created.id]
+  test('legacy Line Manager steps resolve to canonical Manager authority', async () => {
+    await pool.query(
+      `UPDATE capex_workflow_config
+       SET approver_role = 'Manager', allowed_user_roles = ARRAY['Manager']::text[]
+       WHERE value_band = 'ALL' AND condition_key = 'standard' AND step_order = 1`
     );
-    expect(rows).toHaveLength(1);
+    const created = await createCapex();
+    const detail = await request(app).get(`/api/capex/requests/${created.id}`).set(auth);
+    const currentStep = detail.body.approvalSteps.find(step => step.id === detail.body.currentStepId);
+    await pool.query(`UPDATE capex_approval_steps SET approver_role = 'Line Manager' WHERE id = $1`, [currentStep.id]);
+
+    const returned = await request(app)
+      .patch(`/api/capex/requests/${created.id}/decision`)
+      .set(managerAuth)
+      .send({ decision: 'RETURNED', comment: 'Please clarify scope.' });
+
+    expect(returned.statusCode).toBe(200);
+    expect(returned.body.status).toBe('Returned for correction');
+  });
+
+  test('delegation uses active eligible users instead of arbitrary text', async () => {
+    await pool.query(
+      `UPDATE capex_workflow_config
+       SET approver_role = 'Manager', allowed_user_roles = ARRAY['Manager']::text[]
+       WHERE value_band = 'ALL' AND condition_key = 'standard' AND step_order = 1`
+    );
+    await pool.query(
+      `INSERT INTO som_users (id, employee_id, full_name, email, password_hash, role, department)
+       VALUES ('00000000-0000-0000-0000-0000000000c9', 'P7D', 'Phase 7 Delegate', 'phase7.delegate@shell.om', 'test-only', 'Manager', 'Operations')
+       ON CONFLICT (id) DO UPDATE SET full_name = EXCLUDED.full_name, email = EXCLUDED.email, role = EXCLUDED.role, department = EXCLUDED.department, is_active = true`
+    );
+
+    const created = await createCapex();
+    const detail = await request(app).get(`/api/capex/requests/${created.id}`).set(auth);
+    const currentStep = detail.body.approvalSteps.find(step => step.id === detail.body.currentStepId);
+
+    const candidates = await request(app)
+      .get(`/api/capex/requests/${created.id}/steps/${currentStep.id}/delegate-candidates`)
+      .set(auth);
+    expect(candidates.statusCode).toBe(200);
+    expect(candidates.body.some(user => user.email === 'phase7.delegate@shell.om')).toBe(true);
+    expect(candidates.body.some(user => user.email === 'admin@shell.om')).toBe(false);
+
+    const rejected = await request(app)
+      .patch(`/api/capex/requests/${created.id}/steps/${currentStep.id}/delegate`)
+      .set(auth)
+      .send({ delegateTo: 'typed-but-not-a-user@shell.om' });
+    expect(rejected.statusCode).toBe(400);
+
+    const delegated = await request(app)
+      .patch(`/api/capex/requests/${created.id}/steps/${currentStep.id}/delegate`)
+      .set(auth)
+      .send({ delegateTo: 'phase7.delegate@shell.om' });
+    expect(delegated.statusCode).toBe(200);
+    expect(delegated.body.assignedTo).toBe('phase7.delegate@shell.om');
   });
 });
 
@@ -260,6 +379,41 @@ describe('CAPEX request lifecycle rules', () => {
   test('walks the approval chain to Approved', async () => {
     const approved = await approveAll(requestId);
     expect(approved.status).toBe('Approved');
+    const capexGate = approved.decisionGates.find(gate => gate.gateKey === 'gate_2_capex');
+    expect(capexGate.status).toBe('Passed');
+    expect(capexGate.autoManaged).toBe(true);
+  });
+
+  test('blocks manual updates to Gate 2 because workflow manages it automatically', async () => {
+    const res = await request(app)
+      .patch(`/api/capex/requests/${requestId}/decision-gates/gate_2_capex`)
+      .set(auth)
+      .send({ status: 'Passed' });
+
+    expect(res.statusCode).toBe(409);
+    expect(res.body.error).toMatch(/updated automatically by the workflow/i);
+  });
+
+  test('blocks approval users from passing decision gates they do not own', async () => {
+    const res = await request(app)
+      .patch(`/api/capex/requests/${requestId}/decision-gates/gate_4_cost_schedule`)
+      .set(managerAuth)
+      .send({ status: 'Passed' });
+
+    expect(res.statusCode).toBe(403);
+    expect(res.body.error).toMatch(/project engineer/i);
+  });
+
+  test('allows the mapped owner role to pass the correct decision gate', async () => {
+    const res = await request(app)
+      .patch(`/api/capex/requests/${requestId}/decision-gates/gate_6_auc`)
+      .set(approverAuth)
+      .send({ status: 'Passed', comments: 'Finance review completed.' });
+
+    expect(res.statusCode).toBe(200);
+    expect(res.body.status).toBe('Passed');
+    expect(res.body.ownerLabel).toBe('Finance');
+    expect(res.body.canAct).toBe(false);
   });
 
   test('blocks PO uploaded state without mandatory PO fields', async () => {
@@ -271,7 +425,25 @@ describe('CAPEX request lifecycle rules', () => {
     expect(res.statusCode).toBe(400);
   });
 
+  test('blocks PO uploaded state when attachment name does not match an uploaded request attachment', async () => {
+    const res = await request(app)
+      .patch(`/api/capex/requests/${requestId}/procurement`)
+      .set(auth)
+      .send({ poStatus: 'Uploaded', poNumber: 'PO-1', poValue: 15000, poAttachmentName: 'missing-po.pdf' });
+
+    expect(res.statusCode).toBe(400);
+    expect(res.body.error).toMatch(/uploaded request attachment/i);
+  });
+
   test('saves procurement, milestone, closure draft, and audit log', async () => {
+    const upload = await request(app)
+      .post(`/api/capex/requests/${requestId}/attachments`)
+      .set(auth)
+      .field('type', 'PO Document')
+      .field('retentionYears', '7')
+      .attach('file', Buffer.from('po evidence'), 'po.pdf');
+    expect(upload.statusCode).toBe(201);
+
     const procurement = await request(app)
       .patch(`/api/capex/requests/${requestId}/procurement`)
       .set(auth)
@@ -580,6 +752,7 @@ describe('CAPEX request lifecycle rules', () => {
     expect(detail.body.budgetVariations).toHaveLength(1);
     expect(detail.body.procurementPerformance.procurementSavings).toBe(3000);
     expect(detail.body.decisionGates.length).toBeGreaterThanOrEqual(8);
+    expect(detail.body.decisionGates.some(gate => gate.gateKey === 'gate_4_cost_schedule' && gate.ownerLabel === 'Project Engineer')).toBe(true);
   });
 });
 
@@ -589,6 +762,12 @@ describe('CAPEX admin configuration', () => {
     expect(res.statusCode).toBe(200);
     expect(res.body.thresholds.lowMaxOmr).toBeGreaterThan(0);
     expect(res.body.workflowRules.length).toBeGreaterThan(0);
+  });
+
+  test('blocks Manager users from admin configuration', async () => {
+    const res = await request(app).get('/api/capex/admin-config').set(managerAuth);
+    expect(res.statusCode).toBe(403);
+    expect(res.body.error).toMatch(/admin access required/i);
   });
 
   test('updates value thresholds and restores defaults', async () => {

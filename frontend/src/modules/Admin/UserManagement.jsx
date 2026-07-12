@@ -3,6 +3,7 @@ import { usersService } from '../../services/usersService';
 import ConfirmModal from '../../components/ConfirmModal';
 import UserFormModal from './UserFormModal';
 import Badge from '../../components/Badge';
+import { notifyError, notifySuccess } from '../../utils/toast';
 
 // Role labels are arbitrary identity tags, not a severity ladder, so each
 // gets an explicit tone; unlisted roles fall back to the Badge default (neutral).
@@ -46,8 +47,10 @@ export default function UserManagement() {
   const handleSave = async (payload) => {
     if (editData) {
       await usersService.update(editData.id, payload);
+      notifySuccess('User updated.');
     } else {
       await usersService.create(payload);
+      notifySuccess('User created.');
     }
     setModalUser(undefined);
     loadUsers();
@@ -56,9 +59,10 @@ export default function UserManagement() {
   const handleDeactivate = async (user) => {
     try {
       await usersService.deactivate(user.id);
+      notifySuccess(`${user.full_name} deactivated.`);
       loadUsers();
     } catch (err) {
-      setError(err.response?.data?.error ?? 'Failed to deactivate');
+      notifyError(err, 'Failed to deactivate');
     }
     setConfirm(null);
   };
@@ -66,9 +70,10 @@ export default function UserManagement() {
   const handleReactivate = async (user) => {
     try {
       await usersService.reactivate(user.id);
+      notifySuccess(`${user.full_name} reactivated.`);
       loadUsers();
     } catch (err) {
-      setError(err.response?.data?.error ?? 'Failed to reactivate');
+      notifyError(err, 'Failed to reactivate');
     }
     setConfirm(null);
   };
@@ -76,9 +81,10 @@ export default function UserManagement() {
   const handleDelete = async (user) => {
     try {
       await usersService.delete(user.id);
+      notifySuccess(`${user.full_name} deleted.`);
       loadUsers();
     } catch (err) {
-      setError(err.response?.data?.error ?? 'Failed to delete');
+      notifyError(err, 'Failed to delete');
     }
     setConfirm(null);
   };

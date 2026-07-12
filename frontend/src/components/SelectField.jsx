@@ -50,7 +50,7 @@ export default function SelectField({
         id={id}
         className="som-select-trigger"
         aria-label={ariaLabel}
-        style={{ ...style, ...triggerLayout }}
+        style={{ ...style, ...triggerLayout, ...(disabled ? disabledTrigger : null) }}
       >
         <span className="som-select-value">
           <Select.Value placeholder={placeholder} />
@@ -101,4 +101,9 @@ function Check() {
 const triggerLayout = {
   display: 'inline-flex', alignItems: 'center', justifyContent: 'space-between',
   gap: 8, cursor: 'pointer', textAlign: 'left', fontFamily: 'inherit',
+};
+
+const disabledTrigger = {
+  cursor: 'not-allowed',
+  opacity: 0.72,
 };

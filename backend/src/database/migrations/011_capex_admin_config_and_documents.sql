@@ -31,20 +31,20 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_capex_workflow_config_unique
   ON capex_workflow_config(value_band, condition_key, step_order);
 
 INSERT INTO capex_workflow_config (value_band, condition_key, step_order, approver_role, label) VALUES
-  ('ALL', 'standard', 1, 'Line Manager', 'Line Manager Endorsement'),
+  ('ALL', 'standard', 1, 'Manager', 'Line Manager Endorsement'),
   ('ALL', 'hsse_required', 2, 'HSSE Focal', 'HSSE / Worker Welfare Approval'),
-  ('LOW', 'standard', 10, 'FiB', 'FiB Validation'),
+  ('LOW', 'standard', 10, 'Finance in Business', 'FiB Validation'),
   ('LOW', 'standard', 20, 'CP Lead', 'CP Lead Pre-support'),
-  ('LOW', 'fewer_than_3', 30, 'Head of CP', 'Head of CP Approval for Fewer than 3 Quotations'),
+  ('LOW', 'fewer_than_3', 30, 'CP Manager', 'CP Manager Approval for Fewer than 3 Quotations'),
   ('LOW', 'standard', 40, 'Business GM', 'Business GM Approval'),
-  ('MEDIUM', 'standard', 10, 'Contract Holder / Owner', 'Contract Holder / Owner Pre-support'),
-  ('MEDIUM', 'standard', 20, 'FiB', 'FiB Validation'),
-  ('MEDIUM', 'standard', 30, 'CP Manager / Head of CP', 'CP Governance Approval'),
+  ('MEDIUM', 'standard', 10, 'Project Owner', 'Project Owner Pre-support'),
+  ('MEDIUM', 'standard', 20, 'Finance in Business', 'FiB Validation'),
+  ('MEDIUM', 'standard', 30, 'CP Manager', 'CP Governance Approval'),
   ('MEDIUM', 'fewer_than_3', 40, 'CFO', 'CFO Approval for Fewer than 3 Quotations'),
-  ('MEDIUM', 'standard', 50, 'EMT', 'EMT Approval'),
-  ('HIGH', 'standard', 10, 'CP', 'CP Review'),
-  ('HIGH', 'standard', 20, 'FiB', 'FiB Validation'),
-  ('HIGH', 'standard', 30, 'Contract Board', 'Contract Board Approval')
+  ('MEDIUM', 'standard', 50, 'CEO/Board', 'EMT Approval'),
+  ('HIGH', 'standard', 10, 'CP Manager', 'CP Review'),
+  ('HIGH', 'standard', 20, 'Finance in Business', 'FiB Validation'),
+  ('HIGH', 'standard', 30, 'CEO/Board', 'Contract Board Approval')
 ON CONFLICT (value_band, condition_key, step_order) DO NOTHING;
 
 ALTER TABLE capex_attachments

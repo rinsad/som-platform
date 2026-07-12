@@ -1,6 +1,7 @@
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import userEvent from '@testing-library/user-event';
+import { afterEach, beforeEach, expect, test } from 'vitest';
 import NewPurchaseRequest from './NewPurchaseRequest';
 
 beforeEach(() => localStorage.setItem('som_token', 'fake-token'));
@@ -25,21 +26,21 @@ test('shows LOW tier badge when total is under 25000', async () => {
   renderForm();
   await setTotalValue(10000);
   const badge = screen.getByTestId('tier-badge');
-  expect(badge.textContent).toMatch(/LOW/i);
+  expect(badge.textContent).toBe('LOW — Business GM authorization');
 });
 
 test('shows MEDIUM tier badge when total is 25001-300000', async () => {
   renderForm();
   await setTotalValue(80000);
   const badge = screen.getByTestId('tier-badge');
-  expect(badge.textContent).toMatch(/MEDIUM/i);
+  expect(badge.textContent).toBe('MEDIUM — EMT + Head of CP authorization');
 });
 
 test('shows HIGH tier badge when total exceeds 300000', async () => {
   renderForm();
   await setTotalValue(500000);
   const badge = screen.getByTestId('tier-badge');
-  expect(badge.textContent).toMatch(/HIGH/i);
+  expect(badge.textContent).toBe('HIGH — Contract Board authorization');
 });
 
 test('tier badge updates without submitting the form', async () => {
@@ -55,4 +56,10 @@ test('quote warning appears when fewer than 3 quotes attached', async () => {
   renderForm();
   // No files attached by default — warning should show
   expect(screen.getByTestId('quote-warning')).toBeInTheDocument();
+});
+
+test('risk selects render with Low defaults', () => {
+  renderForm();
+  expect(screen.getByLabelText('HSSE Risk')).toHaveTextContent('Low');
+  expect(screen.getByLabelText('Worker Welfare Risk')).toHaveTextContent('Low');
 });

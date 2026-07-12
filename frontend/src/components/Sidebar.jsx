@@ -1,3 +1,11 @@
+import {
+  BookOpen,
+  ChartNoAxesCombined,
+  FileText,
+  Gauge,
+  PackageSearch,
+  Users,
+} from 'lucide-react';
 import { NavLink, useLocation } from 'react-router-dom';
 import usePermissions from '../hooks/usePermissions';
 
@@ -5,23 +13,23 @@ const NAV_SECTIONS = [
   {
     label: 'Overview',
     items: [
-      { label: 'Dashboard', path: '/dashboard', icon: 'D' },
+      { label: 'Dashboard', path: '/dashboard', icon: Gauge },
     ],
   },
   {
     label: 'Modules',
     items: [
-      { label: 'Capex Planning', path: '/capex', icon: 'C', permKey: 'capex' },
-      { label: 'Purchase Requests', path: '/purchase-requests', icon: 'P', permKey: 'purchase-requests' },
-      { label: 'Assets (RADP)', path: '/assets', icon: 'A', permKey: 'assets' },
+      { label: 'Capex Planning', path: '/capex', icon: ChartNoAxesCombined, permKey: 'capex' },
+      { label: 'Purchase Requests', path: '/purchase-requests', icon: FileText, permKey: 'purchase-requests' },
+      { label: 'Assets (RADP)', path: '/assets', icon: PackageSearch, permKey: 'assets' },
     ],
   },
   {
     label: 'Administration',
     adminOnly: true,
     items: [
-      { label: 'User Management', path: '/admin/users', icon: 'U' },
-      { label: 'Knowledge Base', path: '/admin/knowledge', icon: 'K' },
+      { label: 'User Management', path: '/admin/users', icon: Users },
+      { label: 'Knowledge Base', path: '/admin/knowledge', icon: BookOpen },
     ],
   },
 ];
@@ -42,14 +50,6 @@ export default function Sidebar() {
         </span>
       </a>
 
-      <div style={s.titleBlock}>
-        <span style={s.titleAccent} />
-        <div>
-          <strong style={s.title}>Workspace</strong>
-          <span style={s.subtitle}>Internal modules</span>
-        </div>
-      </div>
-
       <nav style={s.nav}>
         {NAV_SECTIONS
           .filter(section => !section.adminOnly || role === 'Admin')
@@ -63,11 +63,17 @@ export default function Sidebar() {
                 <p style={s.sectionLabel}>{section.label}</p>
                 {visibleItems.map((item) => {
                   const active = location.pathname === item.path;
+                  const Icon = item.icon;
                   return (
                     <NavLink key={item.path} to={item.path} style={{ textDecoration: 'none' }}>
                       <div style={{ ...s.navItem, ...(active ? s.navItemActive : {}) }}>
                         <div style={{ ...s.iconWrap, ...(active ? s.iconWrapActive : {}) }}>
-                          <span style={{ ...s.icon, ...(active ? s.iconActive : {}) }}>{item.icon}</span>
+                          <Icon
+                            aria-hidden="true"
+                            size={16}
+                            strokeWidth={2}
+                            style={{ ...s.icon, ...(active ? s.iconActive : {}) }}
+                          />
                         </div>
                         <span style={{ ...s.label, ...(active ? s.labelActive : {}) }}>
                           {item.label}
@@ -93,7 +99,7 @@ export default function Sidebar() {
 
 const s = {
   sidebar: {
-    width: 304,
+    width: 248,
     height: '100vh',
     background: '#fff',
     borderRight: '1px solid var(--gray-200)',
@@ -103,19 +109,19 @@ const s = {
     boxShadow: '1px 0 0 rgba(0,0,0,0.02)',
   },
   brand: {
-    minHeight: 100,
-    padding: '24px 22px 20px',
+    minHeight: 66,
+    padding: '10px 16px',
     display: 'flex',
     alignItems: 'center',
-    gap: 12,
+    gap: 10,
     color: 'var(--label)',
     textDecoration: 'none',
-    borderTop: '5px solid var(--shell-yellow)',
+    borderTop: '4px solid var(--shell-yellow)',
     borderBottom: '1px solid var(--gray-100)',
   },
   logoMark: {
-    width: 42,
-    height: 42,
+    width: 30,
+    height: 30,
     flexShrink: 0,
     display: 'block',
   },
@@ -128,67 +134,41 @@ const s = {
   brandName: {
     display: 'block',
     color: 'var(--label)',
-    fontSize: 16,
+    fontSize: 13.5,
     lineHeight: 1.16,
     fontWeight: 800,
   },
   brandSub: {
     display: 'block',
     color: 'var(--gray-500)',
-    fontSize: 12,
-    marginTop: 2,
-  },
-  titleBlock: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 10,
-    padding: '24px 22px 18px',
-    borderBottom: '1px solid var(--gray-100)',
-  },
-  titleAccent: {
-    width: 7,
-    height: 34,
-    background: 'var(--shell-yellow)',
-    borderRadius: 'var(--radius-xs)',
-    display: 'block',
-  },
-  title: {
-    display: 'block',
-    color: 'var(--label)',
-    fontSize: 15,
-    lineHeight: 1.2,
-  },
-  subtitle: {
-    display: 'block',
-    color: 'var(--label-tertiary)',
-    fontSize: 12,
-    marginTop: 2,
+    fontSize: 10.5,
+    marginTop: 1,
   },
   nav: {
     flex: 1,
-    padding: '24px 14px',
+    padding: '16px 10px',
     display: 'flex',
     flexDirection: 'column',
     gap: 10,
     overflowY: 'auto',
   },
   section: {
-    marginBottom: 12,
+    marginBottom: 8,
   },
   sectionLabel: {
-    fontSize: 11,
+    fontSize: 10.5,
     fontWeight: 800,
     color: 'var(--gray-400)',
     textTransform: 'uppercase',
     letterSpacing: '0.6px',
-    padding: '4px 10px 8px',
+    padding: '4px 8px 6px',
   },
   navItem: {
     display: 'flex',
     alignItems: 'center',
-    gap: 10,
-    minHeight: 38,
-    padding: '8px 10px 8px 8px',
+    gap: 8,
+    minHeight: 34,
+    padding: '7px 8px 7px 6px',
     borderRadius: 0,
     cursor: 'pointer',
     borderLeft: '3px solid transparent',
@@ -199,31 +179,23 @@ const s = {
     borderLeftColor: 'var(--shell-red)',
   },
   iconWrap: {
-    width: 26,
-    height: 26,
-    borderRadius: 'var(--radius-xs)',
-    background: 'transparent',
-    border: '1px solid var(--separator)',
+    width: 24,
+    height: 24,
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
     flexShrink: 0,
   },
-  iconWrapActive: {
-    background: 'var(--shell-red)',
-    borderColor: 'var(--shell-red)',
-  },
+  iconWrapActive: {},
   icon: {
-    fontSize: 12,
     color: 'var(--gray-500)',
-    lineHeight: 1,
-    fontWeight: 900,
+    display: 'block',
   },
   iconActive: {
-    color: '#fff',
+    color: 'var(--shell-red)',
   },
   label: {
-    fontSize: 13,
+    fontSize: 12.5,
     fontWeight: 700,
     color: 'var(--gray-600)',
     flex: 1,
@@ -233,7 +205,7 @@ const s = {
     fontWeight: 800,
   },
   footer: {
-    padding: '14px 16px',
+    padding: '12px 14px',
     borderTop: '1px solid var(--gray-100)',
   },
   versionBadge: {
@@ -249,7 +221,7 @@ const s = {
     boxShadow: '0 0 0 3px rgba(22,163,74,0.12)',
   },
   versionText: {
-    fontSize: 12,
+    fontSize: 11.5,
     color: 'var(--gray-500)',
     fontWeight: 700,
   },

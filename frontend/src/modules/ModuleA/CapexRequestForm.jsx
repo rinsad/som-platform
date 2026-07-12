@@ -23,7 +23,16 @@ function valueBand(value) {
   return 'HIGH';
 }
 
+function financialYearOptions() {
+  const year = new Date().getFullYear();
+  return [year - 1, year, year + 1, year + 2].map(y => ({
+    value: y,
+    label: `FY ${y}`,
+  }));
+}
+
 export default function CapexRequestForm({ onSubmit, onCancel }) {
+  const fyOptions = useMemo(() => financialYearOptions(), []);
   const [form, setForm] = useState({
     title: '',
     department: DEPT_NAMES[0],
@@ -131,8 +140,8 @@ export default function CapexRequestForm({ onSubmit, onCancel }) {
           <Field label="Budget Holder">
             <input style={s.input} value={form.budgetHolder} onChange={e => set('budgetHolder', e.target.value)} placeholder="Name" />
           </Field>
-          <Field label="Financial Year">
-            <input style={s.input} type="number" value={form.financialYear} onChange={e => set('financialYear', e.target.value)} />
+          <Field label="Financial Year *" hint="Budget year for approval and reporting.">
+            <SelectField style={s.input} value={form.financialYear} onChange={v => set('financialYear', v)} options={fyOptions} aria-label="Financial Year" />
           </Field>
           <Field label="Current Cost / Budget">
             <input style={s.input} type="number" min="0" step="0.001" value={form.currentCostBudget} onChange={e => set('currentCostBudget', e.target.value)} />
@@ -211,11 +220,12 @@ export default function CapexRequestForm({ onSubmit, onCancel }) {
   );
 }
 
-function Field({ label, children, wide }) {
+function Field({ label, children, wide, hint }) {
   return (
     <label style={{ ...s.field, ...(wide ? { gridColumn: '1 / -1' } : {}) }}>
       <span style={s.label}>{label}</span>
       {children}
+      {hint && <span style={s.hint}>{hint}</span>}
     </label>
   );
 }
@@ -224,6 +234,7 @@ const s = {
   grid3: { display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 14, marginBottom: 14 },
   field: { display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 14 },
   label: { fontSize: 11, fontWeight: 850, color: 'var(--label-secondary)', textTransform: 'uppercase', letterSpacing: '0.3px' },
+  hint: { marginTop: -1, fontSize: 11, color: 'var(--label-tertiary)', fontWeight: 600, lineHeight: 1.35 },
   input: {
     border: '1px solid var(--gray-300)',
     borderRadius: 'var(--radius-sm)',

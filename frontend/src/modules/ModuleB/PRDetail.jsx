@@ -1,12 +1,26 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { getPRById, approvePR, updatePR, resubmitPR, getDocuments, uploadDocumentFile, downloadDocument } from '../../services/prService';
+import { getPRById, approvePR, updatePR, resubmitPR, getDocuments, uploadDocumentFile, downloadDocument, selectSupplierQuotation } from '../../services/prService';
 import SelectField from '../../components/SelectField';
 import Badge from '../../components/Badge';
+import ConfirmModal from '../../components/ConfirmModal';
+import { notifyError, notifySuccess } from '../../utils/toast';
+import SupplierQuotationEditor, { emptyQuotationRow, normalizeQuotationRows } from './SupplierQuotationEditor';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function fmtOMR(v) {
   return 'OMR ' + Number(v).toLocaleString('en-GB', { minimumFractionDigits: 3, maximumFractionDigits: 3 });
+}
+
+function fmtOptionalOMR(v) {
+  return v == null ? '—' : fmtOMR(v);
+}
+
+function hasSupplierEntries(suppliers = []) {
+  return Array.isArray(suppliers) && suppliers.some((supplier) => {
+    const name = typeof supplier?.name === 'string' ? supplier.name.trim() : '';
+    return !!name;
+  });
 }
 
 // Needed for the compound "TIER — value range" label, where the badge's
@@ -24,8 +38,17 @@ const STATUS_LABEL = {
   APPROVED: 'Approved', REJECTED: 'Rejected',
 };
 
-const DECISION_ICON = { APPROVED: '✓', REJECTED: '✕', RETURNED: '↩' };
+const DECISION_ICON = { CREATED: '+', SUPPLIER_SELECTED: '✓', APPROVED: '✓', REJECTED: '✕', RETURNED: '↩' };
 const DECISION_COLOR = { APPROVED: 'var(--success)', REJECTED: 'var(--danger)', RETURNED: 'var(--warning)' };
+const DECISION_TONE = {
+  CREATED: { bg: 'var(--info-bg)', color: 'var(--info)', border: 'var(--info)' },
+  SUPPLIER_SELECTED: { bg: 'var(--success-bg)', color: 'var(--success)', border: 'var(--success)' },
+  APPROVED: { bg: 'var(--success-bg)', color: 'var(--success)', border: 'var(--success)' },
+  REJECTED: { bg: 'var(--danger-bg)', color: 'var(--danger)', border: 'var(--danger)' },
+  RETURNED: { bg: 'var(--warning-bg)', color: 'var(--warning-text)', border: 'var(--warning)' },
+  RESUBMITTED: { bg: 'var(--info-bg)', color: 'var(--info)', border: 'var(--info)' },
+  WORKFLOW_RESET: { bg: 'var(--neutral-bg)', color: 'var(--neutral-text)', border: 'var(--gray-300)' },
+};
 
 const DOC_TYPE_ICON = { Quote: '📋', Scope: '📐', Technical: '⚙️', Document: '📄' };
 
@@ -33,6 +56,22 @@ const DEPARTMENTS = [
   'Admin', 'Finance', 'HR', 'Infrastructure',
   'IT', 'Logistics', 'Operations', 'QHSE', 'Retail',
 ];
+const RISK_LEVELS = ['Low', 'Medium', 'High'];
+
+function auditHistoryForPR(pr) {
+  if (!pr) return [];
+  return [
+    {
+      decision: 'CREATED',
+      approver: pr.requestorName || 'Unknown',
+      role: 'Requestor',
+      stepLabel: 'Purchase request created',
+      comment: pr.title ? `Created ${pr.title}` : '',
+      date: pr.createdAt,
+    },
+    ...(Array.isArray(pr.approvalHistory) ? pr.approvalHistory : []),
+  ];
+}
 
 // ── Approval Timeline ─────────────────────────────────────────────────────────
 function ApprovalTimeline({ workflow = [], history = [], status, currentStepIndex = 0 }) {
@@ -51,7 +90,6 @@ function ApprovalTimeline({ workflow = [], history = [], status, currentStepInde
       {steps.map((step, i) => {
         const isComplete = !!step.done;
         const isCurrent  = !isComplete && i === currentStepIndex && status === 'PENDING_APPROVAL';
-        const isPending  = !isComplete && !isCurrent;
         const decision   = step.done?.decision;
 
         return (
@@ -137,11 +175,65 @@ const tl = {
   comment:   { margin: '6px 0 0', fontSize: 12, color: 'var(--label-secondary)', fontStyle: 'italic', background: 'var(--fill-quaternary)', padding: '6px 10px', borderRadius: 'var(--radius-sm)' },
 };
 
+// ── Decision History ──────────────────────────────────────────────────────────
+// The timeline only maps APPROVED decisions onto workflow steps; this renders
+// the full audit trail, including RETURNED / RESUBMITTED / REJECTED entries.
+function DecisionHistory({ history = [] }) {
+  if (!history.length) {
+    return <p style={dh.empty}>No audit events recorded yet.</p>;
+  }
+  return (
+    <div style={dh.list}>
+      {history.map((h, i) => {
+        const tone = DECISION_TONE[h.decision] || DECISION_TONE.WORKFLOW_RESET;
+        return (
+          <div key={i} style={dh.item}>
+            <div style={dh.row}>
+              <span style={{ ...dh.icon, color: tone.color, background: tone.bg, borderColor: tone.border }}>
+                {DECISION_ICON[h.decision] || '•'}
+              </span>
+              <div style={dh.body}>
+                <div style={dh.topLine}>
+                  <span style={{ ...dh.chip, color: tone.color, background: tone.bg, borderColor: tone.border }}>
+                    {h.decision}
+                  </span>
+                  {h.stepLabel && <strong style={dh.stepLabel}>{h.stepLabel}</strong>}
+                </div>
+                <p style={dh.meta}>
+                  {h.approver || 'Unknown'}
+                  {h.role ? ` (${h.role})` : ''}
+                  {h.date ? ` · ${h.date}` : ''}
+                </p>
+                {h.comment && <p style={dh.comment}>{h.comment}</p>}
+              </div>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+const dh = {
+  list:    { display: 'flex', flexDirection: 'column', gap: 8 },
+  item:    { background: 'var(--surface)', border: '1px solid var(--separator-clear)', borderRadius: 'var(--radius-md)', padding: '10px 12px' },
+  row:     { display: 'grid', gridTemplateColumns: '26px 1fr', gap: 10, alignItems: 'start' },
+  icon:    { width: 22, height: 22, borderRadius: '50%', border: '1px solid', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 800, lineHeight: 1 },
+  body:    { minWidth: 0 },
+  topLine: { display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' },
+  chip:    { border: '1px solid', borderRadius: 'var(--radius-pill)', padding: '2px 8px', fontSize: 11, fontWeight: 800, lineHeight: 1.35 },
+  stepLabel:{ fontSize: 12.5, color: 'var(--label)', lineHeight: 1.35 },
+  meta:    { margin: '4px 0 0', fontSize: 12, color: 'var(--label-secondary)', lineHeight: 1.35 },
+  comment: { margin: '8px 0 0', fontSize: 12.5, color: 'var(--label)', background: 'var(--fill-quaternary)', borderLeft: '3px solid var(--separator)', padding: '8px 10px', borderRadius: 'var(--radius-sm)', lineHeight: 1.45 },
+  empty:   { margin: 0, color: 'var(--label-secondary)', fontSize: 14 },
+};
+
 // ── Document Repository ───────────────────────────────────────────────────────
 function DocumentRepository({ prId, canUpload }) {
   const [docs,       setDocs]       = useState([]);
   const [uploading,  setUploading]  = useState(false);
   const [uploadErr,  setUploadErr]  = useState('');
+  const [uploadType, setUploadType] = useState('Scope');
 
   useEffect(() => {
     getDocuments(prId).then(setDocs).catch(() => {});
@@ -154,11 +246,14 @@ function DocumentRepository({ prId, canUpload }) {
     try {
       for (const f of Array.from(files)) {
         // Real multipart upload — the server stores the file bytes.
-        const created = await uploadDocumentFile(prId, f);
+        const created = await uploadDocumentFile(prId, f, uploadType);
         setDocs((prev) => [...prev, created]);
       }
+      notifySuccess('Document uploaded.');
     } catch (err) {
-      setUploadErr(err.message || 'Upload failed. Please try again.');
+      const message = err.message || 'Upload failed. Please try again.';
+      setUploadErr(message);
+      notifyError(message);
     } finally {
       setUploading(false);
     }
@@ -168,39 +263,37 @@ function DocumentRepository({ prId, canUpload }) {
     try {
       await downloadDocument(prId, d.id, d.name);
     } catch (err) {
-      setUploadErr(err.message || 'Download failed.');
+      const message = err.message || 'Download failed.';
+      setUploadErr(message);
+      notifyError(message);
     }
   };
-
-  const quoteCount = docs.filter((d) => d.type === 'Quote').length;
 
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <span style={{
-            padding: '3px 12px', borderRadius: 'var(--radius-pill)', fontSize: 12, fontWeight: 700,
-            background: quoteCount >= 3 ? 'var(--success-bg)' : 'var(--danger-bg)',
-            color:      quoteCount >= 3 ? 'var(--success)' : 'var(--danger)',
-            border:     `1px solid ${quoteCount >= 3 ? 'var(--success)' : 'var(--danger)'}`,
-          }}>
-            {quoteCount} / 3 quotes
-          </span>
-          {quoteCount < 3 && (
-            <span style={{ fontSize: 12, color: 'var(--danger)' }}>⚠ Minimum 3 quotes required</span>
-          )}
-        </div>
+        <p style={{ margin: 0, color: 'var(--label-secondary)', fontSize: 13 }}>Scope, technical, and supporting documents.</p>
         {canUpload && (
-          <label style={doc.uploadBtn}>
-            {uploading ? 'Uploading…' : '+ Attach Document'}
-            <input
-              type="file" multiple
-              accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg"
-              style={{ display: 'none' }}
-              onChange={(e) => handleFiles(e.target.files)}
+          <div style={doc.uploadControls}>
+            <SelectField
+              value={uploadType}
+              onChange={setUploadType}
+              options={['Scope', 'Technical', 'Document']}
+              style={{ ...s.input, minWidth: 150 }}
+              aria-label="Upload document type"
               disabled={uploading}
             />
-          </label>
+            <label style={doc.uploadBtn}>
+              {uploading ? 'Uploading…' : `+ Attach ${uploadType}`}
+              <input
+                type="file" multiple
+                accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg"
+                style={{ display: 'none' }}
+                onChange={(e) => handleFiles(e.target.files)}
+                disabled={uploading}
+              />
+            </label>
+          </div>
         )}
       </div>
 
@@ -232,6 +325,12 @@ function DocumentRepository({ prId, canUpload }) {
 }
 
 const doc = {
+  uploadControls: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 10,
+    flexWrap: 'wrap',
+  },
   uploadBtn: {
     display: 'inline-block', cursor: 'pointer',
     padding: '7px 16px', background: 'var(--shell-navy)',
@@ -256,11 +355,42 @@ const doc = {
 };
 
 // ── Approve / Reject Panel ────────────────────────────────────────────────────
-function ApprovalPanel({ prId, onDecision }) {
-  const [decision, setDecision] = useState('');
+function ApprovalPanel({
+  prId,
+  onDecision,
+}) {
   const [comment,  setComment]  = useState('');
   const [saving,   setSaving]   = useState(false);
   const [error,    setError]    = useState('');
+  const [confirmDecision, setConfirmDecision] = useState(null);
+  const commentRequired = confirmDecision === 'RETURNED' || confirmDecision === 'REJECTED';
+
+  const decisionConfirm = {
+    APPROVED: {
+      title: 'Approve purchase request?',
+      message: 'This will record your approval and advance the request to the next workflow step.',
+      label: 'Approve',
+      color: 'var(--shell-red)',
+    },
+    RETURNED: {
+      title: 'Return purchase request?',
+      message: 'This will send the request back to draft for revision and record your comment in the audit trail.',
+      label: 'Return',
+      color: 'var(--warning)',
+    },
+    REJECTED: {
+      title: 'Reject purchase request?',
+      message: 'This will reject the request and record your comment in the audit trail.',
+      label: 'Reject',
+      color: 'var(--danger)',
+    },
+  }[confirmDecision];
+
+  function requestConfirm(decision) {
+    setError('');
+    setComment('');
+    setConfirmDecision(decision);
+  }
 
   async function submit(d) {
     if (!d) return;
@@ -268,60 +398,93 @@ function ApprovalPanel({ prId, onDecision }) {
     setError('');
     try {
       const updated = await approvePR(prId, d, comment);
+      setComment('');
+      setConfirmDecision(null);
+      notifySuccess(d === 'APPROVED' ? 'Decision approved.' : d === 'REJECTED' ? 'Request rejected.' : 'Request returned.');
       onDecision(updated);
-    } catch {
-      setError('Action failed. Please try again.');
+    } catch (err) {
+      // Surface the backend's reason (permission/authority/terminal-state).
+      const message = err?.message || 'Action failed. Please try again.';
+      setError(message);
+      notifyError(message);
+    } finally {
+      // Always clear the loading state — the panel stays mounted after a
+      // non-terminal approval, so this must reset even on success.
       setSaving(false);
     }
   }
 
   return (
-    <div style={ap.wrap}>
-      <p style={ap.title}>Your Decision</p>
-      <textarea
-        style={ap.textarea}
-        placeholder="Add a comment (optional)…"
-        rows={3}
-        value={comment}
-        onChange={(e) => setComment(e.target.value)}
-      />
-      {error && <p style={{ color: 'var(--danger)', fontSize: 12, marginBottom: 8 }}>{error}</p>}
+    <>
       <div style={ap.btnRow}>
+        {error && <p style={{ color: 'var(--danger)', fontSize: 12, marginBottom: 8 }}>{error}</p>}
+        <button type="button"
+          style={{ ...ap.btn, ...ap.approveBtn }}
+          disabled={saving}
+          onClick={() => requestConfirm('APPROVED')}
+        >
+          {saving ? 'Processing…' : 'Approve'}
+        </button>
         <button type="button"
           style={{ ...ap.btn, ...ap.returnBtn }}
           disabled={saving}
-          onClick={() => submit('RETURNED')}
+          onClick={() => requestConfirm('RETURNED')}
         >
-          ↩ Return for Revision
+          Return
         </button>
         <button type="button"
           style={{ ...ap.btn, ...ap.rejectBtn }}
           disabled={saving}
-          onClick={() => submit('REJECTED')}
+          onClick={() => requestConfirm('REJECTED')}
         >
-          ✕ Reject
-        </button>
-        <button type="button"
-          style={{ ...ap.btn, ...ap.approveBtn }}
-          disabled={saving}
-          onClick={() => submit('APPROVED')}
-        >
-          {saving ? 'Processing…' : '✓ Approve'}
+          Reject
         </button>
       </div>
-    </div>
+      <ConfirmModal
+        open={Boolean(confirmDecision)}
+        title={decisionConfirm?.title}
+        message={decisionConfirm?.message}
+        confirmLabel={decisionConfirm?.label}
+        cancelLabel="Cancel"
+        confirmColor={decisionConfirm?.color}
+        confirmDisabled={commentRequired && !comment.trim()}
+        busy={saving}
+        onConfirm={() => submit(confirmDecision)}
+        onCancel={() => {
+          setConfirmDecision(null);
+          setComment('');
+        }}
+      >
+        <label style={ap.fieldLabel}>
+          Comment{commentRequired ? ' *' : ''}
+        </label>
+        <textarea
+          style={ap.textarea}
+          placeholder={commentRequired ? 'Enter your comment' : 'Add a comment (optional)'}
+          rows={4}
+          value={comment}
+          onChange={(e) => {
+            setComment(e.target.value);
+            if (error) setError('');
+          }}
+        />
+        <p style={ap.helperText}>
+          {commentRequired ? 'A comment is required for this decision.' : 'Optional: add context for the audit trail.'}
+        </p>
+      </ConfirmModal>
+    </>
   );
 }
 
 const ap = {
-  wrap:      { background: 'var(--success-bg)', border: '1px solid var(--success-bg)', borderRadius: 'var(--radius-lg)', padding: 20 },
-  title:     { margin: '0 0 12px', fontSize: 13, fontWeight: 700, color: 'var(--success)', textTransform: 'uppercase', letterSpacing: '0.4px' },
-  textarea:  { width: '100%', border: '1px solid var(--separator)', borderRadius: 'var(--radius-sm)', padding: '9px 12px', fontSize: 13, fontFamily: 'inherit', resize: 'vertical', marginBottom: 12, background: 'var(--surface)', color: 'var(--label)' },
-  btnRow:    { display: 'flex', gap: 8 },
-  btn:       { flex: 1, padding: '9px 12px', border: 'none', borderRadius: 'var(--radius-sm)', fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' },
+  fieldLabel:{ display: 'block', marginBottom: 6, fontSize: 12, fontWeight: 700, color: 'var(--label-secondary)' },
+  textarea:  { width: '100%', border: '1px solid var(--separator)', borderRadius: 'var(--radius-sm)', padding: '10px 12px', fontSize: 13, fontFamily: 'inherit', resize: 'vertical', marginBottom: 8, background: 'var(--surface)', color: 'var(--label)' },
+  helperText:{ margin: '0 0 12px', fontSize: 12, color: 'var(--label-secondary)', lineHeight: 1.4 },
+  btnRow:    { display: 'flex', flexDirection: 'column', gap: 8 },
+  btn:       { width: '100%', padding: '10px 12px', border: '1px solid transparent', borderRadius: 'var(--radius-sm)', fontSize: 13, fontWeight: 800, cursor: 'pointer', fontFamily: 'inherit' },
   approveBtn:{ background: 'var(--shell-red)', color: '#fff' },
-  rejectBtn: { background: 'var(--danger-bg)', color: 'var(--danger)', border: '1px solid var(--danger)' },
-  returnBtn: { background: 'var(--warning-bg)', color: 'var(--warning)', border: '1px solid var(--warning)' },
+  rejectBtn: { background: 'var(--surface)', color: 'var(--danger)', border: '1px solid rgba(221, 29, 33, 0.35)' },
+  returnBtn: { background: '#FFF7E8', color: 'var(--warning-text)', border: '1px solid rgba(245, 158, 11, 0.35)' },
 };
 
 function buildDraftForm(pr) {
@@ -339,7 +502,30 @@ function buildDraftForm(pr) {
     department: pr.department || '',
     description: pr.description || '',
     justification: pr.justification || '',
-    quoteCount: pr.quoteCount || 0,
+    hsseRisk: pr.hsseRisk || 'Low',
+    workerWelfareRisk: pr.workerWelfareRisk || 'Low',
+    quotations: pr.supplierQuotations?.length
+      ? pr.supplierQuotations.map((quotation) => ({
+          id: quotation.id || Date.now() + Math.random(),
+          supplierName: quotation.supplierName || '',
+          quoteAmount: quotation.quoteAmount ?? '',
+          documentId: quotation.documentId || null,
+          documentName: quotation.documentName || '',
+          legacyAttachmentExempt: Boolean(quotation.legacyAttachmentExempt),
+          isSelected: Boolean(quotation.isSelected),
+          file: null,
+        }))
+      : pr.suppliers?.length
+        ? pr.suppliers.map((supplier) => ({
+          id: Date.now() + Math.random(),
+          supplierName: supplier.name || '',
+          quoteAmount: supplier.quoteAmount ?? '',
+          legacyAttachmentExempt: true,
+          isSelected: supplier.name === pr.selectedSupplier,
+          file: null,
+        }))
+        : [emptyQuotationRow()],
+    currentBudget: pr.currentBudget ?? '',
     lineItems: items,
   };
 }
@@ -368,19 +554,29 @@ function DraftEditor({ pr, onCancel, onSaved }) {
     ...prev,
     lineItems: prev.lineItems.length > 1 ? prev.lineItems.filter((item) => item.id !== id) : prev.lineItems,
   }));
-
   const save = async (e) => {
     e.preventDefault();
     setSaving(true);
     setError('');
+    let quotations;
+    try {
+      quotations = normalizeQuotationRows(form.quotations);
+    } catch (err) {
+      setSaving(false);
+      setError(err.message);
+      return;
+    }
 
     const payload = {
       title: form.title,
       department: form.department,
       description: form.description,
-      quoteCount: Number(form.quoteCount) || 0,
       justification: form.justification,
       totalValue,
+      hsseRisk: form.hsseRisk,
+      workerWelfareRisk: form.workerWelfareRisk,
+      quotations,
+      currentBudget: form.currentBudget || undefined,
       lineItems: form.lineItems.map((item) => {
         const quantity = parseFloat(item.quantity) || 0;
         const unitPrice = parseFloat(item.unitPrice) || 0;
@@ -395,9 +591,12 @@ function DraftEditor({ pr, onCancel, onSaved }) {
 
     try {
       const updated = await updatePR(pr.id, payload);
+      notifySuccess('Draft changes saved.');
       onSaved(updated);
     } catch (err) {
-      setError(err.message || 'Failed to save draft.');
+      const message = err.message || 'Failed to save draft.';
+      setError(message);
+      notifyError(message);
     } finally {
       setSaving(false);
     }
@@ -420,11 +619,14 @@ function DraftEditor({ pr, onCancel, onSaved }) {
         <label style={s.formLabel}>Description</label>
         <textarea style={s.textarea} rows={3} value={form.description} onChange={(e) => updateField('description', e.target.value)} />
 
-        <label style={s.formLabel}>Quote Count</label>
-        <input style={s.input} type="number" min="0" value={form.quoteCount} onChange={(e) => updateField('quoteCount', e.target.value)} />
-
         <label style={s.formLabel}>Justification</label>
         <textarea style={s.textarea} rows={3} value={form.justification} onChange={(e) => updateField('justification', e.target.value)} />
+
+        <label style={s.formLabel}>HSSE Risk</label>
+        <SelectField name="hsseRisk" style={s.input} value={form.hsseRisk} onChange={(v) => updateField('hsseRisk', v)} options={RISK_LEVELS} aria-label="HSSE Risk" />
+
+        <label style={s.formLabel}>Worker Welfare Risk</label>
+        <SelectField name="workerWelfareRisk" style={s.input} value={form.workerWelfareRisk} onChange={(v) => updateField('workerWelfareRisk', v)} options={RISK_LEVELS} aria-label="Worker Welfare Risk" />
       </div>
 
       <div style={s.divider} />
@@ -460,6 +662,16 @@ function DraftEditor({ pr, onCancel, onSaved }) {
       </div>
 
       <div style={s.draftTotal}>Total: {fmtOMR(totalValue)}</div>
+
+      <div style={s.divider} />
+      <SupplierQuotationEditor
+        rows={form.quotations}
+        onChange={(quotations) => updateField('quotations', quotations)}
+        currentBudget={form.currentBudget}
+        onBudgetChange={(value) => updateField('currentBudget', value)}
+        styles={s}
+      />
+
       {error && <div style={s.inlineError}>{error}</div>}
       <button type="submit" disabled={saving} style={{ ...s.saveBtn, ...(saving ? s.disabledBtn : {}) }}>
         {saving ? 'Saving...' : 'Save Draft Changes'}
@@ -472,6 +684,7 @@ function DraftEditor({ pr, onCancel, onSaved }) {
 const TABS = [
   { id: 'details',  label: 'Details' },
   { id: 'approval', label: 'Approval Progress' },
+  { id: 'audit',    label: 'Audit Trail' },
   { id: 'documents',label: 'Documents' },
 ];
 
@@ -485,10 +698,23 @@ export default function PRDetail() {
   const [editingDraft, setEditingDraft] = useState(false);
   const [resubmitting, setResubmitting] = useState(false);
   const [draftActionError, setDraftActionError] = useState('');
+  const [selectionSaving, setSelectionSaving] = useState(false);
+  const [selectionError, setSelectionError] = useState('');
 
   const user = (() => { try { return JSON.parse(localStorage.getItem('som_user') || '{}'); } catch { return {}; } })();
+  // Only the role required by the *current* workflow step may decide it (Admins
+  // override any step), and a requester may never approve their own request —
+  // this mirrors the server-side authority check so the panel isn't shown to
+  // users who would only get a 403.
+  const currentStep  = pr?.workflow?.[pr?.currentStepIndex ?? 0] || null;
+  const isRequester  = !!(pr?.requestorId && user?.id && pr.requestorId === user.id);
+  const canManageDraft = pr?.status === 'DRAFT' && (isRequester || user.role === 'Admin');
+  const isAdminOverride = user.role === 'Admin' && !!currentStep;
   const canApprove = pr?.status === 'PENDING_APPROVAL' &&
-    ['Admin', 'Finance', 'Department Manager'].includes(user.role);
+    !!currentStep &&
+    !isRequester &&
+    (user.role === 'Admin' || user.role === currentStep.role);
+  const canSelectSupplier = pr?.status === 'PENDING_APPROVAL' && ['Admin', 'CP Lead', 'CP Manager'].includes(user.role);
 
   useEffect(() => {
     setLoading(true);
@@ -500,6 +726,12 @@ export default function PRDetail() {
   const isDraft = pr?.status === 'DRAFT';
 
   const handleResubmit = async () => {
+    if (!hasSupplierEntries(pr?.suppliers)) {
+      const message = 'Add at least one supplier quotation entry before resubmitting this request.';
+      setDraftActionError(message);
+      notifyError(message);
+      return;
+    }
     setResubmitting(true);
     setDraftActionError('');
     try {
@@ -507,10 +739,41 @@ export default function PRDetail() {
       setPR(updated);
       setEditingDraft(false);
       setActiveTab('approval');
+      notifySuccess('Purchase request resubmitted.');
     } catch (err) {
-      setDraftActionError(err.message || 'Failed to resubmit purchase request.');
+      const message = err.message || 'Failed to resubmit purchase request.';
+      setDraftActionError(message);
+      notifyError(message);
     } finally {
       setResubmitting(false);
+    }
+  };
+
+  const handleSelectSupplier = async (quotationId) => {
+    setSelectionSaving(true);
+    setSelectionError('');
+    try {
+      const updated = await selectSupplierQuotation(pr.id, quotationId);
+      setPR(updated);
+      notifySuccess('Supplier quotation selected.');
+    } catch (err) {
+      const message = err.message || 'Failed to select supplier quotation.';
+      setSelectionError(message);
+      notifyError(message);
+    } finally {
+      setSelectionSaving(false);
+    }
+  };
+
+  const handleQuoteDownload = async (quotation) => {
+    if (!quotation?.documentId) return;
+    setSelectionError('');
+    try {
+      await downloadDocument(pr.id, quotation.documentId, quotation.documentName || 'supplier-quotation');
+    } catch (err) {
+      const message = err.message || 'Download failed.';
+      setSelectionError(message);
+      notifyError(message);
     }
   };
 
@@ -556,26 +819,35 @@ export default function PRDetail() {
       {isDraft && (
         <div style={s.draftBanner}>
           <div>
-            <strong>Returned for revision.</strong> Update the draft, attach any missing documents, then resubmit it for approval.
+            <strong>Returned for revision.</strong>{' '}
+            {canManageDraft
+              ? 'Update the draft, attach any missing documents, then resubmit it for approval.'
+              : 'Only the requester or an Admin can edit and resubmit this draft.'}
             {draftActionError && <p style={s.draftError}>{draftActionError}</p>}
           </div>
-          <div style={s.draftActionRow}>
-            <button
-              type="button"
-              style={s.secondaryBtn}
-              onClick={() => { setActiveTab('details'); setEditingDraft(true); }}
-            >
-              Edit Draft
-            </button>
-            <button
-              type="button"
-              style={{ ...s.saveBtn, ...(resubmitting ? s.disabledBtn : {}) }}
-              disabled={resubmitting}
-              onClick={handleResubmit}
-            >
-              {resubmitting ? 'Resubmitting...' : 'Resubmit for Approval'}
-            </button>
-          </div>
+          {canManageDraft && (
+            <div style={s.draftActionRow}>
+              <button
+                type="button"
+                style={s.secondaryBtn}
+                onClick={() => {
+                  setDraftActionError('');
+                  setActiveTab('details');
+                  setEditingDraft(true);
+                }}
+              >
+                Edit Draft
+              </button>
+              <button
+                type="button"
+                style={{ ...s.saveBtn, ...(resubmitting ? s.disabledBtn : {}) }}
+                disabled={resubmitting}
+                onClick={handleResubmit}
+              >
+                {resubmitting ? 'Resubmitting...' : 'Resubmit for Approval'}
+              </button>
+            </div>
+          )}
         </div>
       )}
 
@@ -597,15 +869,22 @@ export default function PRDetail() {
         <div style={s.main}>
 
           {/* Details tab */}
-          {activeTab === 'details' && editingDraft && isDraft && (
+          {activeTab === 'details' && editingDraft && isDraft && canManageDraft && (
             <DraftEditor
               pr={pr}
-              onCancel={() => setEditingDraft(false)}
-              onSaved={(updated) => { setPR(updated); setEditingDraft(false); }}
+              onCancel={() => {
+                setDraftActionError('');
+                setEditingDraft(false);
+              }}
+              onSaved={(updated) => {
+                setPR(updated);
+                setDraftActionError('');
+                setEditingDraft(false);
+              }}
             />
           )}
 
-          {activeTab === 'details' && (!editingDraft || !isDraft) && (
+          {activeTab === 'details' && (!editingDraft || !isDraft || !canManageDraft) && (
             <div style={s.card}>
               <h2 style={s.cardTitle}>Request Information</h2>
               <div style={s.infoGrid}>
@@ -621,6 +900,12 @@ export default function PRDetail() {
                     {pr.quoteCount} of 3 required
                   </span>
                 } />
+                <InfoRow label="HSSE Risk" value={pr.hsseRisk || 'Low'} />
+                <InfoRow label="Worker Welfare Risk" value={pr.workerWelfareRisk || 'Low'} />
+                <InfoRow label="Selected Supplier" value={pr.selectedSupplier || '—'} />
+                <InfoRow label="Current Budget" value={fmtOptionalOMR(pr.currentBudget)} />
+                <InfoRow label="Average Quote" value={fmtOptionalOMR(pr.avgQuote)} />
+                <InfoRow label="Savings" value={fmtOptionalOMR(pr.savings)} />
               </div>
 
               {pr.description && (
@@ -641,6 +926,62 @@ export default function PRDetail() {
                 </>
               )}
 
+              {pr.supplierQuotations?.length > 0 && (
+                <>
+                  <div style={s.divider} />
+                  <h3 style={s.subTitle}>Supplier Quotations</h3>
+                  {selectionError && <div style={s.inlineError}>{selectionError}</div>}
+                  <div style={s.tableWrap}>
+                    <table style={s.table}>
+                      <thead>
+                        <tr>
+                          <th style={s.th}>Selected</th>
+                          <th style={s.th}>Supplier</th>
+                          <th style={{ ...s.th, ...s.thRight }}>Quote Amount</th>
+                          <th style={s.th}>Quote File</th>
+                          {canSelectSupplier && <th style={s.th}>Action</th>}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {pr.supplierQuotations.map((quotation, i) => (
+                          <tr key={quotation.id || `${quotation.supplierName}-${i}`} style={i % 2 ? { background: 'var(--fill-quaternary)' } : {}}>
+                            <td style={s.td}>{quotation.isSelected ? 'Yes' : '-'}</td>
+                            <td style={s.td}>{quotation.supplierName}</td>
+                            <td style={{ ...s.td, textAlign: 'right', fontWeight: 600 }}>{fmtOptionalOMR(quotation.quoteAmount)}</td>
+                            <td style={s.td}>
+                              {quotation.documentId ? (
+                                <button
+                                  type="button"
+                                  style={s.fileDownloadBtn}
+                                  onClick={() => handleQuoteDownload(quotation)}
+                                  title={`Download ${quotation.documentName || 'supplier quotation'}`}
+                                >
+                                  {quotation.documentName || 'Download quote'}
+                                </button>
+                              ) : (
+                                quotation.documentName || (quotation.legacyAttachmentExempt ? 'Legacy record' : '-')
+                              )}
+                            </td>
+                            {canSelectSupplier && (
+                              <td style={s.td}>
+                                <button
+                                  type="button"
+                                  style={{ ...s.secondaryBtn, ...(selectionSaving || quotation.isSelected ? s.disabledBtn : {}) }}
+                                  disabled={selectionSaving || quotation.isSelected}
+                                  onClick={() => handleSelectSupplier(quotation.id)}
+                                >
+                                  {quotation.isSelected ? 'Selected' : 'Select'}
+                                </button>
+                              </td>
+                            )}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </>
+              )}
+
               {pr.lineItems?.length > 0 && (
                 <>
                   <div style={s.divider} />
@@ -649,9 +990,10 @@ export default function PRDetail() {
                     <table style={s.table}>
                       <thead>
                         <tr>
-                          {['Description', 'Qty', 'Unit Price', 'Line Total'].map((h) => (
-                            <th key={h} style={s.th}>{h}</th>
-                          ))}
+                          <th style={s.th}>Description</th>
+                          <th style={{ ...s.th, ...s.thRight }}>Qty</th>
+                          <th style={{ ...s.th, ...s.thRight }}>Unit Price</th>
+                          <th style={{ ...s.th, ...s.thRight }}>Line Total</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -665,7 +1007,7 @@ export default function PRDetail() {
                         ))}
                         <tr style={{ background: 'var(--fill-tertiary)' }}>
                           <td colSpan={3} style={{ ...s.td, fontWeight: 700, textAlign: 'right' }}>Total</td>
-                          <td style={{ ...s.td, fontWeight: 700, color: 'var(--shell-yellow)' }}>{fmtOMR(pr.totalValue)}</td>
+                          <td style={{ ...s.td, fontWeight: 700, color: 'var(--label)' }}>{fmtOMR(pr.totalValue)}</td>
                         </tr>
                       </tbody>
                     </table>
@@ -681,10 +1023,13 @@ export default function PRDetail() {
               <h2 style={s.cardTitle}>Approval Progress</h2>
               <ApprovalTimeline
                 workflow={pr.workflow || []}
-                history={pr.approvalHistory || []}
+                history={auditHistoryForPR(pr)}
                 status={pr.status}
                 currentStepIndex={pr.currentStepIndex || 0}
               />
+              <div style={s.divider} />
+              <h3 style={s.subTitle}>Decision History</h3>
+              <DecisionHistory history={auditHistoryForPR(pr)} />
               {canApprove && (
                 <>
                   <div style={s.divider} />
@@ -694,6 +1039,14 @@ export default function PRDetail() {
                   />
                 </>
               )}
+            </div>
+          )}
+
+          {/* Audit trail tab */}
+          {activeTab === 'audit' && (
+            <div style={s.card}>
+              <h2 style={s.cardTitle}>Audit Trail</h2>
+              <DecisionHistory history={auditHistoryForPR(pr)} />
             </div>
           )}
 
@@ -711,6 +1064,18 @@ export default function PRDetail() {
 
         {/* ── Sidebar ── */}
         <div style={s.side}>
+          {/* Quick approve button in sidebar (if on details/docs tab) */}
+          {canApprove && activeTab !== 'approval' && (
+            <div style={{ ...s.sideCard, ...(isAdminOverride ? s.adminOverrideCard : {}) }}>
+              <p style={s.sideLabel}>{isAdminOverride ? 'Admin Override' : 'Pending Decision'}</p>
+              <p style={s.sideText}>{currentStep?.label}</p>
+              <ApprovalPanel
+                prId={pr.id}
+                onDecision={(updated) => setPR(updated)}
+              />
+            </div>
+          )}
+
           {/* Status card */}
           <div style={{ ...s.sideCard, borderTop: `3px solid ${STATUS_ACCENT[pr.status] || STATUS_ACCENT.DRAFT}` }}>
             <p style={s.sideLabel}>Status</p>
@@ -720,7 +1085,7 @@ export default function PRDetail() {
           {/* Value card */}
           <div style={s.sideCard}>
             <p style={s.sideLabel}>Total Value</p>
-            <p style={{ ...s.sideValue, color: 'var(--shell-yellow)' }}>{fmtOMR(pr.totalValue)}</p>
+            <p style={{ ...s.sideValue, color: 'var(--label)' }}>{fmtOMR(pr.totalValue)}</p>
             <Badge status={pr.tier} />
           </div>
 
@@ -729,7 +1094,10 @@ export default function PRDetail() {
             <p style={s.sideLabel}>Approval Chain</p>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 4 }}>
               {(pr.workflow || []).map((step, i) => {
-                const done = pr.approvalHistory?.[i];
+                // Completion is driven by currentStepIndex (the backend's source
+                // of truth), not a positional history map — after a RETURN the
+                // index resets while history still holds the prior entries.
+                const done = i < (pr.currentStepIndex ?? 0);
                 return (
                   <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                     <span style={{
@@ -751,15 +1119,6 @@ export default function PRDetail() {
             </div>
           </div>
 
-          {/* Quick approve button in sidebar (if on details/docs tab) */}
-          {canApprove && activeTab !== 'approval' && (
-            <button type="button"
-              style={s.quickApproveBtn}
-              onClick={() => setActiveTab('approval')}
-            >
-              Take Action →
-            </button>
-          )}
         </div>
       </div>
     </div>
@@ -802,12 +1161,12 @@ const s = {
     padding: 5, marginBottom: 20, width: 'fit-content',
     boxShadow: 'var(--shadow-card)',
   },
-  tabBtn: { padding: '7px 18px', border: 'none', borderRadius: 'var(--radius-md)', cursor: 'pointer', fontSize: 13, fontWeight: 500, color: 'var(--label-secondary)', background: 'transparent' },
-  tabActive: { background: 'var(--shell-red)', color: '#fff', fontWeight: 600, boxShadow: 'var(--shadow-sm)' },
+  tabBtn: { padding: '7px 18px', border: 'none', borderRadius: 'var(--radius-md)', cursor: 'pointer', fontSize: 13, fontWeight: 600, color: 'var(--label-secondary)', background: 'transparent', transition: 'all var(--transition-fast)' },
+  tabActive: { background: '#FADCDD', color: 'var(--shell-red)', fontWeight: 700, boxShadow: 'none' },
 
   layout: { display: 'grid', gridTemplateColumns: '1fr 260px', gap: 20, alignItems: 'flex-start' },
   main:   {},
-  side:   { display: 'flex', flexDirection: 'column', gap: 12, position: 'sticky', top: 20 },
+  side:   { display: 'flex', flexDirection: 'column', gap: 12, position: 'sticky', top: 20, alignSelf: 'start', height: 'fit-content' },
 
   card:      { background: 'var(--surface)', borderRadius: 'var(--radius-xl)', padding: 28, boxShadow: 'var(--shadow-card)' },
   cardTitle: { margin: '0 0 20px', fontSize: 15, fontWeight: 700, color: 'var(--label)' },
@@ -820,11 +1179,14 @@ const s = {
   formLabel: { fontSize: 12, fontWeight: 700, color: 'var(--label-secondary)', textTransform: 'uppercase', letterSpacing: '0.4px', paddingTop: 10 },
   input:     { width: '100%', border: '1px solid var(--separator)', borderRadius: 'var(--radius-sm)', padding: '9px 12px', fontSize: 13, fontFamily: 'inherit', background: 'var(--surface)', color: 'var(--label)' },
   textarea:  { width: '100%', border: '1px solid var(--separator)', borderRadius: 'var(--radius-sm)', padding: '9px 12px', fontSize: 13, fontFamily: 'inherit', resize: 'vertical', background: 'var(--surface)', color: 'var(--label)' },
+  readonlyValue:{ display: 'flex', alignItems: 'center', minHeight: 36, fontSize: 13, fontWeight: 700, color: 'var(--label)', fontVariantNumeric: 'tabular-nums' },
 
   tableWrap: { overflowX: 'auto' },
   table:     { width: '100%', borderCollapse: 'collapse', fontSize: 13 },
   th:        { padding: '9px 12px', textAlign: 'left', fontSize: 11, fontWeight: 700, color: 'var(--label-secondary)', textTransform: 'uppercase', letterSpacing: '0.4px', borderBottom: '1px solid var(--separator-clear)', whiteSpace: 'nowrap' },
+  thRight:   { textAlign: 'right' },
   td:        { padding: '10px 12px', borderBottom: '1px solid var(--separator-clear)', color: 'var(--label)' },
+  fileDownloadBtn:{ padding: 0, border: 'none', background: 'transparent', color: 'var(--info)', fontSize: 13, fontWeight: 700, fontFamily: 'inherit', cursor: 'pointer', textAlign: 'left', textDecoration: 'underline', textUnderlineOffset: 3 },
   cellInput: { width: '100%', minWidth: 90, border: '1px solid var(--separator)', borderRadius: 'var(--radius-sm)', padding: '7px 9px', fontSize: 13, fontFamily: 'inherit', background: 'var(--surface)', color: 'var(--label)' },
   iconBtn:   { border: '1px solid var(--separator)', borderRadius: 'var(--radius-sm)', background: 'var(--surface)', color: 'var(--label-secondary)', cursor: 'pointer', padding: '3px 8px', fontWeight: 700 },
   draftTotal:{ marginTop: 14, textAlign: 'right', fontSize: 15, fontWeight: 700, color: 'var(--label)' },
@@ -839,6 +1201,8 @@ const s = {
   sideCard:  { background: 'var(--surface)', borderRadius: 'var(--radius-lg)', padding: '16px 18px', boxShadow: 'var(--shadow-card)' },
   sideLabel: { margin: '0 0 8px', fontSize: 11, fontWeight: 700, color: 'var(--label-secondary)', textTransform: 'uppercase', letterSpacing: '0.4px' },
   sideValue: { margin: '0 0 8px', fontSize: 20, fontWeight: 700 },
+  sideText:  { margin: '0 0 12px', fontSize: 13, color: 'var(--label)', fontWeight: 600, lineHeight: 1.35 },
+  adminOverrideCard: { borderTop: '3px solid var(--warning)' },
 
   quickApproveBtn: {
     width: '100%', padding: '10px', background: 'var(--shell-red)',

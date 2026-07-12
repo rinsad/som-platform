@@ -1,5 +1,5 @@
 import { render, screen, waitFor, fireEvent } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import CapexDashboard from './CapexDashboard';
 
 vi.mock('chart.js', () => ({
@@ -94,6 +94,36 @@ const mockSchedules = [
   { id: 1, reportName: 'Monthly CAPEX Governance Pack', reportType: 'governance', frequency: 'Monthly', format: 'PDF', nextRunDate: '2026-04-01' },
 ];
 
+const mockCapexRequest = {
+  id: 'CAPEX-2026-038',
+  title: 'Sample Forecourt LED Canopy Upgrade',
+  department: 'Mobility',
+  estimatedValue: 42000,
+  valueBand: 'MEDIUM',
+  status: 'Pending final closure',
+  currentStepId: 'step-2',
+  requesterId: 'user-1',
+  scopeDetails: 'Upgrade LED canopy lighting across the forecourt.',
+  fewerThan3Justification: '',
+  hsseRisk: 'Low',
+  workerWelfareRisk: 'Low',
+  savings: 0,
+  approvalSteps: [
+    { id: 'step-1', label: 'Line Manager Endorsement', status: 'Approved', approverRole: 'Manager' },
+    { id: 'step-2', label: 'HSSE / Worker Welfare Approval', status: 'Pending', approverRole: 'HSSE Focal' },
+  ],
+  quotations: [
+    { id: 'quote-1', supplierName: 'Vendor A', quoteValue: 40000, isSelected: true },
+  ],
+  attachments: [],
+  milestones: [],
+  closureChecklist: [],
+  moaRecords: [],
+  budgetVariations: [],
+  decisionGates: [],
+  risks: [],
+};
+
 const mockDrilldown = {
   type: 'businessUnit',
   rows: [{ department: 'Aviation', projects: 2, approvedBudget: 500000, commitments: 120000 }],
@@ -104,6 +134,7 @@ function makeFetchMock(depts = mockDepts) {
   return jest.fn().mockImplementation((url, options) => {
     const method = options?.method || 'GET';
 
+    if (url.includes('requests/CAPEX-2026-038')) return Promise.resolve({ ok: true, json: async () => mockCapexRequest });
     if (url.includes('dashboard/governance')) return Promise.resolve({ ok: true, json: async () => mockGovernance });
     if (url.includes('dashboard/drilldown')) return Promise.resolve({ ok: true, json: async () => mockDrilldown });
     if (url.includes('process-reference')) return Promise.resolve({ ok: true, json: async () => mockProcessRef });
@@ -126,6 +157,12 @@ beforeEach(() => {
   localStorage.setItem('som_user', JSON.stringify({ role: 'Admin', fullName: 'Test Admin' }));
   global.fetch = makeFetchMock();
   global.ResizeObserver = class { observe() {} unobserve() {} disconnect() {} };
+  global.IntersectionObserver = class {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  };
+  window.scrollTo = vi.fn();
 });
 
 afterEach(() => {
@@ -133,10 +170,13 @@ afterEach(() => {
   jest.clearAllMocks();
 });
 
-const renderDashboard = () =>
+const renderDashboard = (initialEntries = ['/capex']) =>
   render(
-    <MemoryRouter>
-      <CapexDashboard />
+    <MemoryRouter initialEntries={initialEntries}>
+      <Routes>
+        <Route path="/capex" element={<CapexDashboard />} />
+        <Route path="/capex/requests/:requestId" element={<CapexDashboard />} />
+      </Routes>
     </MemoryRouter>
   );
 
@@ -258,9 +298,22 @@ describe('Tab navigation', () => {
     await waitForLoad();
     fireEvent.click(screen.getByRole('button', { name: 'Governance' }));
     expect(screen.getByText('CAPEX Governance')).toBeInTheDocument();
-    expect(screen.getByText('Executive Control Summary')).toBeInTheDocument();
-    expect(screen.getByText('Process Reference')).toBeInTheDocument();
+    expect(screen.getByText('Attention required')).toBeInTheDocument();
+    expect(screen.getByText('Budget variance exceeds 10%.')).toBeInTheDocument();
+    expect(screen.getByText('Portfolio drill-down')).toBeInTheDocument();
+    expect(screen.getByText('Policies and controls')).toBeInTheDocument();
     expect(screen.getByText('Monthly CAPEX Governance Pack')).toBeInTheDocument();
+    expect(screen.getByText('01 Apr 2026')).toBeInTheDocument();
+  });
+
+  test('direct request detail route opens the CAPEX request detail page', async () => {
+    renderDashboard(['/capex/requests/CAPEX-2026-038']);
+    await waitFor(() => expect(screen.getByText('Sample Forecourt LED Canopy Upgrade')).toBeInTheDocument());
+    expect(screen.getByRole('button', { name: /all requests/i })).toBeInTheDocument();
+    expect(screen.getByText('Approval Workflow')).toBeInTheDocument();
+    expect(screen.queryByText('CAPEX Control Center')).not.toBeInTheDocument();
+    expect(screen.queryByText('Portfolio Health')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Overview' })).not.toBeInTheDocument();
   });
 });
 

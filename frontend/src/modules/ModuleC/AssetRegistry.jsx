@@ -11,6 +11,7 @@ import {
 import DateField from '../../components/DateField';
 import SelectField from '../../components/SelectField';
 import Badge from '../../components/Badge';
+import { notifyError, notifySuccess } from '../../utils/toast';
 
 if (typeof Chart.register === 'function') {
   Chart.register(LineController, LineElement, PointElement, CategoryScale, LinearScale, Tooltip, Legend);
@@ -227,8 +228,9 @@ function AssetsTab() {
       await createAsset(addForm);
       setShowAddForm(false);
       setAddForm({ name: '', region: 'Muscat', site: '', facility: '', equipmentType: 'Generator', department: 'Operations', status: 'Active' });
+      notifySuccess('Asset registered.');
       fetchAll();
-    } catch { setAddErr('Failed to register asset. Please try again.'); }
+    } catch (err) { notifyError(err, 'Failed to register asset. Please try again.'); }
     finally { setAddSaving(false); }
   };
 
@@ -424,8 +426,6 @@ function UtilitiesTab() {
   const [showForm, setShowForm] = useState(false);
   const [formData, setFormData] = useState({ utilityType: 'Electricity', period: '', meterReading: '', amount: '' });
   const [saving, setSaving]     = useState(false);
-  const [saveMsg, setSaveMsg]   = useState('');
-  const [saveErr, setSaveErr]   = useState('');
   const chartRef  = useRef(null);
   const chartInst = useRef(null);
 
@@ -485,7 +485,7 @@ function UtilitiesTab() {
 
   const handleLogBill = async (e) => {
     e.preventDefault();
-    setSaving(true); setSaveMsg(''); setSaveErr('');
+    setSaving(true);
     try {
       await createBill({
         siteId,
@@ -493,11 +493,11 @@ function UtilitiesTab() {
         ...formData,
         amount: Number(formData.amount),
       });
-      setSaveMsg('Bill logged successfully.');
+      notifySuccess('Bill logged successfully.');
       setFormData({ utilityType: 'Electricity', period: '', meterReading: '', amount: '' });
       setShowForm(false);
       fetchBills();
-    } catch (err) { setSaveErr(err.message); }
+    } catch (err) { notifyError(err, 'Failed to log bill.'); }
     finally { setSaving(false); }
   };
 
@@ -520,15 +520,12 @@ function UtilitiesTab() {
         />
         <button type="button"
           data-testid="btn-log-bill"
-          onClick={() => { setShowForm((v) => !v); setSaveMsg(''); setSaveErr(''); }}
+          onClick={() => setShowForm((v) => !v)}
           style={{ ...btn.primary, marginLeft: 'auto' }}
         >
           {showForm ? '✕ Cancel' : '+ Log Bill'}
         </button>
       </div>
-
-      {saveMsg && <div style={{ background: 'var(--success-bg)', border: '1px solid var(--success)', color: 'var(--success)', borderRadius: 'var(--radius-md)', padding: '10px 14px', fontSize: 13, marginBottom: 14 }}>✓ {saveMsg}</div>}
-
       {showForm && (
         <div style={{ background: 'var(--surface)', border: '1px solid var(--gray-200)', borderRadius: 'var(--radius-md)', padding: 24, marginBottom: 20, boxShadow: 'var(--shadow-sm)' }}>
           <h3 style={{ fontSize: 15, fontWeight: 700, color: 'var(--gray-900)', marginBottom: 16 }}>Log Utility Bill</h3>
@@ -553,7 +550,6 @@ function UtilitiesTab() {
               {saving ? 'Saving…' : 'Save'}
             </button>
           </form>
-          {saveErr && <div style={{ marginTop: 10, color: 'var(--danger)', fontSize: 13 }}>⚠ {saveErr}</div>}
         </div>
       )}
 
@@ -645,8 +641,9 @@ function MaintenanceTab() {
       await createWorkOrder({ ...formData, estimatedHours: Number(formData.estimatedHours) || 0 });
       setShowForm(false);
       setFormData({ assetCode: '', type: 'Planned', priority: 'Medium', description: '', scheduledDate: '', technician: '', department: '', estimatedHours: '', notes: '' });
+      notifySuccess('Work order created.');
       fetchData();
-    } catch { setSaveErr('Failed to save work order. Please try again.'); }
+    } catch (err) { notifyError(err, 'Failed to save work order. Please try again.'); }
     finally { setSaving(false); }
   };
 

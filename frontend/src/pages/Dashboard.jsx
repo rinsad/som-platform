@@ -1,6 +1,10 @@
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { getAssets } from '../services/assetsService';
+import { getDepartments, getSyncStatus } from '../services/capexService';
+import { getAllPRs } from '../services/prService';
 
-const MODULES = [
+const BASE_MODULES = [
   {
     label: 'Capex Planning',
     description: 'Budget vs actual tracking, department meters, GSAP sync',
@@ -8,7 +12,7 @@ const MODULES = [
     accent: 'var(--shell-yellow)',
     light: 'var(--bg-tertiary)',
     icon: 'C',
-    stats: [{ label: 'Total Budget', value: 'OMR 4.2M' }, { label: 'Utilisation', value: '43%' }],
+    key: 'capex',
   },
   {
     label: 'Purchase Requests',
@@ -17,7 +21,7 @@ const MODULES = [
     accent: 'var(--shell-red)',
     light: 'var(--accent-red-bg)',
     icon: 'P',
-    stats: [{ label: 'Open PRs', value: '3' }, { label: 'Pending', value: '2' }],
+    key: 'purchaseRequests',
   },
   {
     label: 'Assets - RADP',
@@ -26,25 +30,161 @@ const MODULES = [
     accent: 'var(--accent-amber)',
     light: 'var(--accent-amber-bg)',
     icon: 'A',
-    stats: [{ label: 'Regions', value: '2' }, { label: 'Sites', value: '3' }],
+    key: 'assets',
   },
 ];
 
-const ACTIVITY = [
-  { label: 'PR-2026-003 escalated to Finance review', time: '2h ago', dot: 'var(--shell-red)' },
-  { label: 'Capex sync completed - GSAP', time: '4h ago', dot: 'var(--shell-yellow)' },
-  { label: 'PR-2026-005 approved by Admin User', time: '1d ago', dot: 'var(--success)' },
-  { label: 'New asset registered - Salalah Main Station', time: '2d ago', dot: 'var(--accent-amber)' },
-  { label: 'PR-2026-006 rejected - Q1 budget freeze', time: '3d ago', dot: 'var(--neutral)' },
-];
+const DEFAULT_STATS = {
+  capex: [{ label: 'Total Budget', value: '-' }, { label: 'Utilisation', value: '-' }],
+  purchaseRequests: [{ label: 'Open PRs', value: '-' }, { label: 'Pending', value: '-' }],
+  assets: [{ label: 'Regions', value: '-' }, { label: 'Sites', value: '-' }],
+};
+
+function formatOmr(value) {
+  if (!Number.isFinite(value)) return '-';
+  if (Math.abs(value) >= 1_000_000) return `OMR ${(value / 1_000_000).toFixed(1)}M`;
+  if (Math.abs(value) >= 1_000) return `OMR ${(value / 1_000).toFixed(0)}K`;
+  return `OMR ${value.toLocaleString('en-GB')}`;
+}
+
+function formatDate(value) {
+  if (!value) return '';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return String(value);
+  return date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+}
+
+function readUser() {
+  try {
+    const raw = localStorage.getItem('som_user');
+    return raw ? JSON.parse(raw) : {};
+  } catch {
+    return {};
+  }
+}
+
+function buildActivity(prs, syncStatus) {
+  const prActivity = prs.flatMap((pr) => {
+    const history = Array.isArray(pr.approvalHistory) ? pr.approvalHistory : [];
+    const historyItems = history.map((h) => ({
+      label: `${pr.id} ${String(h.decision || 'updated').toLowerCase().replace(/_/g, ' ')}${h.approver ? ` by ${h.approver}` : ''}`,
+      time: formatDate(h.date),
+      sortDate: new Date(h.date || pr.createdAt || 0).getTime(),
+      dot: h.decision === 'REJECTED' ? 'var(--shell-red)' : 'var(--success)',
+    }));
+    return [
+      {
+        label: `${pr.id} created - ${pr.title}`,
+        time: formatDate(pr.createdAt),
+        sortDate: new Date(pr.createdAt || 0).getTime(),
+        dot: pr.status === 'PENDING_APPROVAL' ? 'var(--shell-yellow)' : 'var(--neutral)',
+      },
+      ...historyItems,
+    ];
+  });
+
+  const syncActivity = syncStatus?.lastSynced
+    ? [{
+        label: `${syncStatus.source || 'GSAP'} sync completed`,
+        time: formatDate(syncStatus.lastSynced),
+        sortDate: new Date(syncStatus.lastSynced).getTime(),
+        dot: 'var(--shell-yellow)',
+      }]
+    : [];
+
+  const items = [...prActivity, ...syncActivity]
+    .filter((item) => item.label && item.sortDate)
+    .sort((a, b) => b.sortDate - a.sortDate)
+    .slice(0, 5);
+
+  return items.length
+    ? items
+    : [{ label: 'No recent module activity available', time: '', dot: 'var(--neutral)' }];
+}
 
 export default function Dashboard() {
   const navigate = useNavigate();
-  const raw = localStorage.getItem('som_user');
-  const user = raw ? JSON.parse(raw) : {};
+  const [dashboard, setDashboard] = useState({
+    loading: true,
+    error: '',
+    stats: DEFAULT_STATS,
+    activity: [{ label: 'Loading dashboard activity...', time: '', dot: 'var(--neutral)' }],
+    status: [],
+  });
+  const user = useMemo(() => readUser(), []);
 
   const hour = new Date().getHours();
   const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
+  const modules = BASE_MODULES.map((mod) => ({ ...mod, stats: dashboard.stats[mod.key] || DEFAULT_STATS[mod.key] }));
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadDashboard() {
+      const [deptResult, prResult, assetResult, syncResult] = await Promise.allSettled([
+        getDepartments(),
+        getAllPRs(),
+        getAssets(),
+        getSyncStatus(),
+      ]);
+
+      if (cancelled) return;
+
+      const departments = deptResult.status === 'fulfilled' ? deptResult.value : [];
+      const prs = prResult.status === 'fulfilled' ? prResult.value : [];
+      const assets = assetResult.status === 'fulfilled' ? assetResult.value : [];
+      const syncStatus = syncResult.status === 'fulfilled' ? syncResult.value : null;
+
+      const totalBudget = departments.reduce((sum, dept) => sum + Number(dept.totalBudget || 0), 0);
+      const actualSpend = departments.reduce((sum, dept) => sum + Number(dept.actual || 0), 0);
+      const utilisation = totalBudget > 0 ? Math.round((actualSpend / totalBudget) * 100) : null;
+      const pendingPrs = prs.filter((pr) => pr.status === 'PENDING_APPROVAL').length;
+      const openPrs = prs.filter((pr) => ['DRAFT', 'PENDING_APPROVAL'].includes(pr.status)).length;
+      const regions = new Set(assets.map((asset) => asset.region).filter(Boolean)).size;
+      const sites = new Set(assets.map((asset) => asset.site).filter(Boolean)).size;
+      const moduleApiOk = [deptResult, prResult, assetResult].some((result) => result.status === 'fulfilled');
+      const allDataOk = [deptResult, prResult, assetResult].every((result) => result.status === 'fulfilled');
+
+      setDashboard({
+        loading: false,
+        error: [deptResult, prResult, assetResult, syncResult].some((result) => result.status === 'rejected')
+          ? 'Some dashboard data could not be refreshed.'
+          : '',
+        stats: {
+          capex: [
+            { label: 'Total Budget', value: formatOmr(totalBudget) },
+            { label: 'Utilisation', value: utilisation === null ? '-' : `${utilisation}%` },
+          ],
+          purchaseRequests: [
+            { label: 'Open PRs', value: String(openPrs) },
+            { label: 'Pending', value: String(pendingPrs) },
+          ],
+          assets: [
+            { label: 'Regions', value: String(regions) },
+            { label: 'Sites', value: String(sites) },
+          ],
+        },
+        activity: buildActivity(prs, syncStatus),
+        status: [
+          { label: 'SOM API', status: moduleApiOk ? 'Operational' : 'Check connection', ok: moduleApiOk },
+          {
+            label: 'GSAP Sync',
+            status: syncStatus?.lastSynced
+              ? `Last sync ${formatDate(syncStatus.lastSynced)}`
+              : syncStatus?.mode === 'manual'
+                ? 'Manual mode'
+                : 'Not synced',
+            ok: !!syncStatus,
+          },
+          { label: 'Authentication', status: localStorage.getItem('som_token') ? 'Operational' : 'No active token', ok: !!localStorage.getItem('som_token') },
+          { label: 'PostgreSQL', status: allDataOk ? 'Operational' : 'Check connection', ok: allDataOk },
+        ],
+      });
+    }
+
+    loadDashboard();
+    return () => { cancelled = true; };
+  }, []);
 
   return (
     <div style={s.page}>
@@ -64,9 +204,11 @@ export default function Dashboard() {
         </div>
       </div>
 
+      {dashboard.error && <div style={s.notice}>{dashboard.error}</div>}
+
       <div style={s.grid}>
-        {MODULES.map((mod) => (
-          <button type="button" key={mod.path} onClick={() => navigate(mod.path)} style={s.card}>
+        {modules.map((mod) => (
+          <button type="button" key={mod.path} onClick={() => navigate(mod.path)} style={s.card} aria-busy={dashboard.loading}>
             <div style={s.cardHeader}>
               <div style={{ ...s.cardIcon, background: mod.light, color: mod.accent }}>
                 {mod.icon}
@@ -95,7 +237,7 @@ export default function Dashboard() {
         <div style={s.panel}>
           <h2 style={s.cardTitle}>Recent Activity</h2>
           <div style={s.activityList}>
-            {ACTIVITY.map((a, i) => (
+            {dashboard.activity.map((a, i) => (
               <div key={i} style={s.activityItem}>
                 <div style={{ ...s.activityDot, background: a.dot }} />
                 <div>
@@ -110,12 +252,7 @@ export default function Dashboard() {
         <div style={s.panel}>
           <h2 style={s.cardTitle}>System Status</h2>
           <div style={s.statusList}>
-            {[
-              { label: 'SOM API', status: 'Operational', ok: true },
-              { label: 'GSAP Sync', status: 'Last sync 2h ago', ok: true },
-              { label: 'Authentication', status: 'Operational', ok: true },
-              { label: 'PostgreSQL', status: 'Check connection', ok: false },
-            ].map((item) => (
+            {dashboard.status.map((item) => (
               <div key={item.label} style={s.statusItem}>
                 <div style={{ ...s.statusDot, background: item.ok ? 'var(--success)' : 'var(--warning)' }} />
                 <div style={s.statusInfo}>
@@ -138,6 +275,16 @@ export default function Dashboard() {
 
 const s = {
   page: { animation: 'fadeIn 0.3s ease' },
+  notice: {
+    background: 'var(--warning-bg)',
+    border: '1px solid var(--warning-line)',
+    color: 'var(--warning-text)',
+    borderRadius: 'var(--radius-xs)',
+    padding: '10px 14px',
+    fontSize: 13,
+    fontWeight: 700,
+    marginBottom: 14,
+  },
   hero: {
     display: 'flex',
     justifyContent: 'space-between',

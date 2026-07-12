@@ -1,0 +1,79 @@
+.som-file-upload {
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+}
+
+.som-file-upload[data-disabled] {
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+/* Positioned wrapper so the overlaid input stays pinned to the button and
+   focusing it never scroll-jumps the page (mirrors Checkbox.jsx). */
+.som-file-upload-control {
+  position: relative;
+  display: inline-flex;
+  flex-shrink: 0;
+}
+
+/* Real input overlaid on the button at opacity 0 — still clickable/focusable. */
+.som-file-upload-input {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.som-file-upload-input:disabled {
+  cursor: default;
+}
+
+.som-file-upload-btn {
+  position: relative;
+  pointer-events: none;
+  display: inline-flex;
+  align-items: center;
+  overflow: hidden;
+  min-width: 150px;
+  padding: 8px 14px;
+  background: var(--surface);
+  border: 1px solid var(--gray-300);
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--label);
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.som-file-upload-control:hover .som-file-upload-btn:not([data-uploading]) {
+  background: var(--gray-50);
+  border-color: var(--gray-400);
+}
+
+.som-file-upload-input:focus-visible + .som-file-upload-btn {
+  outline: 2px solid var(--shell-red);
+  outline-offset: 1px;
+}
+
+/* Gray fill that grows left→right to reflect upload progress. */
+.som-file-upload-fill {
+  position: absolute;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: 0;
+  background: var(--gray-200);
+  transition: width 0.25s ease;
+}
+
+.som-file-upload-btn-content {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}

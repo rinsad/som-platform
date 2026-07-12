@@ -22,6 +22,23 @@ exports.attachmentUploadMiddleware = _upload.single('file');
 
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
+const WORKFLOW_ROLE_ALIASES = {
+  'Line Manager': 'Manager',
+  'Contract Holder / Owner': 'Project Owner',
+  FiB: 'Finance in Business',
+  'Head of CP': 'CP Manager',
+  'CP Manager / Head of CP': 'CP Manager',
+  CP: 'CP Manager',
+  EMT: 'CEO/Board',
+  'Contract Board': 'CEO/Board',
+};
+
+function workflowRoleLookupKeys(role) {
+  const original = String(role || '').trim();
+  const canonical = WORKFLOW_ROLE_ALIASES[original] || original;
+  return [...new Set([canonical, original].filter(Boolean))];
+}
+
 // The approval route for a band, derived from the actual executable workflow
 // config (the same rows that generate a request's approval steps). This is the
 // single source of truth for MOA matrix validation — previously a separate
@@ -49,27 +66,34 @@ function buildCapexWorkflow({ valueBand, quoteCount, hsseRisk, workerWelfareRisk
   const needsHsse = ['Medium', 'High'].includes(hsseRisk) || ['Medium', 'High'].includes(workerWelfareRisk);
   const fewerThan3 = Number(quoteCount || 0) < 3;
 
-  add('Line Manager', 'Line Manager Endorsement');
-  if (needsHsse) add('HSSE Focal', 'HSSE / Worker Welfare Approval');
+  add('Manager', 'Line Manager Endorsement');
+  if (needsHsse) add('HSSE Focal', 'HSSE Focal Review');
 
   if (valueBand === 'LOW') {
-    add('FiB', 'FiB Validation');
+    add('Finance in Business', 'FiB Validation');
     add('CP Lead', 'CP Lead Pre-support');
-    if (fewerThan3) add('Head of CP', 'Head of CP Approval for Fewer than 3 Quotations');
+    if (fewerThan3) add('CP Manager', 'CP Manager Approval for Fewer than 3 Quotations');
     add('Business GM', 'Business GM Approval');
   } else if (valueBand === 'MEDIUM') {
-    add('Contract Holder / Owner', 'Contract Holder / Owner Pre-support');
-    add('FiB', 'FiB Validation');
-    add('CP Manager / Head of CP', 'CP Governance Approval');
+    add('Project Owner', 'Project Owner Pre-support');
+    add('Finance in Business', 'FiB Validation');
+    add('CP Manager', 'CP Governance Approval');
     if (fewerThan3) add('CFO', 'CFO Approval for Fewer than 3 Quotations');
-    add('EMT', 'EMT Approval');
+    add('CEO/Board', 'EMT Approval');
   } else {
-    add('CP', 'CP Review');
-    add('FiB', 'FiB Validation');
-    add('Contract Board', 'Contract Board Approval');
+    add('CP Manager', 'CP Review');
+    add('Finance in Business', 'FiB Validation');
+    add('CEO/Board', 'Contract Board Approval');
   }
 
   return steps;
+}
+
+function displayWorkflowLabel(row) {
+  if (row.approver_role === 'HSSE Focal' && row.label === 'HSSE / Worker Welfare Approval') {
+    return 'HSSE Focal Review';
+  }
+  return row.label;
 }
 
 async function buildConfiguredCapexWorkflow(db, { valueBand, quoteCount, hsseRisk, workerWelfareRisk }) {
@@ -94,7 +118,7 @@ async function buildConfiguredCapexWorkflow(db, { valueBand, quoteCount, hsseRis
 
     if (!rows.length) return buildCapexWorkflow({ valueBand, quoteCount, hsseRisk, workerWelfareRisk });
 
-    return rows.map(r => ({ role: r.approver_role, label: r.label }));
+    return rows.map(r => ({ role: r.approver_role, label: displayWorkflowLabel(r) }));
   } catch {
     return buildCapexWorkflow({ valueBand, quoteCount, hsseRisk, workerWelfareRisk });
   }
@@ -164,6 +188,74 @@ const DEFAULT_DECISION_GATES = [
   ['gate_8_benefits', 'Gate 8 - Benefits Realization'],
 ];
 
+const DECISION_GATE_RULES = {
+  gate_1_budget: {
+    ownerRoles: ['Finance in Business', 'Finance Manager', 'CFO'],
+    ownerLabel: 'FiB / Finance',
+  },
+  gate_2_capex: {
+    ownerRoles: [],
+    ownerLabel: 'Approval workflow',
+    autoManaged: true,
+  },
+  gate_3_procurement: {
+    ownerRoles: ['CP Manager', 'CP Lead', 'Project Engineer'],
+    ownerLabel: 'CP / Project Engineer',
+  },
+  gate_4_cost_schedule: {
+    ownerRoles: ['Project Engineer'],
+    ownerLabel: 'Project Engineer',
+  },
+  gate_5_completion: {
+    ownerRoles: ['Project Engineer', 'Project Owner'],
+    ownerLabel: 'Project Engineer / Project Owner',
+  },
+  gate_6_auc: {
+    ownerRoles: ['Finance in Business', 'Finance Manager', 'CFO'],
+    ownerLabel: 'Finance',
+  },
+  gate_7_asset_acceptance: {
+    ownerRoles: ['Asset Team', 'Project Engineer'],
+    ownerLabel: 'Asset Team / Project Engineer',
+  },
+  gate_8_benefits: {
+    ownerRoles: ['Finance in Business', 'Finance Manager', 'CFO'],
+    ownerLabel: 'Finance',
+  },
+};
+
+function gateRule(gateKey) {
+  return DECISION_GATE_RULES[gateKey] || { ownerRoles: [], ownerLabel: 'Assigned owner', autoManaged: false };
+}
+
+function canUserReviewDecisionGate(user, gateKey) {
+  if (user?.role === 'Admin') return true;
+  const rule = gateRule(gateKey);
+  if (rule.autoManaged) return false;
+  return rule.ownerRoles.includes(user?.role || '');
+}
+
+function gate2AutoPassed(request) {
+  const blockedStatuses = new Set(['Draft', 'Returned for correction', 'Rejected']);
+  return !request?.current_step_id && !blockedStatuses.has(request?.status);
+}
+
+async function syncCapexApprovalDecisionGate(client, request, reviewer) {
+  await insertDefaultDecisionGates(client, request.id, reviewer);
+  const status = gate2AutoPassed(request) ? 'Passed' : 'Pending';
+  await client.query(
+    `UPDATE capex_decision_gate_reviews
+     SET status = $1::text,
+         reviewer = CASE WHEN $1::text = 'Passed' THEN $2 ELSE NULL END,
+         reviewed_at = CASE WHEN $1::text = 'Passed' THEN NOW() ELSE NULL END,
+         comments = CASE WHEN $1::text = 'Passed' THEN comments ELSE NULL END,
+         evidence = CASE WHEN $1::text = 'Passed' THEN evidence ELSE NULL END,
+         updated_at = NOW()
+     WHERE request_id = $3 AND gate_key = 'gate_2_capex'`,
+    [status, reviewer || 'System', request.id]
+  );
+}
+
 async function ensureCapexRequest(client, requestId) {
   const { rows: [request] } = await client.query(`SELECT * FROM capex_requests WHERE id = $1 FOR UPDATE`, [requestId]);
   return request || null;
@@ -191,6 +283,20 @@ async function insertDefaultDecisionGates(client, requestId, reviewer) {
       [requestId, gateKey, gateName, reviewer || 'System']
     );
   }
+}
+
+function decorateDecisionGateForUser(gate, request, user) {
+  const rule = gateRule(gate.gateKey);
+  const autoPassed = gate.gateKey === 'gate_2_capex' && gate2AutoPassed(request);
+  const status = autoPassed ? 'Passed' : gate.status;
+  return {
+    ...gate,
+    status,
+    ownerLabel: rule.ownerLabel,
+    ownerRoles: rule.ownerRoles,
+    autoManaged: !!rule.autoManaged,
+    canAct: canUserReviewDecisionGate(user, gate.gateKey) && status !== 'Passed',
+  };
 }
 
 // ── GET /api/capex/summary ────────────────────────────────────────────────────
@@ -662,7 +768,7 @@ exports.getRequestById = async (req, res, next) => {
       electronicSignatures: signatures.rows.map(mapCapexElectronicSignature),
       budgetVariations: variations.rows.map(mapCapexBudgetVariation),
       procurementPerformance: procurementPerformance.rows[0] ? mapCapexProcurementPerformance(procurementPerformance.rows[0]) : null,
-      decisionGates: gates.rows.map(mapCapexDecisionGate),
+      decisionGates: gates.rows.map(mapCapexDecisionGate).map(gate => decorateDecisionGateForUser(gate, request, req.user)),
     });
   } catch (err) { next(err); }
 };
@@ -761,6 +867,7 @@ exports.createRequest = async (req, res, next) => {
       `UPDATE capex_requests SET current_step_id = $1, status = $2, updated_at = NOW() WHERE id = $3 RETURNING *`,
       [firstStepId, nextStatus, id]
     );
+    await syncCapexApprovalDecisionGate(client, updated, requesterName);
     await addAuditLog(client, id, 'REQUEST_SUBMITTED', `CAPEX request submitted and routed to ${workflow[0]?.role || 'procurement'}.`, requesterName);
 
     await client.query('COMMIT');
@@ -812,19 +919,26 @@ exports.decideRequest = async (req, res, next) => {
       return res.status(400).json({ error: 'Request has no pending approval step' });
     }
 
+    const roleLookupKeys = workflowRoleLookupKeys(step.approver_role);
     const { rows: cfg } = await client.query(
       `SELECT allowed_user_roles FROM capex_workflow_config
-       WHERE approver_role = $1 AND is_active = true
-       ORDER BY id LIMIT 1`,
-      [step.approver_role]
+       WHERE approver_role = ANY($1) AND is_active = true
+       ORDER BY
+         CASE WHEN approver_role = $2 THEN 0 ELSE 1 END,
+         cardinality(allowed_user_roles) DESC,
+         id
+       LIMIT 1`,
+      [roleLookupKeys, roleLookupKeys[0]]
     );
     const authority = decisionAuthority(req.user, step, cfg[0]?.allowed_user_roles);
-    if (authority === 'denied') {
+    if (authority === 'denied' || authority === 'unconfigured') {
       await client.query('ROLLBACK');
       const required = (cfg[0]?.allowed_user_roles || []).filter(Boolean);
       return res.status(403).json({
-        error: `Role '${req.user?.role || 'Unknown'}' is not authorised to decide step '${step.label}'` +
-          (required.length ? ` (requires: ${required.join(', ')})` : (step.assigned_to ? ` (assigned to: ${step.assigned_to})` : '')),
+        error: authority === 'unconfigured'
+          ? `Approval step '${step.label}' has no authorised user roles configured`
+          : `Role '${req.user?.role || 'Unknown'}' is not authorised to decide step '${step.label}'` +
+            (required.length ? ` (requires: ${required.join(', ')})` : (step.assigned_to ? ` (assigned to: ${step.assigned_to})` : '')),
       });
     }
 
@@ -832,11 +946,6 @@ exports.decideRequest = async (req, res, next) => {
     if (authority === 'admin-override') {
       await addAuditLog(client, request.id, 'APPROVAL_OVERRIDE',
         `Admin override: decided step '${step.label}' in place of ${step.approver_role}.`, approverName);
-    } else if (authority === 'unverified') {
-      // Authority matrix not yet supplied (register B1/B2) and step unassigned:
-      // the decision proceeds but is flagged for governance reporting.
-      await addAuditLog(client, request.id, 'AUTHORITY_UNVERIFIED',
-        `Decision on step '${step.label}' (${step.approver_role}) taken by role '${req.user?.role || 'Unknown'}' without a configured authority matrix.`, approverName);
     }
     await client.query(
       `INSERT INTO capex_approval_actions
@@ -848,11 +957,23 @@ exports.decideRequest = async (req, res, next) => {
     if (decision === 'REJECTED') {
       if (step) await client.query(`UPDATE capex_approval_steps SET status = 'Rejected', decided_at = NOW() WHERE id = $1`, [step.id]);
       await client.query(`UPDATE capex_requests SET status = 'Rejected', current_step_id = NULL, updated_at = NOW() WHERE id = $1`, [request.id]);
-      await addAuditLog(client, request.id, 'REQUEST_REJECTED', comment, approverName);
+      await addAuditLog(
+        client,
+        request.id,
+        'REQUEST_REJECTED',
+        `Step '${step.label}' rejected.${comment ? ` Comment: ${comment}` : ''}`,
+        approverName
+      );
     } else if (decision === 'RETURNED') {
       if (step) await client.query(`UPDATE capex_approval_steps SET status = 'Returned', decided_at = NOW() WHERE id = $1`, [step.id]);
       await client.query(`UPDATE capex_requests SET status = 'Returned for correction', current_step_id = NULL, updated_at = NOW() WHERE id = $1`, [request.id]);
-      await addAuditLog(client, request.id, 'REQUEST_RETURNED', comment, approverName);
+      await addAuditLog(
+        client,
+        request.id,
+        'REQUEST_RETURNED',
+        `Step '${step.label}' returned for correction.${comment ? ` Comment: ${comment}` : ''}`,
+        approverName
+      );
     } else {
       await client.query(`UPDATE capex_approval_steps SET status = 'Approved', decided_at = NOW() WHERE id = $1`, [step.id]);
       const { rows: steps } = await client.query(
@@ -864,6 +985,11 @@ exports.decideRequest = async (req, res, next) => {
         `UPDATE capex_requests SET status = $1, current_step_id = $2, updated_at = NOW() WHERE id = $3`,
         [requestStatusForStep(open), open?.id || null, request.id]
       );
+      const { rows: [updatedRequest] } = await client.query(
+        `SELECT * FROM capex_requests WHERE id = $1`,
+        [request.id]
+      );
+      await syncCapexApprovalDecisionGate(client, updatedRequest, approverName);
       await addAuditLog(client, request.id, 'APPROVAL_STEP_APPROVED', `${step.approver_role} approved ${step.label}.`, approverName);
     }
 
@@ -879,6 +1005,59 @@ exports.decideRequest = async (req, res, next) => {
 };
 
 // ── Step delegation & escalation (PRD-FR-016) ────────────────────────────────
+exports.getDelegateCandidates = async (req, res, next) => {
+  try {
+    const { rows: [request] } = await pool.query(
+      `SELECT id, current_step_id FROM capex_requests WHERE id = $1`,
+      [req.params.id]
+    );
+    if (!request) return res.status(404).json({ error: 'CAPEX request not found' });
+    if (String(request.current_step_id) !== String(req.params.stepId)) {
+      return res.status(409).json({ error: 'Only the current pending step can be delegated' });
+    }
+
+    const { rows: [step] } = await pool.query(
+      `SELECT * FROM capex_approval_steps WHERE id = $1 AND request_id = $2 AND status = 'Pending'`,
+      [req.params.stepId, req.params.id]
+    );
+    if (!step) return res.status(404).json({ error: 'Pending approval step not found' });
+
+    const roleLookupKeys = workflowRoleLookupKeys(step.approver_role);
+    const { rows: cfg } = await pool.query(
+      `SELECT allowed_user_roles FROM capex_workflow_config
+       WHERE approver_role = ANY($1) AND is_active = true
+       ORDER BY
+         CASE WHEN approver_role = $2 THEN 0 ELSE 1 END,
+         cardinality(allowed_user_roles) DESC,
+         id
+       LIMIT 1`,
+      [roleLookupKeys, roleLookupKeys[0]]
+    );
+    const allowedRoles = (cfg[0]?.allowed_user_roles || []).filter(Boolean);
+    const candidateRoles = allowedRoles.length ? allowedRoles : roleLookupKeys;
+
+    const { rows } = await pool.query(
+      `SELECT id, full_name, email, role, department
+       FROM som_users
+       WHERE is_active = true
+         AND role = ANY($1)
+         AND id::text <> $2
+       ORDER BY full_name, email`,
+      [candidateRoles, String(req.user.id)]
+    );
+
+    res.json(rows.map(row => ({
+      id: row.id,
+      fullName: row.full_name,
+      email: row.email,
+      role: row.role,
+      department: row.department,
+    })));
+  } catch (err) {
+    next(err);
+  }
+};
+
 exports.delegateStep = async (req, res, next) => {
   let client;
   try {
@@ -897,16 +1076,49 @@ exports.delegateStep = async (req, res, next) => {
       await client.query('ROLLBACK');
       return res.status(409).json({ error: 'Only the current pending step can be delegated' });
     }
-    const { rows: [step] } = await client.query(
-      `UPDATE capex_approval_steps SET assigned_to = $1
-       WHERE id = $2 AND request_id = $3 AND status = 'Pending'
-       RETURNING *`,
-      [String(delegateTo).trim(), req.params.stepId, req.params.id]
+    const { rows: [pendingStep] } = await client.query(
+      `SELECT * FROM capex_approval_steps WHERE id = $1 AND request_id = $2 AND status = 'Pending'`,
+      [req.params.stepId, req.params.id]
     );
-    if (!step) {
+    if (!pendingStep) {
       await client.query('ROLLBACK');
       return res.status(404).json({ error: 'Pending approval step not found' });
     }
+
+    const roleLookupKeys = workflowRoleLookupKeys(pendingStep.approver_role);
+    const { rows: cfg } = await client.query(
+      `SELECT allowed_user_roles FROM capex_workflow_config
+       WHERE approver_role = ANY($1) AND is_active = true
+       ORDER BY
+         CASE WHEN approver_role = $2 THEN 0 ELSE 1 END,
+         cardinality(allowed_user_roles) DESC,
+         id
+       LIMIT 1`,
+      [roleLookupKeys, roleLookupKeys[0]]
+    );
+    const allowedRoles = (cfg[0]?.allowed_user_roles || []).filter(Boolean);
+    const candidateRoles = allowedRoles.length ? allowedRoles : roleLookupKeys;
+    const delegateValue = String(delegateTo).trim().toLowerCase();
+    const { rows: [delegateUser] } = await client.query(
+      `SELECT full_name, email
+       FROM som_users
+       WHERE is_active = true
+         AND role = ANY($1)
+         AND (LOWER(email) = $2 OR LOWER(full_name) = $2)
+       LIMIT 1`,
+      [candidateRoles, delegateValue]
+    );
+    if (!delegateUser) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ error: 'Delegate must be an active eligible user for this approval step' });
+    }
+
+    const { rows: [step] } = await client.query(
+      `UPDATE capex_approval_steps SET assigned_to = $1
+       WHERE id = $2 AND request_id = $3
+       RETURNING *`,
+      [delegateUser.email || delegateUser.full_name, req.params.stepId, req.params.id]
+    );
     await addAuditLog(client, req.params.id, 'STEP_DELEGATED',
       `Step '${step.label}' delegated to ${step.assigned_to}.`, userName(req));
     await client.query('COMMIT');
@@ -1132,6 +1344,11 @@ exports.resubmitRequest = async (req, res, next) => {
        WHERE id = $4`,
       [band, requestStatusForStep(workflow[0]), firstStepId, req.params.id]
     );
+    const { rows: [resubmittedRequest] } = await client.query(
+      `SELECT * FROM capex_requests WHERE id = $1`,
+      [req.params.id]
+    );
+    await syncCapexApprovalDecisionGate(client, resubmittedRequest, userName(req));
 
     await addAuditLog(client, req.params.id, 'REQUEST_RESUBMITTED',
       `Request resubmitted and routed to ${workflow[0]?.role || 'approval'}.`, userName(req));
@@ -1176,6 +1393,19 @@ exports.updateProcurement = async (req, res, next) => {
       return res.status(409).json({
         error: `Procurement tracking can only be edited after approval completes (current status: ${request.status})`,
       });
+    }
+
+    if (poAttachmentName) {
+      const { rows: [attachment] } = await client.query(
+        `SELECT id
+         FROM capex_attachments
+         WHERE request_id = $1 AND name = $2`,
+        [requestId, poAttachmentName]
+      );
+      if (!attachment) {
+        await client.query('ROLLBACK');
+        return res.status(400).json({ error: 'PO attachment must match an uploaded request attachment' });
+      }
     }
 
     const { rows: [row] } = await client.query(
@@ -2014,6 +2244,15 @@ exports.updateDecisionGate = async (req, res, next) => {
       return res.status(404).json({ error: 'CAPEX request not found' });
     }
     await insertDefaultDecisionGates(client, req.params.id, userName(req));
+    const rule = gateRule(req.params.gateKey);
+    if (rule.autoManaged) {
+      await client.query('ROLLBACK');
+      return res.status(409).json({ error: `${rule.ownerLabel} is updated automatically by the workflow` });
+    }
+    if (!canUserReviewDecisionGate(req.user, req.params.gateKey)) {
+      await client.query('ROLLBACK');
+      return res.status(403).json({ error: `${rule.ownerLabel} owns this decision gate` });
+    }
 
     const { rows: [row] } = await client.query(
       `UPDATE capex_decision_gate_reviews SET
@@ -2033,7 +2272,7 @@ exports.updateDecisionGate = async (req, res, next) => {
     }
     await addAuditLog(client, req.params.id, 'DECISION_GATE_UPDATED', `${row.gate_name} marked ${row.status}.`, userName(req));
     await client.query('COMMIT');
-    res.json(mapCapexDecisionGate(row));
+    res.json(decorateDecisionGateForUser(mapCapexDecisionGate(row), request, req.user));
   } catch (err) {
     if (client) await client.query('ROLLBACK');
     next(err);
@@ -2831,7 +3070,7 @@ exports.getAdminConfig = async (req, res, next) => {
     const [thresholdsResult, workflowResult, departmentsResult] = await Promise.all([
       pool.query(`SELECT low_max_omr, medium_max_omr, updated_by, updated_at FROM capex_value_thresholds WHERE id = 1`),
       pool.query(
-        `SELECT id, value_band, condition_key, step_order, approver_role, label, is_active, updated_by, updated_at
+        `SELECT id, value_band, condition_key, step_order, approver_role, label, allowed_user_roles, is_active, updated_by, updated_at
          FROM capex_workflow_config
          ORDER BY value_band, condition_key, step_order`
       ),
@@ -2852,6 +3091,7 @@ exports.getAdminConfig = async (req, res, next) => {
         conditionKey: r.condition_key,
         stepOrder: r.step_order,
         approverRole: r.approver_role,
+        allowedUserRoles: r.allowed_user_roles || [],
         label: r.label,
         isActive: r.is_active,
         updatedBy: r.updated_by,
@@ -2899,22 +3139,28 @@ exports.updateThresholds = async (req, res, next) => {
 exports.updateWorkflowRule = async (req, res, next) => {
   if (req.user?.role !== 'Admin') return res.status(403).json({ error: 'Admin only' });
   try {
-    const { approverRole, label, stepOrder, isActive } = req.body;
+    const { approverRole, label, stepOrder, allowedUserRoles, isActive } = req.body;
     if (!approverRole || !label || !stepOrder) {
       return res.status(400).json({ error: 'approverRole, label, and stepOrder are required' });
     }
+
+    if (!Array.isArray(allowedUserRoles) || !allowedUserRoles.length || allowedUserRoles.some(role => typeof role !== 'string' || !role.trim())) {
+      return res.status(400).json({ error: 'At least one allowed user role is required' });
+    }
+    const normalisedAllowedRoles = [...new Set(allowedUserRoles.map(role => role.trim()))];
 
     const { rows: [row] } = await pool.query(
       `UPDATE capex_workflow_config SET
          approver_role = $1,
          label = $2,
          step_order = $3,
-         is_active = $4,
-         updated_by = $5,
+         allowed_user_roles = $4,
+         is_active = $5,
+         updated_by = $6,
          updated_at = NOW()
-       WHERE id = $6
+       WHERE id = $7
        RETURNING *`,
-      [approverRole, label, Number(stepOrder), isActive !== false, userName(req), req.params.ruleId]
+      [approverRole, label, Number(stepOrder), normalisedAllowedRoles, isActive !== false, userName(req), req.params.ruleId]
     );
     if (!row) return res.status(404).json({ error: 'Workflow rule not found' });
     res.json({
@@ -2923,6 +3169,7 @@ exports.updateWorkflowRule = async (req, res, next) => {
       conditionKey: row.condition_key,
       stepOrder: row.step_order,
       approverRole: row.approver_role,
+      allowedUserRoles: row.allowed_user_roles,
       label: row.label,
       isActive: row.is_active,
       updatedBy: row.updated_by,

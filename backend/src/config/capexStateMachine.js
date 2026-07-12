@@ -111,9 +111,7 @@ function canDecide(request) {
 //   'role-allowed'   — the admin-configured authority roles include the user
 //   'denied'         — authority roles are configured and exclude the user
 //   'admin-override' — Admin acting outside assignment/config (audit-logged)
-//   'unverified'     — no assignment and no configured authority roles; the
-//                      MOA matrix has not been supplied (register B1/B2), so
-//                      the decision is permitted but must be audit-flagged.
+//   'unconfigured'   — no assignment and no configured authority roles
 function decisionAuthority(user, step, allowedRolesFromDb) {
   const assignee = (step?.assigned_to || '').trim().toLowerCase();
   if (assignee) {
@@ -132,29 +130,36 @@ function decisionAuthority(user, step, allowedRolesFromDb) {
     // assignment is the only authority signal.
     return user?.role === 'Admin' ? 'admin-override' : 'denied';
   }
-  return 'unverified';
+  return user?.role === 'Admin' ? 'admin-override' : 'unconfigured';
 }
 
 // Explicit step-role -> pending-status map (canonical names). Replaces the
 // old substring matching, which broke when admins renamed workflow roles.
 const STEP_ROLE_PENDING_STATUS = {
-  'Line Manager':            'Pending line manager endorsement',
-  'HSSE Focal':              'Pending HSSE / worker welfare review',
-  'FiB':                     'Pending FIB validation',
-  'CP Lead':                 'Pending CP review',
-  'Head of CP':              'Pending CP review',
+  'Line Manager': 'Pending line manager endorsement',
+  Manager: 'Pending line manager endorsement',
+  'HSSE Focal': 'Pending HSSE / worker welfare review',
+  FiB: 'Pending FIB validation',
+  'Finance in Business': 'Pending FIB validation',
+  'CP Lead': 'Pending CP review',
+  'Head of CP': 'Pending CP review',
   'CP Manager / Head of CP': 'Pending CP review',
-  'CP':                      'Pending CP review',
+  'CP Manager': 'Pending CP review',
+  CP: 'Pending CP review',
   'Contract Holder / Owner': 'Pending CP review',
-  'Business GM':             'Pending GM approval',
-  'CFO':                     'Pending CFO approval',
-  'EMT':                     'Pending EMT approval',
-  'Contract Board':          'Pending Contract Board approval',
+  'Project Owner': 'Pending CP review',
+  'Business GM': 'Pending GM approval',
+  CFO: 'Pending CFO approval',
+  EMT: 'Pending EMT approval',
+  'Contract Board': 'Pending Contract Board approval',
 };
 
 function requestStatusForStep(step) {
   if (!step) return 'Approved';
   const role = step.approver_role || step.role || '';
+  const label = (step.label || '').toLowerCase();
+  if (role === 'CEO/Board' && label.includes('contract board')) return 'Pending Contract Board approval';
+  if (role === 'CEO/Board' && label.includes('emt')) return 'Pending EMT approval';
   return STEP_ROLE_PENDING_STATUS[role] || 'Pending GM approval';
 }
 

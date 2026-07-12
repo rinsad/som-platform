@@ -20,6 +20,7 @@ const USERS = [
   { id: '10000000-0000-0000-0000-000000000011', employeeId: 'VID-011', fullName: 'Video Internal Audit', email: 'video.internal-audit@shell.om', role: 'Internal Audit', department: 'Internal Audit' },
   { id: '10000000-0000-0000-0000-000000000012', employeeId: 'VID-012', fullName: 'Video Asset Team', email: 'video.asset-team@shell.om', role: 'Asset Team', department: 'Assets' },
   { id: '10000000-0000-0000-0000-000000000013', employeeId: 'VID-013', fullName: 'Video HSSE Focal', email: 'video.hsse-focal@shell.om', role: 'HSSE Focal', department: 'HSSE' },
+  { id: '10000000-0000-0000-0000-000000000014', employeeId: 'VID-014', fullName: 'Video Line Manager', email: 'video.manager@shell.om', role: 'Manager', department: 'Operations' },
 ];
 
 async function upsertPermissions(client, userId, permissions) {

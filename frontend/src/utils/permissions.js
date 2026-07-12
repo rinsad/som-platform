@@ -24,6 +24,7 @@ export function can(permMap, role, resourceKey, action = 'can_view') {
   if (role === 'Admin') return true;
   const parts = resourceKey.split('.');
   for (let i = parts.length; i >= 1; i -= 1) {
+    if (i === 1 && parts.length > 1) continue;
     const key = parts.slice(0, i).join('.');
     const p = permMap[key];
     if (p?.[action]) return true;

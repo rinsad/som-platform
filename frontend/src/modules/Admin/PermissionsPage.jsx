@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { usersService, PERMISSION_TREE } from '../../services/usersService';
 import PermissionsPanel from './PermissionsPanel';
+import { notifyError, notifySuccess } from '../../utils/toast';
 
 function buildEmptyPermMap() {
   const map = {};
@@ -93,8 +94,11 @@ export default function PermissionsPage() {
     try {
       await usersService.update(id, { permissions: permMapToArray(permMap) });
       setSaved(true);
+      notifySuccess('Permissions saved.');
     } catch (err) {
-      setError(err.response?.data?.error ?? err.message ?? 'Failed to save permissions');
+      const message = err.response?.data?.error ?? err.message ?? 'Failed to save permissions';
+      setError(message);
+      notifyError(message);
     } finally {
       setSaving(false);
     }

@@ -12,7 +12,12 @@ function authHeaders() {
 
 async function request(path, options = {}) {
   const r = await fetch(`${API}${path}`, { headers: authHeaders(), ...options });
-  if (!r.ok) throw new Error(`API error ${r.status}`);
+  if (!r.ok) {
+    // Surface the backend's error message (e.g. authority/permission reasons)
+    // instead of a bare status code.
+    const body = await r.json().catch(() => ({}));
+    throw new Error(body.error || `API error ${r.status}`);
+  }
   return r.json();
 }
 
@@ -21,11 +26,27 @@ export function getAllPRs(status) {
   return request(`/api/purchase-requests${qs}`);
 }
 
+export function getPRPage({ status = 'ALL', page = 1, pageSize = 10 } = {}) {
+  const params = new URLSearchParams({
+    page: String(page),
+    pageSize: String(pageSize),
+  });
+
+  if (status && status !== 'ALL') {
+    params.set('status', status);
+  }
+
+  return request(`/api/purchase-requests?${params.toString()}`);
+}
+
 export function getPRById(id) {
   return request(`/api/purchase-requests/${id}`);
 }
 
 export function createPR(data) {
+  if (data?.quotations?.some((q) => q.file)) {
+    return requestPRMultipart('/api/purchase-requests', 'POST', data);
+  }
   return request('/api/purchase-requests', {
     method: 'POST',
     body: JSON.stringify(data),
@@ -33,10 +54,35 @@ export function createPR(data) {
 }
 
 export function updatePR(id, data) {
+  if (data?.quotations?.some((q) => q.file)) {
+    return requestPRMultipart(`/api/purchase-requests/${id}`, 'PATCH', data);
+  }
   return request(`/api/purchase-requests/${id}`, {
     method: 'PATCH',
     body: JSON.stringify(data),
   });
+}
+
+async function requestPRMultipart(path, method, data) {
+  const form = new FormData();
+  const requestData = {
+    ...data,
+    quotations: (data.quotations || []).map(({ file, ...quotation }) => quotation),
+  };
+  form.append('request', JSON.stringify(requestData));
+  (data.quotations || []).forEach((quotation, index) => {
+    if (quotation.file) form.append(`quoteFile_${index}`, quotation.file);
+  });
+  const r = await fetch(`${API}${path}`, {
+    method,
+    headers: { Authorization: `Bearer ${localStorage.getItem('som_token')}` },
+    body: form,
+  });
+  if (!r.ok) {
+    const body = await r.json().catch(() => ({}));
+    throw new Error(body.error || `API error ${r.status}`);
+  }
+  return r.json();
 }
 
 export function resubmitPR(id, comment) {
@@ -50,6 +96,13 @@ export function approvePR(id, decision, comment) {
   return request(`/api/purchase-requests/${id}/approve`, {
     method: 'PATCH',
     body: JSON.stringify({ decision, comment }),
+  });
+}
+
+export function selectSupplierQuotation(id, quotationId) {
+  return request(`/api/purchase-requests/${id}/supplier-selection`, {
+    method: 'PATCH',
+    body: JSON.stringify({ quotationId }),
   });
 }
 

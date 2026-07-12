@@ -19,7 +19,8 @@ describe('CAPEX state machine', () => {
     expect(decisionAuthority(user, {}, ['Finance Manager'])).toBe('role-allowed');
     expect(decisionAuthority(user, {}, ['CFO'])).toBe('denied');
     expect(decisionAuthority({ ...user, role: 'Admin' }, {}, ['CFO'])).toBe('admin-override');
-    expect(decisionAuthority(user, {}, [])).toBe('unverified');
+    expect(decisionAuthority(user, {}, [])).toBe('unconfigured');
+    expect(decisionAuthority({ ...user, role: 'Admin' }, {}, [])).toBe('admin-override');
   });
 
   test('legacy statuses map to canonical status names', () => {
@@ -71,8 +72,11 @@ describe('CAPEX state machine', () => {
 
   test('requestStatusForStep uses explicit role mapping', () => {
     expect(requestStatusForStep({ approver_role: 'Line Manager' })).toBe('Pending line manager endorsement');
+    expect(requestStatusForStep({ approver_role: 'Manager' })).toBe('Pending line manager endorsement');
     expect(requestStatusForStep({ approver_role: 'FiB' })).toBe('Pending FIB validation');
-    expect(requestStatusForStep({ approver_role: 'Contract Board' })).toBe('Pending Contract Board approval');
+    expect(requestStatusForStep({ approver_role: 'Finance in Business' })).toBe('Pending FIB validation');
+    expect(requestStatusForStep({ approver_role: 'CEO/Board', label: 'EMT Approval' })).toBe('Pending EMT approval');
+    expect(requestStatusForStep({ approver_role: 'CEO/Board', label: 'Contract Board Approval' })).toBe('Pending Contract Board approval');
     expect(requestStatusForStep({ approver_role: 'Unknown Role' })).toBe('Pending GM approval');
     expect(requestStatusForStep(null)).toBe('Approved');
   });

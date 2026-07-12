@@ -80,6 +80,10 @@ export function delegateCapexStep(id, stepId, delegateTo) {
   });
 }
 
+export function getCapexDelegateCandidates(id, stepId) {
+  return request(`/api/capex/requests/${encodeURIComponent(id)}/steps/${encodeURIComponent(stepId)}/delegate-candidates`);
+}
+
 export function escalateCapexStep(id, stepId, reason) {
   return request(`/api/capex/requests/${encodeURIComponent(id)}/steps/${encodeURIComponent(stepId)}/escalate`, {
     method: 'PATCH',
@@ -290,17 +294,31 @@ export function updateCapexWorkflowRule(ruleId, data) {
   });
 }
 
-export async function uploadCapexAttachment(id, formData) {
-  const r = await fetch(`${API}/api/capex/requests/${encodeURIComponent(id)}/attachments`, {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${localStorage.getItem('som_token')}` },
-    body: formData,
+// Uses XMLHttpRequest (not fetch) so we can surface real upload progress via
+// xhr.upload.onprogress — fetch has no equivalent. onProgress receives an
+// integer 0–100. Same resolve/throw contract as the other service calls.
+export function uploadCapexAttachment(id, formData, { onProgress } = {}) {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', `${API}/api/capex/requests/${encodeURIComponent(id)}/attachments`);
+    xhr.setRequestHeader('Authorization', `Bearer ${localStorage.getItem('som_token')}`);
+    if (onProgress) {
+      xhr.upload.onprogress = (e) => {
+        if (e.lengthComputable) onProgress(Math.round((e.loaded / e.total) * 100));
+      };
+    }
+    xhr.onload = () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        try { resolve(JSON.parse(xhr.responseText)); } catch { resolve({}); }
+      } else {
+        let msg = `Attachment upload failed (${xhr.status})`;
+        try { const err = JSON.parse(xhr.responseText); if (err.error) msg = err.error; } catch { /* keep default */ }
+        reject(new Error(msg));
+      }
+    };
+    xhr.onerror = () => reject(new Error('Attachment upload failed'));
+    xhr.send(formData);
   });
-  if (!r.ok) {
-    const err = await r.json().catch(() => ({}));
-    throw new Error(err.error || `Attachment upload failed (${r.status})`);
-  }
-  return r.json();
 }
 
 export function getCapexAttachmentDownloadUrl(requestId, attachmentId) {

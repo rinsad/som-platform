@@ -94,14 +94,20 @@ Use seeded video users and verify each role only sees/actions what it should.
 
 | Area | Manual steps | Expected result | Status |
 | --- | --- | --- | --- |
-| List | Open `/purchase-requests` | Existing PRs load | Not run |
-| Create | Open `/purchase-requests/new`, submit valid request | New PR appears in list | Not run |
-| Quote rule | Submit with fewer than 3 quotes and no justification | Request is blocked; adding justification allows submit | Not run |
-| Detail | Open PR detail | Details, documents, workflow load | Not run |
-| Sequential approval | Approve a MEDIUM PR once, then again | First approval advances current step but keeps `PENDING_APPROVAL`; second approval reaches `APPROVED` | Not run |
-| Terminal approval guard | Try to approve an already approved PR | API/UI blocks with 409 | Not run |
-| Return/resubmit | Return a PR, edit the draft, then resubmit | Status returns to `PENDING_APPROVAL`; approval history is preserved with `RESUBMITTED` appended | Not run |
-| Documents | Upload or attach document | Document appears and can be downloaded with stored bytes | Not run |
+| List | Open `/purchase-requests` | Existing PRs load | Pass |
+| Create | Open `/purchase-requests/new`, submit valid request | New PR appears in list | Pass |
+| Quote rule | Submit with fewer than 3 quotes and no justification | Request is blocked; adding justification allows submit | Pass |
+| Detail | Open PR detail | Details, documents, workflow load | Pass (REQUESTOR shows "Unknown" — see ISSUE-004) |
+| Sequential approval | Approve a MEDIUM PR once, then again | First approval advances current step but keeps `PENDING_APPROVAL`; second approval reaches `APPROVED` | Pass (Approve button UI gets stuck on "Processing…" after success — see ISSUE-002) |
+| Terminal approval guard | Try to approve an already approved PR | API/UI blocks with 409 | Pass |
+| Return/resubmit | Return a PR, edit the draft, then resubmit | Status returns to `PENDING_APPROVAL`; approval history is preserved with `RESUBMITTED` appended | Pass (backend preserves history correctly; no UI to view it — see ISSUE-005). Also tested double return/resubmit and resubmit-without-edits — both work correctly. |
+| Documents | Upload or attach document | Document appears and can be downloaded with stored bytes | Pass — uploaded, listed, and downloaded a document via direct API; verified in UI (quote count updated, Download button present, bytes round-tripped exactly) |
+| Role-based approval authority | Approve as a user whose role doesn't match the current step | Blocked with 403 and a clear reason | Pass at API level (403 correct); UI still shows the decision panel to mismatched-role users — see ISSUE-007. Also found `'Department Manager'` role is unobtainable for any non-Admin user — see ISSUE-008 (high severity). |
+| Self-approval block | Requestor attempts to approve their own PR | Blocked with 403 | Pass |
+| Permission boundary (no access) | User with zero permissions | UI hides module, API returns 403 | Pass |
+| Permission boundary (view-only) | User with `can_view` only | Can view; cannot approve/create | Pass at API level; "+ New Request" button and create form still reachable client-side — see ISSUE-006 |
+| Non-existent PR | Open `/purchase-requests/PR-9999-999` | Graceful error, no crash | Pass |
+| Invalid input | POST with negative/zero/non-numeric totalValue, missing department | Should be rejected with 400 | **Fail** — all accepted with 201, see ISSUE-009 |
 
 ## Pass 6: Assets
 

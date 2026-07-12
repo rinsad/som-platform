@@ -12,6 +12,7 @@ const LEVELS = {
   'capex.requests': 'page',
   'capex.approvals': 'page',
   'capex.procurement': 'page',
+  'capex.execution': 'page',
   'capex.finance': 'page',
   'capex.closure': 'page',
   'capex.moa': 'page',
@@ -61,6 +62,7 @@ const ROLE_PERMISSION_PRESETS = {
   'CEO/Board': [
     ...view(COMMON_READ),
     permission('capex.reports', ['can_view']),
+    permission('capex.approvals', ['can_view', 'can_edit']),
   ],
 
   CFO: [
@@ -92,7 +94,7 @@ const ROLE_PERMISSION_PRESETS = {
   'CP Manager': [
     ...view(COMMON_READ),
     permission('capex.procurement', ['can_view', 'can_create', 'can_edit']),
-    permission('capex.closure', ['can_view', 'can_edit']),
+    permission('capex.documents', ['can_view', 'can_create', 'can_edit']),
     permission('capex.reports', ['can_view']),
     permission('capex.approvals', ['can_view', 'can_edit']),
   ],
@@ -100,21 +102,23 @@ const ROLE_PERMISSION_PRESETS = {
   'CP Lead': [
     ...view(COMMON_READ),
     permission('capex.procurement', ['can_view', 'can_create', 'can_edit']),
-    permission('capex.closure', ['can_view', 'can_edit']),
+    permission('capex.documents', ['can_view', 'can_create', 'can_edit']),
+    permission('capex.approvals', ['can_view', 'can_edit']),
   ],
 
   'Project Owner': [
     ...view(COMMON_READ),
     permission('capex.requests', ['can_view', 'can_create', 'can_edit']),
-    permission('capex.closure', ['can_view', 'can_edit']),
     permission('capex.risks', ['can_view', 'can_create', 'can_edit']),
     permission('capex.documents', ['can_view', 'can_create', 'can_edit']),
+    permission('capex.approvals', ['can_view', 'can_edit']),
   ],
 
   'Project Engineer': [
     ...view(COMMON_READ),
     permission('capex.requests', ['can_view', 'can_create', 'can_edit']),
-    permission('capex.closure', ['can_view', 'can_edit']),
+    permission('capex.procurement', ['can_view', 'can_create', 'can_edit']),
+    permission('capex.execution', ['can_view', 'can_create', 'can_edit']),
     permission('capex.risks', ['can_view', 'can_create', 'can_edit']),
     permission('capex.documents', ['can_view', 'can_create', 'can_edit']),
   ],
@@ -140,14 +144,17 @@ const ROLE_PERMISSION_PRESETS = {
   'Asset Team': [
     ...view(COMMON_READ),
     permission('capex.finance', ['can_view', 'can_edit']),
-    permission('capex.closure', ['can_view', 'can_edit']),
   ],
 
   'HSSE Focal': [
     ...view(COMMON_READ),
     permission('capex.approvals', ['can_view', 'can_edit']),
     permission('capex.risks', ['can_view', 'can_create', 'can_edit']),
-    permission('capex.closure', ['can_view', 'can_edit']),
+  ],
+
+  Manager: [
+    ...view(COMMON_READ),
+    permission('capex.approvals', ['can_view', 'can_edit']),
   ],
 };
 

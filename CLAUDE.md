@@ -41,7 +41,7 @@ npx vitest run src/modules/ModuleA/CapexDashboard.test.jsx   # single test file
 npm run video:capex:complete    # Playwright walkthrough recording (see package.json video:* scripts)
 ```
 
-Backend tests and `migrate` require a live Postgres and env vars (`DATABASE_URL`, `JWT_SECRET`, usually via a `.env` file that is gitignored). **Do not assume a database is available** — check before running DB-backed tests.
+Backend tests and `migrate` require a live Postgres and env vars (`DATABASE_URL`, `TEST_DATABASE_URL`, `JWT_SECRET`, usually via a `.env` file that is gitignored). **Do not assume a database is available** — check before running DB-backed tests. `npm test` sets `NODE_ENV=test` through `backend/scripts/runTests.js` and refuses to run unless `TEST_DATABASE_URL` is present and different from `DATABASE_URL`.
 
 ## Architecture
 
@@ -71,6 +71,11 @@ verifyToken  →  requirePermission(resourceKey, action)  →  controller
 - No global axios interceptor. Two token patterns coexist: the shared `services/api.js` axios instance (baseURL only), and most services (`capexService.js`, `assetsService.js`, …) build `Authorization: Bearer ${localStorage.som_token}` headers manually via a local `authHeaders()`/fetch helper. Match the pattern of the file you are editing.
 - On login, `pages/Login.jsx` stores `som_token`, `som_user`, and `som_permissions` in `localStorage`. `App.jsx` route guards (`RequireAuth`, `RequireAdmin`, `RequirePerm`) read these to gate client routes — this is **UX only**; the backend permission middleware is the real enforcement.
 - `/` is the **public** Intra-Portal (`PublicShell`, no auth) and is deliberately public; authenticated app routes live under `AppShell`.
+
+### Frontend design system
+Read [`frontend/DESIGN_SYSTEM.md`](frontend/DESIGN_SYSTEM.md) before frontend, UX, or styling work. It is the source of truth for the current Shell Oman visual language: React 19 + Vite, vanilla CSS, global tokens in `frontend/src/index.css`, component-local JS style objects, light enterprise surfaces, Shell red/yellow brand accents, tight radius tokens, restrained shadows, semantic status colors, and existing component conventions.
+
+When changing UI, reuse existing primitives (`Field`, `Modal`, `.card`, table/status/sidebar/navbar patterns) and reference CSS variables instead of hardcoding brand/status colors or raw radius values. Do not reintroduce the retired slate/neon palettes or add a new styling framework unless explicitly requested.
 
 ## Conventions
 - Keep backend routes/controllers and `frontend/src/services/*` in sync when changing an API contract.
