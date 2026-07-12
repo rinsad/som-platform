@@ -723,6 +723,7 @@ exports.getRequestById = async (req, res, next) => {
   try {
     const { rows: [request] } = await pool.query(`SELECT * FROM capex_requests WHERE id = $1`, [req.params.id]);
     if (!request) return res.status(404).json({ error: 'CAPEX request not found' });
+    await syncCapexApprovalDecisionGate(pool, request, userName(req));
 
     const [quotes, steps, actions, procurement, milestones, closure, attachments, auc, capitalization, poClosure, checklist, benefits, risks, alerts, moa, docVersions, signatures, variations, procurementPerformance, gates] = await Promise.all([
       pool.query(`SELECT * FROM capex_supplier_quotations WHERE request_id = $1 ORDER BY id`, [request.id]),
@@ -1490,7 +1491,7 @@ exports.createMilestone = async (req, res, next) => {
     if (!canCreateMilestone(request.status)) {
       await client.query('ROLLBACK');
       return res.status(409).json({
-        error: `Milestones require a created PO (current status: ${request.status})`,
+        error: `Milestones require the PO document to be uploaded (current status: ${request.status})`,
       });
     }
 
@@ -1667,7 +1668,7 @@ exports.saveFinancialClosure = async (req, res, next) => {
       ]
     );
 
-    const nextStatus = closeRequest ? 'Closed' : 'Pending final closure';
+    const nextStatus = closeRequest || canonicalStatus(request.status) === 'Closed' ? 'Closed' : 'Pending final closure';
     await client.query(`UPDATE capex_requests SET status = $1, updated_at = NOW() WHERE id = $2`, [nextStatus, req.params.id]);
     await addAuditLog(client, req.params.id, closeRequest ? 'REQUEST_CLOSED' : 'CLOSURE_SAVED', closeRequest ? 'Financial closure completed.' : 'Financial closure draft saved.', userName(req));
 

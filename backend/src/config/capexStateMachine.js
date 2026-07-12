@@ -77,8 +77,8 @@ const PROCUREMENT_EDITABLE_STATUSES = [
   'PR created', 'PO created', 'PO uploaded', 'In execution', 'Delayed',
 ];
 
-// Milestones require a created PO (execution follows procurement).
-const MILESTONE_CREATE_STATUSES = ['PO created', 'PO uploaded', 'In execution', 'Delayed'];
+// Milestones require the PO document to be uploaded before execution starts.
+const MILESTONE_CREATE_STATUSES = ['PO uploaded', 'In execution', 'Delayed'];
 
 // Milestone updates are frozen in terminal / pre-approval-reset states.
 const MILESTONE_UPDATE_BLOCKED_STATUSES = ['Rejected', 'Closed', 'Cancelled', 'Returned for correction'];

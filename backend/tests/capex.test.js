@@ -414,6 +414,12 @@ describe('CAPEX request lifecycle rules', () => {
     expect(res.body.status).toBe('Passed');
     expect(res.body.ownerLabel).toBe('Finance');
     expect(res.body.canAct).toBe(false);
+
+    const detail = await request(app)
+      .get(`/api/capex/requests/${requestId}`)
+      .set(auth);
+    expect(detail.statusCode).toBe(200);
+    expect(detail.body.decisionGates.find(gate => gate.gateKey === 'gate_6_auc').status).toBe('Passed');
   });
 
   test('blocks PO uploaded state without mandatory PO fields', async () => {
@@ -433,6 +439,27 @@ describe('CAPEX request lifecycle rules', () => {
 
     expect(res.statusCode).toBe(400);
     expect(res.body.error).toMatch(/uploaded request attachment/i);
+  });
+
+  test('keeps execution locked when procurement has only created the PO', async () => {
+    const procurement = await request(app)
+      .patch(`/api/capex/requests/${requestId}/procurement`)
+      .set(auth)
+      .send({ poStatus: 'Created', poNumber: 'PO-1', poValue: 15000 });
+    expect(procurement.statusCode).toBe(200);
+
+    const detail = await request(app)
+      .get(`/api/capex/requests/${requestId}`)
+      .set(auth);
+    expect(detail.statusCode).toBe(200);
+    expect(detail.body.status).toBe('PO created');
+
+    const milestone = await request(app)
+      .post(`/api/capex/requests/${requestId}/milestones`)
+      .set(auth)
+      .send({ stageName: 'Delivery', milestoneName: 'Install equipment before upload' });
+    expect(milestone.statusCode).toBe(409);
+    expect(milestone.body.error).toMatch(/PO document to be uploaded/i);
   });
 
   test('saves procurement, milestone, closure draft, and audit log', async () => {
@@ -753,6 +780,60 @@ describe('CAPEX request lifecycle rules', () => {
     expect(detail.body.procurementPerformance.procurementSavings).toBe(3000);
     expect(detail.body.decisionGates.length).toBeGreaterThanOrEqual(8);
     expect(detail.body.decisionGates.some(gate => gate.gateKey === 'gate_4_cost_schedule' && gate.ownerLabel === 'Project Engineer')).toBe(true);
+
+    for (const item of detail.body.closureChecklist.filter(item => item.status !== 'Completed')) {
+      const completed = await request(app)
+        .patch(`/api/capex/requests/${requestId}/closure-checklist/${item.id}`)
+        .set(auth)
+        .send({ status: 'Completed', evidenceAttachment: `${item.itemKey}.pdf` });
+      expect(completed.statusCode).toBe(200);
+    }
+
+    const closedPo = await request(app)
+      .patch(`/api/capex/requests/${requestId}/po-closure`)
+      .set(auth)
+      .send({
+        finalInvoiceReceived: true,
+        vendorConfirmationReceived: true,
+        closureStatus: 'Closed',
+        openCommitmentValue: 0,
+        unutilizedCommitment: 0,
+      });
+    expect(closedPo.statusCode).toBe(200);
+    expect(closedPo.body.closureStatus).toBe('Closed');
+
+    const closureForm = await request(app)
+      .post(`/api/capex/requests/${requestId}/attachments`)
+      .set(auth)
+      .field('type', 'Closure Form')
+      .field('retentionYears', '7')
+      .attach('file', Buffer.from('closure form'), 'closure-form.txt');
+    expect(closureForm.statusCode).toBe(201);
+
+    const closed = await request(app)
+      .patch(`/api/capex/requests/${requestId}/financial-closure`)
+      .set(auth)
+      .send({ actualSpend: 14900, capexFormAttachment: 'closure-form.txt', closeRequest: true });
+    expect(closed.statusCode).toBe(200);
+    expect(closed.body.closedAt).toBeTruthy();
+
+    const closedDetail = await request(app)
+      .get(`/api/capex/requests/${requestId}`)
+      .set(auth);
+    expect(closedDetail.statusCode).toBe(200);
+    expect(closedDetail.body.status).toBe('Closed');
+
+    const draftAfterClose = await request(app)
+      .patch(`/api/capex/requests/${requestId}/financial-closure`)
+      .set(auth)
+      .send({ actualSpend: 14900, capexFormAttachment: 'closure-form.txt', closeRequest: false });
+    expect(draftAfterClose.statusCode).toBe(200);
+
+    const stillClosed = await request(app)
+      .get(`/api/capex/requests/${requestId}`)
+      .set(auth);
+    expect(stillClosed.statusCode).toBe(200);
+    expect(stillClosed.body.status).toBe('Closed');
   });
 });
 

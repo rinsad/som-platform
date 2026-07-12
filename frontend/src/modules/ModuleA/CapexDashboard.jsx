@@ -145,7 +145,7 @@ function canUserDecideStep(user, step) {
   return canonicalWorkflowRole(user?.role) === canonicalWorkflowRole(step.approverRole);
 }
 
-const MILESTONE_CREATE_STATUSES = ['PO created', 'PO uploaded', 'In execution', 'Delayed'];
+const MILESTONE_CREATE_STATUSES = ['PO uploaded', 'In execution', 'Delayed'];
 
 const WORKFLOW_ROLE_OPTIONS = [
   'Manager',
@@ -986,7 +986,7 @@ export default function CapexDashboard() {
       return;
     }
     if (!canCreateMilestoneForStatus(selectedRequest.status)) {
-      setMilestoneError(`Milestones can be added after PO creation. Current status: ${selectedRequest.status || 'Unknown'}.`);
+      setMilestoneError(`Milestones can be added after PO upload. Current status: ${selectedRequest.status || 'Unknown'}.`);
       return;
     }
     try {
@@ -1510,7 +1510,7 @@ export default function CapexDashboard() {
   const canAddMilestoneNow = canEditExecutionByRole && canCreateMilestoneForStatus(selectedRequest?.status);
   const executionLockMessage = !canEditExecutionByRole
     ? 'Read-only for your role. Project Engineer owns execution updates.'
-    : `Milestones can be added after PO creation. Current status: ${selectedRequest?.status || 'Unknown'}.`;
+    : `Milestones can be added after PO upload. Current status: ${selectedRequest?.status || 'Unknown'}.`;
   const canEditFinancialClosureByRole = canEdit('capex.finance');
   const canEditFinancialClosureNow = canEditFinancialClosureByRole && canEditFinancialClosureForStatus(selectedRequest?.status);
   const financialClosureLockMessage = !canEditFinancialClosureByRole
@@ -2222,7 +2222,7 @@ export default function CapexDashboard() {
               <section id="capex-sec-execution" style={s.dCard}>
                   <div style={s.sectionTitleRow}>
                     <h4 style={{ ...s.detailTitle, margin: 0 }}>Project Execution</h4>
-                    {!canAddMilestoneNow && <span style={s.lockBadge}>{canEditExecutionByRole ? 'Locked until PO created' : 'View only'}</span>}
+                    {!canAddMilestoneNow && <span style={s.lockBadge}>{canEditExecutionByRole ? 'Locked until PO uploaded' : 'View only'}</span>}
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 12 }}>
                     {(selectedRequest.milestones || []).map((m) => (

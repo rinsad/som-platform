@@ -54,8 +54,9 @@ describe('CAPEX state machine', () => {
     expect(canEditProcurement('Approved for Procurement')).toBe(true);
     expect(canEditProcurement('Submitted')).toBe(false);
 
-    expect(canCreateMilestone('PO created')).toBe(true);
-    expect(canCreateMilestone('PO Created')).toBe(true);
+    expect(canCreateMilestone('PO created')).toBe(false);
+    expect(canCreateMilestone('PO Created')).toBe(false);
+    expect(canCreateMilestone('PO uploaded')).toBe(true);
     expect(canCreateMilestone('Approved')).toBe(false);
 
     expect(canUpdateMilestone('In execution')).toBe(true);
