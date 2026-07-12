@@ -4,9 +4,14 @@ import Modal from '../../components/Modal';
 import SelectField from '../../components/SelectField';
 import Checkbox from '../../components/Checkbox';
 
+function makeClientId() {
+  if (globalThis.crypto?.randomUUID) return globalThis.crypto.randomUUID();
+  return `quote-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
 function emptyQuote(selected = false) {
   return {
-    _uid: crypto.randomUUID(),
+    _uid: makeClientId(),
     supplierName: '',
     quoteValue: '',
     currency: 'OMR',
