@@ -4,23 +4,23 @@ require('dotenv').config({ path: path.resolve(__dirname, '../.env') });
 const pool = require('../src/database/db');
 const { getRolePermissionPreset } = require('../src/config/capexRolePermissions');
 
-const PASSWORD = process.env.CAPEX_VIDEO_USER_PASSWORD || 'Video@SOM2026!';
+const PASSWORD = process.env.CAPEX_DEMO_USER_PASSWORD || process.env.CAPEX_VIDEO_USER_PASSWORD || 'Test@1234';
 
 const USERS = [
-  { id: '10000000-0000-0000-0000-000000000001', employeeId: 'VID-001', fullName: 'Video Admin', email: 'video.admin@shell.om', role: 'Admin', department: 'IT' },
-  { id: '10000000-0000-0000-0000-000000000002', employeeId: 'VID-002', fullName: 'Video CEO Board', email: 'video.ceo-board@shell.om', role: 'CEO/Board', department: 'Executive' },
-  { id: '10000000-0000-0000-0000-000000000003', employeeId: 'VID-003', fullName: 'Video CFO', email: 'video.cfo@shell.om', role: 'CFO', department: 'Finance' },
-  { id: '10000000-0000-0000-0000-000000000004', employeeId: 'VID-004', fullName: 'Video Finance Manager', email: 'video.finance-manager@shell.om', role: 'Finance Manager', department: 'Finance' },
-  { id: '10000000-0000-0000-0000-000000000005', employeeId: 'VID-005', fullName: 'Video Finance In Business', email: 'video.fib@shell.om', role: 'Finance in Business', department: 'Finance' },
-  { id: '10000000-0000-0000-0000-000000000006', employeeId: 'VID-006', fullName: 'Video CP Manager', email: 'video.cp-manager@shell.om', role: 'CP Manager', department: 'Procurement' },
-  { id: '10000000-0000-0000-0000-000000000007', employeeId: 'VID-007', fullName: 'Video CP Lead', email: 'video.cp-lead@shell.om', role: 'CP Lead', department: 'Procurement' },
-  { id: '10000000-0000-0000-0000-000000000008', employeeId: 'VID-008', fullName: 'Video Project Owner', email: 'video.project-owner@shell.om', role: 'Project Owner', department: 'Operations' },
-  { id: '10000000-0000-0000-0000-000000000009', employeeId: 'VID-009', fullName: 'Video Project Engineer', email: 'video.project-engineer@shell.om', role: 'Project Engineer', department: 'Engineering' },
-  { id: '10000000-0000-0000-0000-000000000010', employeeId: 'VID-010', fullName: 'Video Business GM', email: 'video.business-gm@shell.om', role: 'Business GM', department: 'Commercial' },
-  { id: '10000000-0000-0000-0000-000000000011', employeeId: 'VID-011', fullName: 'Video Internal Audit', email: 'video.internal-audit@shell.om', role: 'Internal Audit', department: 'Internal Audit' },
-  { id: '10000000-0000-0000-0000-000000000012', employeeId: 'VID-012', fullName: 'Video Asset Team', email: 'video.asset-team@shell.om', role: 'Asset Team', department: 'Assets' },
-  { id: '10000000-0000-0000-0000-000000000013', employeeId: 'VID-013', fullName: 'Video HSSE Focal', email: 'video.hsse-focal@shell.om', role: 'HSSE Focal', department: 'HSSE' },
-  { id: '10000000-0000-0000-0000-000000000014', employeeId: 'VID-014', fullName: 'Video Line Manager', email: 'video.manager@shell.om', role: 'Manager', department: 'Operations' },
+  { id: '10000000-0000-0000-0000-000000000001', employeeId: 'VID-001', fullName: 'CAPEX Admin', email: 'capex.admin@shell.om', role: 'Admin', department: 'IT' },
+  { id: '10000000-0000-0000-0000-000000000002', employeeId: 'VID-002', fullName: 'CEO Board', email: 'ceo-board@shell.om', role: 'CEO/Board', department: 'Executive' },
+  { id: '10000000-0000-0000-0000-000000000003', employeeId: 'VID-003', fullName: 'CFO', email: 'cfo@shell.om', role: 'CFO', department: 'Finance' },
+  { id: '10000000-0000-0000-0000-000000000004', employeeId: 'VID-004', fullName: 'Finance Manager', email: 'finance-manager@shell.om', role: 'Finance Manager', department: 'Finance' },
+  { id: '10000000-0000-0000-0000-000000000005', employeeId: 'VID-005', fullName: 'Finance in Business', email: 'finance-business@shell.om', role: 'Finance in Business', department: 'Finance' },
+  { id: '10000000-0000-0000-0000-000000000006', employeeId: 'VID-006', fullName: 'CP Manager', email: 'cp-manager@shell.om', role: 'CP Manager', department: 'Procurement' },
+  { id: '10000000-0000-0000-0000-000000000007', employeeId: 'VID-007', fullName: 'CP Lead', email: 'cp-lead@shell.om', role: 'CP Lead', department: 'Procurement' },
+  { id: '10000000-0000-0000-0000-000000000008', employeeId: 'VID-008', fullName: 'Project Owner', email: 'project-owner@shell.om', role: 'Project Owner', department: 'Operations' },
+  { id: '10000000-0000-0000-0000-000000000009', employeeId: 'VID-009', fullName: 'Project Engineer', email: 'project-engineer@shell.om', role: 'Project Engineer', department: 'Engineering' },
+  { id: '10000000-0000-0000-0000-000000000010', employeeId: 'VID-010', fullName: 'Business GM', email: 'business-gm@shell.om', role: 'Business GM', department: 'Commercial' },
+  { id: '10000000-0000-0000-0000-000000000011', employeeId: 'VID-011', fullName: 'Internal Audit', email: 'internal-audit@shell.om', role: 'Internal Audit', department: 'Internal Audit' },
+  { id: '10000000-0000-0000-0000-000000000012', employeeId: 'VID-012', fullName: 'Asset Team', email: 'asset-team@shell.om', role: 'Asset Team', department: 'Assets' },
+  { id: '10000000-0000-0000-0000-000000000013', employeeId: 'VID-013', fullName: 'HSSE Focal', email: 'hsse-focal@shell.om', role: 'HSSE Focal', department: 'HSSE' },
+  { id: '10000000-0000-0000-0000-000000000014', employeeId: 'VID-014', fullName: 'Line Manager', email: 'manager@shell.om', role: 'Manager', department: 'Operations' },
 ];
 
 async function upsertPermissions(client, userId, permissions) {
@@ -54,10 +54,11 @@ async function main() {
       await client.query(
         `INSERT INTO som_users (id, employee_id, full_name, email, password_hash, role, department, is_active)
          VALUES ($1, $2, $3, $4, $5, $6, $7, true)
-         ON CONFLICT (email)
+         ON CONFLICT (id)
          DO UPDATE SET
            employee_id = EXCLUDED.employee_id,
            full_name = EXCLUDED.full_name,
+           email = EXCLUDED.email,
            password_hash = EXCLUDED.password_hash,
            role = EXCLUDED.role,
            department = EXCLUDED.department,
@@ -71,7 +72,7 @@ async function main() {
     }
 
     await client.query('COMMIT');
-    console.log(`Seeded ${USERS.length} CAPEX video users. Password: ${PASSWORD}`);
+    console.log(`Seeded ${USERS.length} CAPEX demo users. Password: ${PASSWORD}`);
   } catch (err) {
     await client.query('ROLLBACK');
     throw err;

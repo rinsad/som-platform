@@ -56,17 +56,24 @@ const COMMON_READ = [
   'capex.documents',
 ];
 
+const PR_VIEW = permission('purchase-requests', ['can_view'], 'module');
+const PR_CREATE = permission('purchase-requests', ['can_view', 'can_create'], 'module');
+const PR_APPROVE = permission('purchase-requests', ['can_view', 'can_edit'], 'module');
+const PR_CREATE_APPROVE = permission('purchase-requests', ['can_view', 'can_create', 'can_edit'], 'module');
+
 const ROLE_PERMISSION_PRESETS = {
   Admin: [permission('capex', ACTIONS, 'application')],
 
   'CEO/Board': [
     ...view(COMMON_READ),
+    PR_APPROVE,
     permission('capex.reports', ['can_view']),
     permission('capex.approvals', ['can_view', 'can_edit']),
   ],
 
   CFO: [
     ...view(COMMON_READ),
+    PR_APPROVE,
     permission('capex.finance', ['can_view', 'can_edit']),
     permission('capex.closure', ['can_view', 'can_edit']),
     permission('capex.moa', ['can_view', 'can_create', 'can_edit']),
@@ -77,6 +84,7 @@ const ROLE_PERMISSION_PRESETS = {
 
   'Finance Manager': [
     ...view(COMMON_READ),
+    PR_APPROVE,
     permission('capex.finance', ['can_view', 'can_edit']),
     permission('capex.closure', ['can_view', 'can_edit']),
     permission('capex.approvals', ['can_view', 'can_edit']),
@@ -87,6 +95,7 @@ const ROLE_PERMISSION_PRESETS = {
 
   'Finance in Business': [
     ...view(COMMON_READ),
+    PR_APPROVE,
     permission('capex.finance', ['can_view', 'can_edit']),
     permission('capex.variations', ['can_view', 'can_create', 'can_edit']),
     permission('capex.approvals', ['can_view', 'can_edit']),
@@ -94,6 +103,7 @@ const ROLE_PERMISSION_PRESETS = {
 
   'CP Manager': [
     ...view(COMMON_READ),
+    PR_APPROVE,
     permission('capex.procurement', ['can_view', 'can_create', 'can_edit']),
     permission('capex.documents', ['can_view', 'can_create', 'can_edit']),
     permission('capex.reports', ['can_view']),
@@ -102,6 +112,7 @@ const ROLE_PERMISSION_PRESETS = {
 
   'CP Lead': [
     ...view(COMMON_READ),
+    PR_APPROVE,
     permission('capex.procurement', ['can_view', 'can_create', 'can_edit']),
     permission('capex.documents', ['can_view', 'can_create', 'can_edit']),
     permission('capex.approvals', ['can_view', 'can_edit']),
@@ -109,6 +120,7 @@ const ROLE_PERMISSION_PRESETS = {
 
   'Project Owner': [
     ...view(COMMON_READ),
+    PR_CREATE_APPROVE,
     permission('capex.requests', ['can_view', 'can_create', 'can_edit']),
     permission('capex.risks', ['can_view', 'can_create', 'can_edit']),
     permission('capex.documents', ['can_view', 'can_create', 'can_edit']),
@@ -117,6 +129,7 @@ const ROLE_PERMISSION_PRESETS = {
 
   'Project Engineer': [
     ...view(COMMON_READ),
+    PR_CREATE,
     permission('capex.requests', ['can_view', 'can_create', 'can_edit']),
     permission('capex.procurement', ['can_view', 'can_create', 'can_edit']),
     permission('capex.execution', ['can_view', 'can_create', 'can_edit']),
@@ -127,6 +140,7 @@ const ROLE_PERMISSION_PRESETS = {
 
   'Business GM': [
     ...view(COMMON_READ),
+    PR_APPROVE,
     permission('capex.approvals', ['can_view', 'can_edit']),
     permission('capex.moa', ['can_view', 'can_create', 'can_edit']),
     permission('capex.variations', ['can_view', 'can_edit']),
@@ -134,6 +148,7 @@ const ROLE_PERMISSION_PRESETS = {
 
   'Internal Audit': [
     ...view(COMMON_READ),
+    PR_VIEW,
     permission('capex.procurement', ['can_view']),
     permission('capex.finance', ['can_view']),
     permission('capex.closure', ['can_view']),
@@ -145,18 +160,21 @@ const ROLE_PERMISSION_PRESETS = {
 
   'Asset Team': [
     ...view(COMMON_READ),
+    PR_VIEW,
     permission('capex.finance', ['can_view', 'can_edit']),
     permission('capex.approvals', ['can_view', 'can_edit']),
   ],
 
   'HSSE Focal': [
     ...view(COMMON_READ),
+    PR_APPROVE,
     permission('capex.approvals', ['can_view', 'can_edit']),
     permission('capex.risks', ['can_view', 'can_create', 'can_edit']),
   ],
 
   Manager: [
     ...view(COMMON_READ),
+    PR_CREATE_APPROVE,
     permission('capex.approvals', ['can_view', 'can_edit']),
   ],
 };

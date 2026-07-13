@@ -7,7 +7,7 @@ For every failed step, add an entry to `docs/manual-testing-issues.md`, then ret
 
 1. Start PostgreSQL and confirm `backend/.env` points to the correct database.
 2. From `backend`, run `npm run migrate`.
-3. From `backend`, run `npm run seed:capex-video-users` for role-based CapEx users.
+3. From `backend`, run `npm run seed:capex-demo-users` for role-based CapEx users.
 4. Start backend: `npm run dev` from `backend`.
 5. Start frontend: `npm run dev` from `frontend`.
 6. Open the Vite URL, usually `http://localhost:5173`.
@@ -20,10 +20,10 @@ Default migration admin:
 - Email: `admin@shell.om`
 - Password: `Admin@SOM2024!`
 
-CapEx role personas seeded by `seed:capex-video-users`:
+CapEx role personas seeded by `seed:capex-demo-users`:
 
-- Password: `Video@SOM2026!`
-- Main emails include `video.admin@shell.om`, `video.project-owner@shell.om`, `video.finance-manager@shell.om`, `video.cfo@shell.om`, `video.cp-manager@shell.om`, `video.internal-audit@shell.om`, and other role-specific users in `backend/scripts/seedCapexVideoUsers.js`.
+- Password: `Test@1234`
+- Main emails include `capex.admin@shell.om`, `project-owner@shell.om`, `finance-manager@shell.om`, `cfo@shell.om`, `cp-manager@shell.om`, `internal-audit@shell.om`, and other role-specific users in `backend/scripts/seedCapexVideoUsers.js`.
 
 ## Pass 1: Smoke Test
 
@@ -52,7 +52,7 @@ Goal: prove the app opens, login works, and no major route is broken.
 
 ## Pass 3: CapEx Complete Workflow
 
-Start with `video.project-owner@shell.om` using password `Video@SOM2026!`.
+Start with `project-owner@shell.om` using password `Test@1234`.
 
 | Area | Manual steps | Expected result | Status |
 | --- | --- | --- | --- |
@@ -77,7 +77,7 @@ Start with `video.project-owner@shell.om` using password `Video@SOM2026!`.
 
 ## Pass 4: CapEx Role-Based Access
 
-Use seeded video users and verify each role only sees/actions what it should.
+Use seeded demo users and verify each role only sees/actions what it should.
 
 | Role | Focus | Status |
 | --- | --- | --- |
