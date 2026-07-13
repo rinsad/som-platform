@@ -557,6 +557,7 @@ export default function CapexDashboard() {
   const [moaForm,        setMoaForm]        = useState(defaultMoaFormForRequest(null));
   const [variationForm,  setVariationForm]  = useState({ variationType: 'Variation', originalBudget: '', revisedBudget: '', justification: '', financialImpactAnalysis: '', fibReviewStatus: 'Pending' });
   const [procPerfForm,   setProcPerfForm]   = useState({ rfqIssuedAt: '', tenderStartedAt: '', tenderCompletedAt: '', vendorResponseCount: '', invitedVendorCount: '', budgetEstimate: '', awardedValue: '', poProcessingDays: '', cpOwner: '' });
+  const [procPerfActionState, setProcPerfActionState] = useState('idle');
   const [docVersionForm, setDocVersionForm] = useState({ documentType: 'MOA', documentName: '', versionLabel: 'v1', changelog: '', retentionUntil: '' });
   const [signatureForm,  setSignatureForm]  = useState({ linkedType: 'MOA', linkedId: '', decision: 'Signed' });
   const [scheduleForm,   setScheduleForm]   = useState({ reportName: 'Monthly CAPEX Governance Pack', reportType: 'governance', audience: 'CEO/CFO', frequency: 'Monthly', format: 'PDF', recipients: '', nextRunDate: '' });
@@ -1227,13 +1228,17 @@ export default function CapexDashboard() {
 
   async function handleSaveProcurementPerformance() {
     if (!selectedRequest) return;
+    if (procPerfActionState !== 'idle') return;
     try {
+      setProcPerfActionState('saving');
       await updateCapexProcurementPerformance(selectedRequest.id, procPerfForm);
       await refreshSelectedRequest();
       await refreshGovernance();
       notifySuccess('Procurement KPIs saved.');
     } catch (err) {
       notifyError(err, 'Failed to save procurement KPIs.');
+    } finally {
+      setProcPerfActionState('idle');
     }
   }
 
@@ -2606,7 +2611,18 @@ export default function CapexDashboard() {
                     <Field label="Budget estimate (OMR)"><input style={canEditProcurementPerformance ? s.fieldInput : s.disabledInput} type="number" placeholder="0" value={procPerfForm.budgetEstimate} onChange={e => setProcPerfForm(p => ({ ...p, budgetEstimate: e.target.value }))} disabled={!canEditProcurementPerformance} /></Field>
                     <Field label="Awarded value (OMR)"><input style={canEditProcurementPerformance ? s.fieldInput : s.disabledInput} type="number" placeholder="0" value={procPerfForm.awardedValue} onChange={e => setProcPerfForm(p => ({ ...p, awardedValue: e.target.value }))} disabled={!canEditProcurementPerformance} /></Field>
                   </div>
-                  {canEditProcurementPerformance && <div><button type="button" style={s.primaryBtn} onClick={handleSaveProcurementPerformance}>Save Procurement KPIs</button></div>}
+                  {canEditProcurementPerformance && (
+                    <div>
+                      <button
+                        type="button"
+                        style={procPerfActionState === 'idle' ? s.primaryBtn : s.disabledBtn}
+                        onClick={handleSaveProcurementPerformance}
+                        disabled={procPerfActionState !== 'idle'}
+                      >
+                        {procPerfActionState === 'saving' ? 'Saving...' : 'Save Procurement KPIs'}
+                      </button>
+                    </div>
+                  )}
 
                   <div style={s.dDivider} />
                   <div style={s.dSubLabel}>Benefit review</div>
