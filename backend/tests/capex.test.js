@@ -36,6 +36,22 @@ const managerToken = jwt.sign(
 );
 const managerAuth = { Authorization: `Bearer ${managerToken}` };
 
+const projectEngineerUserId = '00000000-0000-0000-0000-0000000000d7';
+const projectEngineerToken = jwt.sign(
+  { id: projectEngineerUserId, email: 'phase7.engineer@shell.om', full_name: 'Phase 7 Engineer', role: 'Project Engineer', department: 'Engineering' },
+  process.env.JWT_SECRET || 'som-super-secret-key-2026',
+  { expiresIn: '1h' }
+);
+const projectEngineerAuth = { Authorization: `Bearer ${projectEngineerToken}` };
+
+const assetTeamUserId = '00000000-0000-0000-0000-0000000000e8';
+const assetTeamToken = jwt.sign(
+  { id: assetTeamUserId, email: 'phase7.asset@shell.om', full_name: 'Phase 7 Asset Team', role: 'Asset Team', department: 'Assets' },
+  process.env.JWT_SECRET || 'som-super-secret-key-2026',
+  { expiresIn: '1h' }
+);
+const assetTeamAuth = { Authorization: `Bearer ${assetTeamToken}` };
+
 async function seedApproverPermission() {
   await pool.query(
     `INSERT INTO som_users (id, employee_id, full_name, email, password_hash, role, department)
@@ -67,6 +83,30 @@ async function seedApproverPermission() {
      ON CONFLICT (user_id, resource_key) DO UPDATE SET can_view = true, can_edit = true`,
     [managerUserId]
   );
+
+  for (const user of [
+    { id: projectEngineerUserId, employeeId: 'P7E', fullName: 'Phase 7 Engineer', email: 'phase7.engineer@shell.om', role: 'Project Engineer', department: 'Engineering' },
+    { id: assetTeamUserId, employeeId: 'P7AT', fullName: 'Phase 7 Asset Team', email: 'phase7.asset@shell.om', role: 'Asset Team', department: 'Assets' },
+  ]) {
+    await pool.query(
+      `INSERT INTO som_users (id, employee_id, full_name, email, password_hash, role, department)
+       VALUES ($1, $2, $3, $4, 'test-only', $5, $6)
+       ON CONFLICT (id) DO UPDATE SET full_name = EXCLUDED.full_name, email = EXCLUDED.email, role = EXCLUDED.role, department = EXCLUDED.department`,
+      [user.id, user.employeeId, user.fullName, user.email, user.role, user.department]
+    );
+    for (const p of getRolePermissionPreset(user.role)) {
+      await pool.query(
+        `INSERT INTO som_permissions (user_id, level, resource_key, can_view, can_create, can_edit, can_delete)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)
+         ON CONFLICT (user_id, resource_key) DO UPDATE SET
+           can_view = EXCLUDED.can_view,
+           can_create = EXCLUDED.can_create,
+           can_edit = EXCLUDED.can_edit,
+           can_delete = EXCLUDED.can_delete`,
+        [user.id, p.level, p.resource_key, p.can_view, p.can_create, p.can_edit, p.can_delete]
+      );
+    }
+  }
 }
 
 async function createCapex(overrides = {}) {
@@ -182,10 +222,12 @@ describe('CAPEX role permission presets', () => {
     const procurement = preset.find((p) => p.resource_key === 'capex.procurement');
     const execution = preset.find((p) => p.resource_key === 'capex.execution');
     const documents = preset.find((p) => p.resource_key === 'capex.documents');
+    const approvals = preset.find((p) => p.resource_key === 'capex.approvals');
 
     expect(procurement).toMatchObject({ can_view: true, can_create: true, can_edit: true });
     expect(execution).toMatchObject({ can_view: true, can_create: true, can_edit: true });
     expect(documents).toMatchObject({ can_view: true, can_create: true, can_edit: true });
+    expect(approvals).toMatchObject({ can_view: true, can_edit: true });
   });
 
   test('Project Owner cannot edit execution controls', () => {
@@ -209,8 +251,10 @@ describe('CAPEX role permission presets', () => {
   test('Asset Team cannot edit closure controls', () => {
     const preset = getRolePermissionPreset('Asset Team');
     const closure = preset.find((p) => p.resource_key === 'capex.closure');
+    const approvals = preset.find((p) => p.resource_key === 'capex.approvals');
 
     expect(closure?.can_edit).not.toBe(true);
+    expect(approvals).toMatchObject({ can_view: true, can_edit: true });
   });
 });
 
@@ -420,6 +464,28 @@ describe('CAPEX request lifecycle rules', () => {
       .set(auth);
     expect(detail.statusCode).toBe(200);
     expect(detail.body.decisionGates.find(gate => gate.gateKey === 'gate_6_auc').status).toBe('Passed');
+  });
+
+  test('allows Gate 7 owners to pass asset acceptance', async () => {
+    const engineerRequest = await createCapex();
+    await approveAll(engineerRequest.id);
+    const engineerGate = await request(app)
+      .patch(`/api/capex/requests/${engineerRequest.id}/decision-gates/gate_7_asset_acceptance`)
+      .set(projectEngineerAuth)
+      .send({ status: 'Passed', comments: 'Engineering asset acceptance complete.' });
+    expect(engineerGate.statusCode).toBe(200);
+    expect(engineerGate.body.status).toBe('Passed');
+    expect(engineerGate.body.canAct).toBe(false);
+
+    const assetRequest = await createCapex();
+    await approveAll(assetRequest.id);
+    const assetGate = await request(app)
+      .patch(`/api/capex/requests/${assetRequest.id}/decision-gates/gate_7_asset_acceptance`)
+      .set(assetTeamAuth)
+      .send({ status: 'Passed', comments: 'Asset team acceptance complete.' });
+    expect(assetGate.statusCode).toBe(200);
+    expect(assetGate.body.status).toBe('Passed');
+    expect(assetGate.body.canAct).toBe(false);
   });
 
   test('blocks PO uploaded state without mandatory PO fields', async () => {

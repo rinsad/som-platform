@@ -88,6 +88,27 @@ function fmtDate(value) {
   return date.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
 }
 
+function latestBenefitReview(reviews = []) {
+  if (!Array.isArray(reviews) || !reviews.length) return null;
+  return [...reviews].sort((a, b) => {
+    const aTime = new Date(a.updatedAt || a.reviewedAt || a.createdAt || 0).getTime();
+    const bTime = new Date(b.updatedAt || b.reviewedAt || b.createdAt || 0).getTime();
+    return bTime - aTime;
+  })[0];
+}
+
+function benefitFormFromReview(review, fallbackStatus = 'Planned') {
+  return {
+    reviewPeriodMonths: review?.reviewPeriodMonths ?? 6,
+    plannedRoi: review?.plannedRoi ?? '',
+    actualRoi: review?.actualRoi ?? '',
+    plannedSavings: review?.plannedSavings ?? '',
+    actualSavings: review?.actualSavings ?? '',
+    benefitScore: review?.benefitScore ?? '',
+    status: review?.status || fallbackStatus,
+  };
+}
+
 function sortDateValue(value) {
   if (!value) return 0;
   const time = new Date(value).getTime();
@@ -715,6 +736,7 @@ export default function CapexDashboard() {
       poProcessingDays: selectedRequest.procurementPerformance?.poProcessingDays || '',
       cpOwner: selectedRequest.procurementPerformance?.cpOwner || '',
     });
+    setBenefitForm(benefitFormFromReview(latestBenefitReview(selectedRequest.benefitReviews), 'Planned'));
     setMoaForm(prev => ({
       ...defaultMoaFormForRequest(selectedRequest),
       ...prev,
@@ -1037,7 +1059,10 @@ export default function CapexDashboard() {
       await refreshGovernance();
       notifySuccess(closeRequest ? 'Request closed.' : 'Financial closure saved.');
     } catch (err) {
-      const message = err.message || 'Failed to save financial closure.';
+      const blockedItems = Array.isArray(err?.data?.incompleteItems) ? err.data.incompleteItems : [];
+      const message = blockedItems.length
+        ? `${err.message || 'Failed to save financial closure.'} Remaining items: ${blockedItems.join(', ')}.`
+        : (err.message || 'Failed to save financial closure.');
       setClosureError(message);
       notifyError(message);
     }
@@ -2467,7 +2492,7 @@ export default function CapexDashboard() {
                         </div>
                         <span style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                           <Badge status={gate.status} />
-                          {gate.canAct && gate.status !== 'Passed' && <button type="button" style={s.miniBtn} onClick={() => handleDecisionGate(gate)}>Pass</button>}
+                          {gate.canAct && canEdit('capex.approvals') && gate.status !== 'Passed' && <button type="button" style={s.miniBtn} onClick={() => handleDecisionGate(gate)}>Pass</button>}
                         </span>
                       </div>
                     ))}
@@ -2492,7 +2517,20 @@ export default function CapexDashboard() {
                   <div style={s.dSubLabel}>Benefit review</div>
                   <div style={s.lifecycleGrid}>
                     <Field label="Review period">
-                      <SelectField style={canEditBenefitReview ? s.fieldInput : s.disabledInput} value={String(benefitForm.reviewPeriodMonths)} onChange={v => setBenefitForm(p => ({ ...p, reviewPeriodMonths: Number(v) }))} options={[{ value: '6', label: '6 months' }, { value: '12', label: '12 months' }, { value: '24', label: '24 months' }]} aria-label="Review period" disabled={!canEditBenefitReview} />
+                      <SelectField
+                        style={canEditBenefitReview ? s.fieldInput : s.disabledInput}
+                        value={String(benefitForm.reviewPeriodMonths)}
+                        onChange={(v) => {
+                          const months = Number(v);
+                          const existing = (selectedRequest?.benefitReviews || []).find((review) => Number(review.reviewPeriodMonths) === months);
+                          setBenefitForm(existing
+                            ? benefitFormFromReview(existing, benefitForm.status || 'Planned')
+                            : { ...benefitFormFromReview(null, benefitForm.status || 'Planned'), reviewPeriodMonths: months });
+                        }}
+                        options={[{ value: '6', label: '6 months' }, { value: '12', label: '12 months' }, { value: '24', label: '24 months' }]}
+                        aria-label="Review period"
+                        disabled={!canEditBenefitReview}
+                      />
                     </Field>
                     <Field label="Actual ROI %"><input style={canEditBenefitReview ? s.fieldInput : s.disabledInput} type="number" placeholder="0" value={benefitForm.actualRoi} onChange={e => setBenefitForm(p => ({ ...p, actualRoi: e.target.value }))} disabled={!canEditBenefitReview} /></Field>
                     <Field label="Actual savings (OMR)"><input style={canEditBenefitReview ? s.fieldInput : s.disabledInput} type="number" placeholder="0" value={benefitForm.actualSavings} onChange={e => setBenefitForm(p => ({ ...p, actualSavings: e.target.value }))} disabled={!canEditBenefitReview} /></Field>

@@ -622,3 +622,49 @@ Use this if you need a concise explanation:
 - Internal Audit reviews evidence and audit history; it does not normally complete operational fields.
 - Admin can configure and correct, but Admin should not be presented as the normal business owner for request processing.
 
+## 23. Verified Demo Run On Deployed Server
+
+Verified on the deployed CAPEX environment on 2026-07-13 using request `CAPEX-2026-003`.
+
+### Verified approval chain
+
+The following approval path was completed successfully in the live environment:
+
+1. Line Manager
+2. HSSE Focal
+3. CP Manager
+4. Finance in Business
+5. Contract Board / CEO / Board
+
+### Verified downstream updates
+
+The following downstream sections were also verified as working on the same request:
+
+- Procurement tracking updated through GSAP, PR, and PO references.
+- Risk register entry created.
+- Financial closure draft saved by Finance Manager.
+- AUC review updated and later marked passed at the decision gate level.
+- PO closure updated.
+- Closure checklist completed.
+- Benefit review updated and displayed as `Completed`.
+- Decision Gate 1 and Decision Gate 6 were verified as `Passed`.
+- Decision Gate 8 was later verified as `Passed`.
+
+### Remaining live blocker
+
+As of the same verification run, the request top status still showed `Pending final closure`.
+
+The remaining visible blocker on the live request page was:
+
+- `Gate 7 - Asset Acceptance` still `Pending`
+
+This means the current deployed flow should be presented as:
+
+- end-to-end lifecycle is working through approval, procurement, finance closure, AUC, PO closure, checklist, and benefits review
+- final request closure is still dependent on completion of asset acceptance and any other configured final gate prerequisites
+
+### Recommended demo wording for the current deployment
+
+Use this wording if you are demoing the currently deployed server:
+
+> We can demonstrate the full lifecycle up to final closure readiness, including approvals, procurement, finance closure, AUC, checklist, benefits review, documents, and audit history. On the current deployed build, the request remains pending final closure until the final asset acceptance gate is completed.

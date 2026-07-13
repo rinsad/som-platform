@@ -14,11 +14,14 @@ async function request(path, options = {}) {
   const r = await fetch(`${API}${path}`, { headers: authHeaders(), ...options });
   if (!r.ok) {
     let message = `API error ${r.status}`;
+    let body;
     try {
-      const body = await r.json();
+      body = await r.json();
       if (body?.error) message = body.error;
     } catch { /* response had no JSON body */ }
-    throw new Error(message);
+    const error = new Error(message);
+    if (body) error.data = body;
+    throw error;
   }
   return r.json();
 }

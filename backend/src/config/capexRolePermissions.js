@@ -79,6 +79,7 @@ const ROLE_PERMISSION_PRESETS = {
     ...view(COMMON_READ),
     permission('capex.finance', ['can_view', 'can_edit']),
     permission('capex.closure', ['can_view', 'can_edit']),
+    permission('capex.approvals', ['can_view', 'can_edit']),
     permission('capex.variations', ['can_view', 'can_create', 'can_edit']),
     permission('capex.reports', ['can_view', 'can_create']),
     permission('capex.tracking.manual-entry', ['can_view', 'can_create', 'can_edit']),
@@ -121,6 +122,7 @@ const ROLE_PERMISSION_PRESETS = {
     permission('capex.execution', ['can_view', 'can_create', 'can_edit']),
     permission('capex.risks', ['can_view', 'can_create', 'can_edit']),
     permission('capex.documents', ['can_view', 'can_create', 'can_edit']),
+    permission('capex.approvals', ['can_view', 'can_edit']),
   ],
 
   'Business GM': [
@@ -144,6 +146,7 @@ const ROLE_PERMISSION_PRESETS = {
   'Asset Team': [
     ...view(COMMON_READ),
     permission('capex.finance', ['can_view', 'can_edit']),
+    permission('capex.approvals', ['can_view', 'can_edit']),
   ],
 
   'HSSE Focal': [
