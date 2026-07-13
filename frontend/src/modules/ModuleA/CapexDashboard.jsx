@@ -544,6 +544,7 @@ export default function CapexDashboard() {
   const [attachmentType, setAttachmentType] = useState('Scope Document');
   const [uploadProgress, setUploadProgress] = useState(null); // null = idle, 0–100 = uploading
   const [poAttachmentUploadProgress, setPoAttachmentUploadProgress] = useState(null);
+  const [closureAttachmentUploadProgress, setClosureAttachmentUploadProgress] = useState(null);
   const [aucForm,        setAucForm]        = useState({ aucAccount: '', aucValue: '', aucStartDate: '', capitalizationReady: false, status: 'Open' });
   const [aucError,       setAucError]       = useState('');
   const [capitalizationForm, setCapitalizationForm] = useState({ status: 'Not Started', financeVerified: false, capitalizationRequestDate: '', assetMasterNumber: '', assetCategory: '', capitalizedValue: '' });
@@ -1350,6 +1351,37 @@ export default function CapexDashboard() {
     }
   }
 
+  async function handleClosureAttachmentUpload(e) {
+    const file = e.target.files?.[0];
+    if (!file || !selectedRequest) return;
+    const input = e.target;
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('type', 'CAPEX Closure Form');
+    formData.append('linkedType', 'Request');
+    formData.append('retentionYears', '7');
+    setClosureAttachmentUploadProgress(0);
+    try {
+      const created = await uploadCapexAttachment(selectedRequest.id, formData, {
+        onProgress: (pct) => setClosureAttachmentUploadProgress(pct),
+      });
+      input.value = '';
+      setSelectedRequest((prev) => prev ? {
+        ...prev,
+        attachments: [...(prev.attachments || []), created],
+      } : prev);
+      setClosureForm((prev) => ({ ...prev, capexFormAttachment: created.name }));
+      setClosureError('');
+      notifySuccess('CAPEX closure form uploaded.');
+    } catch (err) {
+      const message = err.message || 'Failed to upload CAPEX closure form.';
+      setClosureError(message);
+      notifyError(message);
+    } finally {
+      setClosureAttachmentUploadProgress(null);
+    }
+  }
+
   async function handleSaveThresholds() {
     setThresholdSaveState('saving');
     try {
@@ -1560,6 +1592,13 @@ export default function CapexDashboard() {
   const canEditBenefitReview = canEdit('capex.finance');
   const canEditDocuments = canCreate('capex.documents');
   const poAttachmentRecord = (selectedRequest?.attachments || []).find((attachment) => attachment.name === procurementForm.poAttachmentName);
+  const closureAttachmentOptions = (selectedRequest?.attachments || []).map((attachment) => ({
+    value: attachment.name,
+    label: attachment.type ? `${attachment.name} (${attachment.type})` : attachment.name,
+  }));
+  if (closureForm.capexFormAttachment && !closureAttachmentOptions.some((option) => option.value === closureForm.capexFormAttachment)) {
+    closureAttachmentOptions.push({ value: closureForm.capexFormAttachment, label: closureForm.capexFormAttachment });
+  }
   const activeMoaRecord = editingMoaId
     ? (selectedRequest?.moaRecords || []).find((row) => row.id === editingMoaId)
     : null;
@@ -2301,7 +2340,26 @@ export default function CapexDashboard() {
                     <Field label="Actual spend (OMR)"><input style={canEditFinancialClosureNow ? s.fieldInput : s.disabledInput} type="number" placeholder="0" value={closureForm.actualSpend} onChange={e => setClosureForm(p => ({ ...p, actualSpend: e.target.value }))} disabled={!canEditFinancialClosureNow} /></Field>
                     <Field label="Final ROI"><input style={canEditFinancialClosureNow ? s.fieldInput : s.disabledInput} placeholder="Final ROI" value={closureForm.finalRoi} onChange={e => setClosureForm(p => ({ ...p, finalRoi: e.target.value }))} disabled={!canEditFinancialClosureNow} /></Field>
                     <Field label="Final savings (OMR)"><input style={canEditFinancialClosureNow ? s.fieldInput : s.disabledInput} type="number" placeholder="0" value={closureForm.finalSavings} onChange={e => setClosureForm(p => ({ ...p, finalSavings: e.target.value }))} disabled={!canEditFinancialClosureNow} /></Field>
-                    <Field label="CAPEX closure form"><input style={canEditFinancialClosureNow ? s.fieldInput : s.disabledInput} placeholder="CAPEX closure form" value={closureForm.capexFormAttachment} onChange={e => setClosureForm(p => ({ ...p, capexFormAttachment: e.target.value }))} disabled={!canEditFinancialClosureNow} /></Field>
+                    <Field label="CAPEX closure form">
+                      <div style={s.closureAttachmentField}>
+                        <SelectField
+                          style={canEditFinancialClosureNow ? s.fieldInput : s.disabledInput}
+                          value={closureForm.capexFormAttachment}
+                          onChange={v => setClosureForm(p => ({ ...p, capexFormAttachment: v }))}
+                          options={closureAttachmentOptions}
+                          placeholder={closureAttachmentOptions.length ? 'Select uploaded attachment' : 'Upload closure form first'}
+                          aria-label="CAPEX closure form attachment"
+                          disabled={!canEditFinancialClosureNow || !closureAttachmentOptions.length}
+                        />
+                        <FileUploadField
+                          onChange={handleClosureAttachmentUpload}
+                          uploading={closureAttachmentUploadProgress !== null}
+                          progress={closureAttachmentUploadProgress ?? 0}
+                          disabled={!canEditFinancialClosureNow}
+                          aria-label="Upload CAPEX closure form"
+                        />
+                      </div>
+                    </Field>
                     <Field label="Finance comments" full><input style={canEditFinancialClosureNow ? s.fieldInput : s.disabledInput} placeholder="Finance comments" value={closureForm.financeComments} onChange={e => setClosureForm(p => ({ ...p, financeComments: e.target.value }))} disabled={!canEditFinancialClosureNow} /></Field>
                   </div>
                   {canEdit('capex.finance') && (
@@ -3772,6 +3830,11 @@ const s = {
     opacity: 0.72,
   },
   poAttachmentField: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 8,
+  },
+  closureAttachmentField: {
     display: 'flex',
     flexDirection: 'column',
     gap: 8,
