@@ -1574,9 +1574,12 @@ export default function CapexDashboard() {
     ? 'Read-only for your role. Project Engineer owns execution updates.'
     : `Milestones can be added after PO upload. Current status: ${selectedRequest?.status || 'Unknown'}.`;
   const canEditFinancialClosureByRole = canEdit('capex.finance');
-  const canEditFinancialClosureNow = canEditFinancialClosureByRole && canEditFinancialClosureForStatus(selectedRequest?.status);
+  const isRequestClosed = selectedRequest?.status === 'Closed';
+  const canEditFinancialClosureNow = canEditFinancialClosureByRole && !isRequestClosed && canEditFinancialClosureForStatus(selectedRequest?.status);
   const financialClosureLockMessage = !canEditFinancialClosureByRole
     ? 'Read-only for your role. Finance owns financial closure updates.'
+    : isRequestClosed
+      ? 'This request is closed. Financial closure is read-only.'
     : `Financial closure is only available after approval and execution. Current status: ${selectedRequest?.status || 'Unknown'}.`;
   const canEditAucByRole = canEdit('capex.finance');
   const canEditAucNow = canEditAucByRole && canEditAucForStatus(selectedRequest?.status);
@@ -1604,6 +1607,7 @@ export default function CapexDashboard() {
   if (closureForm.capexFormAttachment && !closureAttachmentOptions.some((option) => option.value === closureForm.capexFormAttachment)) {
     closureAttachmentOptions.push({ value: closureForm.capexFormAttachment, label: closureForm.capexFormAttachment });
   }
+  const closureAttachmentRecord = (selectedRequest?.attachments || []).find((attachment) => attachment.name === closureForm.capexFormAttachment);
   const activeMoaRecord = editingMoaId
     ? (selectedRequest?.moaRecords || []).find((row) => row.id === editingMoaId)
     : null;
@@ -2329,11 +2333,25 @@ export default function CapexDashboard() {
               <section id="capex-sec-financial" style={s.dCard}>
                   <div style={s.sectionTitleRow}>
                     <h4 style={{ ...s.detailTitle, margin: 0 }}>Financial Closure</h4>
-                    {!canEditFinancialClosureNow && <span style={s.lockBadge}>{canEditFinancialClosureByRole ? 'Locked until approval complete' : 'View only'}</span>}
+                    {!canEditFinancialClosureNow && <span style={s.lockBadge}>{isRequestClosed ? 'Closed' : canEditFinancialClosureByRole ? 'Locked until approval complete' : 'View only'}</span>}
                   </div>
                   {!canEditFinancialClosureNow && (
                     <div style={{ ...s.infoNotice, marginBottom: 14 }}>
                       {financialClosureLockMessage}
+                    </div>
+                  )}
+                  {isRequestClosed && selectedRequest.financialClosure && (
+                    <div style={s.closureCompleteNotice}>
+                      <div>
+                        <div style={s.closureCompleteTitle}>Request closed successfully</div>
+                        <div style={s.closureCompleteMeta}>
+                          {selectedRequest.financialClosure.closedAt ? `Closed ${fmtDateTime(selectedRequest.financialClosure.closedAt)}` : 'Closed'}
+                          {selectedRequest.financialClosure.closedBy ? ` by ${selectedRequest.financialClosure.closedBy}` : ''}
+                        </div>
+                      </div>
+                      {closureAttachmentRecord && (
+                        <button type="button" style={s.closureCompleteLink} onClick={() => downloadCapexAttachment(selectedRequest.id, closureAttachmentRecord)}>Download closure form</button>
+                      )}
                     </div>
                   )}
                   {closureError && (
@@ -2354,20 +2372,20 @@ export default function CapexDashboard() {
                           options={closureAttachmentOptions}
                           placeholder={closureAttachmentOptions.length ? 'Select uploaded attachment' : 'Upload closure form first'}
                           aria-label="CAPEX closure form attachment"
-                          disabled={!canEditFinancialClosureNow || !closureAttachmentOptions.length}
+                          disabled={isRequestClosed || !canEditFinancialClosureNow || !closureAttachmentOptions.length}
                         />
                         <FileUploadField
                           onChange={handleClosureAttachmentUpload}
                           uploading={closureAttachmentUploadProgress !== null}
                           progress={closureAttachmentUploadProgress ?? 0}
-                          disabled={!canEditFinancialClosureNow}
+                          disabled={isRequestClosed || !canEditFinancialClosureNow}
                           aria-label="Upload CAPEX closure form"
                         />
                       </div>
                     </Field>
                     <Field label="Finance comments" full><input style={canEditFinancialClosureNow ? s.fieldInput : s.disabledInput} placeholder="Finance comments" value={closureForm.financeComments} onChange={e => setClosureForm(p => ({ ...p, financeComments: e.target.value }))} disabled={!canEditFinancialClosureNow} /></Field>
                   </div>
-                  {canEdit('capex.finance') && (
+                  {canEdit('capex.finance') && !isRequestClosed && (
                     <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
                       <button
                         type="button"
@@ -3857,6 +3875,42 @@ const s = {
     display: 'flex',
     flexDirection: 'column',
     gap: 8,
+  },
+  closureCompleteNotice: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+    marginBottom: 14,
+    padding: '12px 14px',
+    border: '1px solid var(--success)',
+    borderRadius: 'var(--radius-md)',
+    background: 'var(--success-bg)',
+    color: 'var(--success-text)',
+  },
+  closureCompleteTitle: {
+    fontSize: 13,
+    fontWeight: 850,
+    color: 'var(--success-text)',
+  },
+  closureCompleteMeta: {
+    marginTop: 3,
+    fontSize: 12,
+    fontWeight: 650,
+    color: 'var(--success-text)',
+    lineHeight: 1.45,
+  },
+  closureCompleteLink: {
+    background: '#FFFFFF',
+    border: '1px solid var(--success)',
+    borderRadius: 'var(--radius-sm)',
+    padding: '8px 12px',
+    color: 'var(--success-text)',
+    fontSize: 12,
+    fontWeight: 850,
+    cursor: 'pointer',
+    fontFamily: 'inherit',
+    whiteSpace: 'nowrap',
   },
   poAttachmentDisplay: {
     display: 'flex',
