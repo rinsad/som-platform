@@ -533,6 +533,7 @@ export default function CapexDashboard() {
   const [milestoneError, setMilestoneError] = useState('');
   const [closureForm,    setClosureForm]    = useState({ actualSpend: '', finalRoi: '', finalSavings: '', financeComments: '', capexFormAttachment: '' });
   const [closureError,   setClosureError]   = useState('');
+  const [closureActionState, setClosureActionState] = useState('idle');
   const [governance,     setGovernance]     = useState(null);
   const [drilldownType,  setDrilldownType]  = useState('businessUnit');
   const [drilldownRows,  setDrilldownRows]  = useState([]);
@@ -1045,6 +1046,7 @@ export default function CapexDashboard() {
 
   async function handleSaveClosure(closeRequest = false) {
     if (!selectedRequest) return;
+    if (closureActionState !== 'idle') return;
     if (!canEdit('capex.finance')) {
       setClosureError('This section is read-only for your role. Finance owns financial closure updates.');
       return;
@@ -1055,6 +1057,7 @@ export default function CapexDashboard() {
     }
     try {
       setClosureError('');
+      setClosureActionState(closeRequest ? 'closing' : 'saving');
       await saveCapexFinancialClosure(selectedRequest.id, { ...closureForm, closeRequest });
       await refreshSelectedRequest();
       await refreshGovernance();
@@ -1066,6 +1069,8 @@ export default function CapexDashboard() {
         : (err.message || 'Failed to save financial closure.');
       setClosureError(message);
       notifyError(message);
+    } finally {
+      setClosureActionState('idle');
     }
   }
 
@@ -2364,8 +2369,22 @@ export default function CapexDashboard() {
                   </div>
                   {canEdit('capex.finance') && (
                     <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
-                      <button type="button" style={canEditFinancialClosureNow ? s.warnBtn : s.disabledBtn} onClick={() => handleSaveClosure(false)} disabled={!canEditFinancialClosureNow}>Save Closure Draft</button>
-                      <button type="button" style={canEditFinancialClosureNow ? s.primaryBtn : s.disabledBtn} onClick={() => handleSaveClosure(true)} disabled={!canEditFinancialClosureNow}>Close Request</button>
+                      <button
+                        type="button"
+                        style={canEditFinancialClosureNow && closureActionState === 'idle' ? s.warnBtn : s.disabledBtn}
+                        onClick={() => handleSaveClosure(false)}
+                        disabled={!canEditFinancialClosureNow || closureActionState !== 'idle'}
+                      >
+                        {closureActionState === 'saving' ? 'Saving...' : 'Save Closure Draft'}
+                      </button>
+                      <button
+                        type="button"
+                        style={canEditFinancialClosureNow && closureActionState === 'idle' ? s.primaryBtn : s.disabledBtn}
+                        onClick={() => handleSaveClosure(true)}
+                        disabled={!canEditFinancialClosureNow || closureActionState !== 'idle'}
+                      >
+                        {closureActionState === 'closing' ? 'Closing...' : 'Close Request'}
+                      </button>
                     </div>
                   )}
               </section>
