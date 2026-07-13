@@ -17,7 +17,8 @@ const DISPLAY_FMT = 'dd/MM/yyyy';
 // `new Date('2026-07-10')`).
 function parseWire(value) {
   if (!value) return undefined;
-  const d = parse(value, WIRE_FMT, new Date());
+  const normalized = typeof value === 'string' ? value.slice(0, WIRE_FMT.length) : value;
+  const d = parse(normalized, WIRE_FMT, new Date());
   return isValid(d) ? d : undefined;
 }
 
