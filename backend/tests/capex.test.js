@@ -67,6 +67,12 @@ async function seedApproverPermission() {
   );
   await pool.query(
     `INSERT INTO som_permissions (user_id, level, resource_key, can_view, can_create, can_edit, can_delete)
+     VALUES ($1, 'page', 'capex.finance', true, false, true, false)
+     ON CONFLICT (user_id, resource_key) DO UPDATE SET can_view = true, can_edit = true`,
+    [approverUserId]
+  );
+  await pool.query(
+    `INSERT INTO som_permissions (user_id, level, resource_key, can_view, can_create, can_edit, can_delete)
      VALUES ($1, 'page', 'capex.documents', true, false, false, false)
      ON CONFLICT (user_id, resource_key) DO UPDATE SET can_view = true`,
     [approverUserId]
@@ -582,6 +588,31 @@ describe('CAPEX request lifecycle rules', () => {
       .set(auth);
     expect(download.statusCode).toBe(200);
     expect(download.text).toBe('capex evidence');
+  });
+
+  test('allows Finance Manager to upload CAPEX closure forms without document create access', async () => {
+    const upload = await request(app)
+      .post(`/api/capex/requests/${requestId}/attachments`)
+      .set(approverAuth)
+      .field('type', 'CAPEX Closure Form')
+      .field('retentionYears', '7')
+      .attach('file', Buffer.from('closure form'), 'finance-closure-form.pdf');
+
+    expect(upload.statusCode).toBe(201);
+    expect(upload.body.name).toBe('finance-closure-form.pdf');
+    expect(upload.body.type).toBe('CAPEX Closure Form');
+  });
+
+  test('keeps non-closure attachment uploads restricted to document creators', async () => {
+    const upload = await request(app)
+      .post(`/api/capex/requests/${requestId}/attachments`)
+      .set(approverAuth)
+      .field('type', 'Scope Document')
+      .field('retentionYears', '7')
+      .attach('file', Buffer.from('scope document'), 'finance-scope.pdf');
+
+    expect(upload.statusCode).toBe(403);
+    expect(upload.body.error).toMatch(/capex\.documents can_create/i);
   });
 
   test('tracks governance lifecycle modules and dashboard metrics', async () => {

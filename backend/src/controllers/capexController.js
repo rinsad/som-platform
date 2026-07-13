@@ -15,6 +15,7 @@ const { getValueThresholds, calcValueBandWithThresholds } = require('../config/c
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const toUuid = (v) => (typeof v === 'string' && UUID_RE.test(v) ? v : null);
+const ALLOWED_PERMISSION_ACTIONS = new Set(['can_view', 'can_create', 'can_edit', 'can_delete']);
 
 const _upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } });
 exports.csvUploadMiddleware = _upload.single('file');
@@ -37,6 +38,31 @@ function workflowRoleLookupKeys(role) {
   const original = String(role || '').trim();
   const canonical = WORKFLOW_ROLE_ALIASES[original] || original;
   return [...new Set([canonical, original].filter(Boolean))];
+}
+
+function permissionParentKeys(resourceKey) {
+  const parts = String(resourceKey || '').split('.');
+  const keys = [];
+  for (let i = parts.length; i >= 1; i -= 1) {
+    keys.push(parts.slice(0, i).join('.'));
+  }
+  return keys;
+}
+
+async function userHasPermission(user, resourceKey, action = 'can_view') {
+  if (!ALLOWED_PERMISSION_ACTIONS.has(action)) {
+    throw new Error(`Unsupported permission action: ${action}`);
+  }
+  if (user?.role === 'Admin') return true;
+  if (!user?.id) return false;
+
+  const { rows } = await pool.query(
+    `SELECT ${action}
+     FROM som_permissions
+     WHERE user_id = $1 AND resource_key = ANY($2::text[])`,
+    [user.id, permissionParentKeys(resourceKey)]
+  );
+  return rows.some((row) => row[action]);
 }
 
 // The approval route for a band, derived from the actual executable workflow
@@ -3183,6 +3209,14 @@ exports.uploadAttachment = async (req, res, next) => {
   if (!req.file) return res.status(400).json({ error: 'Attachment file is required' });
   try {
     const requestId = req.params.id;
+    const attachmentType = req.body.type || 'Document';
+    const canCreateDocuments = await userHasPermission(req.user, 'capex.documents', 'can_create');
+    const canUploadClosureForm = attachmentType === 'CAPEX Closure Form'
+      && await userHasPermission(req.user, 'capex.finance', 'can_edit');
+    if (!canCreateDocuments && !canUploadClosureForm) {
+      return res.status(403).json({ error: 'Forbidden: capex.documents can_create permission required' });
+    }
+
     const retentionYears = Number(req.body.retentionYears || 7);
     const retentionUntil = new Date();
     retentionUntil.setFullYear(retentionUntil.getFullYear() + retentionYears);
@@ -3207,7 +3241,7 @@ exports.uploadAttachment = async (req, res, next) => {
           req.body.linkedType || 'Request',
           req.body.linkedId || null,
           req.file.originalname,
-          req.body.type || 'Document',
+          attachmentType,
           `${Math.ceil(req.file.size / 1024)} KB`,
           userName(req),
           req.file.mimetype,
