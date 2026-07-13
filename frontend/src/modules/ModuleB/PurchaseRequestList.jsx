@@ -139,7 +139,7 @@ export default function PurchaseRequestList() {
           <span style={s.warningIcon}>⚠</span>
           <span>
             <strong>{counts.needsJustification} request{counts.needsJustification > 1 ? 's' : ''}</strong>
-            {' '}need{counts.needsJustification === 1 ? 's' : ''} justification — fewer than 3 quotes attached
+            {' '}need{counts.needsJustification === 1 ? 's' : ''} justification - fewer than 3 quotes entered
           </span>
         </div>
       )}

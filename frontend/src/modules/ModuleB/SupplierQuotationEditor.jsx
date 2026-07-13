@@ -1,4 +1,5 @@
-import SelectField from '../../components/SelectField';
+import Checkbox from '../../components/Checkbox';
+import FileUploadField from '../../components/FileUploadField';
 
 export function emptyQuotationRow() {
   return { id: Date.now() + Math.random(), supplierName: '', quoteAmount: '', file: null, documentId: null, documentName: '', isSelected: false };
@@ -9,14 +10,13 @@ export function normalizeQuotationRows(rows = []) {
   for (const row of rows) {
     const supplierName = String(row.supplierName ?? row.name ?? '').trim();
     const hasAmount = String(row.quoteAmount ?? '').trim() !== '';
-    const hasFile = !!row.file || !!row.documentId || !!row.legacyAttachmentExempt;
+    const hasFile = !!row.file || !!row.documentId || !!row.documentName || !!row.legacyAttachmentExempt;
     if (!supplierName && !hasAmount && !hasFile) continue;
     if (!supplierName) throw new Error('Supplier name is required for every quotation row.');
     const quoteAmount = Number(row.quoteAmount);
     if (!Number.isFinite(quoteAmount) || quoteAmount <= 0) {
       throw new Error('Quote amount must be a positive number for every quotation row.');
     }
-    if (!hasFile) throw new Error('Attach a quote file for every supplier quotation.');
     quotations.push({
       id: row.id,
       supplierName,
@@ -34,8 +34,7 @@ export function completeQuotationCount(rows = []) {
   return rows.filter((row) => {
     const supplierName = String(row.supplierName ?? row.name ?? '').trim();
     const amount = Number(row.quoteAmount);
-    return supplierName && Number.isFinite(amount) && amount > 0
-      && (row.file || row.documentId || row.legacyAttachmentExempt);
+    return supplierName && Number.isFinite(amount) && amount > 0;
   }).length;
 }
 
@@ -59,7 +58,6 @@ export default function SupplierQuotationEditor({
   currentBudget,
   onBudgetChange,
   allowSelection = true,
-  requireFiles = true,
   styles,
 }) {
   const s = styles;
@@ -72,13 +70,16 @@ export default function SupplierQuotationEditor({
   };
   const addRow = () => onChange([...rows, emptyQuotationRow()]);
   const removeRow = (id) => onChange(rows.length > 1 ? rows.filter((row) => row.id !== id) : rows);
-  const selectRow = (id) => onChange(rows.map((row) => ({ ...row, isSelected: row.id === id })));
+  const toggleSelectedRow = (id) => onChange(rows.map((row) => {
+    if (row.id !== id) return { ...row, isSelected: false };
+    return { ...row, isSelected: !row.isSelected };
+  }));
 
   return (
     <div>
       <div style={s.cardTitleRow}>
         <h2 style={s.cardTitle}>Sourcing Essentials</h2>
-        <button type="button" onClick={addRow} style={s.addRowBtn || s.secondaryBtn}>+ Add Supplier</button>
+        <button type="button" onClick={addRow} style={s.supplierAddBtn || s.secondaryBtn || s.addRowBtn}>+ Add Supplier</button>
       </div>
 
       <div style={s.tableWrap}>
@@ -87,7 +88,7 @@ export default function SupplierQuotationEditor({
             <tr>
               {allowSelection && <th style={s.th}>Selected</th>}
               <th style={s.th}>Supplier</th>
-              <th style={s.th}>Quote Amount (OMR)</th>
+              <th style={{ ...s.th, textAlign: 'right' }}>Quote Amount (OMR)</th>
               <th style={s.th}>Quote File</th>
               <th style={s.th}></th>
             </tr>
@@ -97,11 +98,10 @@ export default function SupplierQuotationEditor({
               <tr key={row.id} style={i % 2 === 1 ? s.trAlt : {}}>
                 {allowSelection && (
                   <td style={s.td}>
-                    <input
-                      type="radio"
-                      name="selectedQuotation"
+                    <Checkbox
+                      style={s.quoteSelectCheck || { display: 'inline-flex' }}
                       checked={Boolean(row.isSelected)}
-                      onChange={() => selectRow(row.id)}
+                      onChange={() => toggleSelectedRow(row.id)}
                       aria-label={`Select ${row.supplierName || 'supplier quotation'}`}
                     />
                   </td>
@@ -127,18 +127,30 @@ export default function SupplierQuotationEditor({
                   />
                 </td>
                 <td style={s.td}>
-                  <label style={s.fileBtn || s.secondaryBtn}>
-                    {row.file ? row.file.name : row.documentName || 'Attach'}
-                    <input
-                      type="file"
-                      accept=".pdf,.doc,.docx,.xls,.xlsx"
-                      onChange={(e) => updateRow(row.id, { file: e.target.files?.[0] || null })}
-                      style={{ display: 'none' }}
-                    />
-                  </label>
-                  {requireFiles && !row.file && !row.documentId && !row.legacyAttachmentExempt && (
-                    <span style={{ marginLeft: 8, fontSize: 12, color: 'var(--danger)' }}>Required</span>
-                  )}
+                  <div style={s.quoteFileCell || { display: 'flex', flexDirection: 'column', gap: 6, alignItems: 'flex-start' }}>
+                    {row.file || row.documentName ? (
+                      <div style={s.quoteFileSelected || { display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
+                        <span style={s.quoteFileName || { fontSize: 12, color: 'var(--gray-500)', maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {row.file?.name || row.documentName}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => updateRow(row.id, { file: null, documentId: null, documentName: '' })}
+                          style={s.quoteFileClearBtn || s.removeBtn || { background: 'transparent', border: 'none', color: 'var(--gray-400)', cursor: 'pointer' }}
+                          aria-label={`Remove quote file for ${row.supplierName || 'supplier quotation'}`}
+                          title="Remove file"
+                        >
+                          x
+                        </button>
+                      </div>
+                    ) : (
+                      <FileUploadField
+                        accept=".pdf,.doc,.docx,.xls,.xlsx"
+                        onChange={(e) => updateRow(row.id, { file: e.target.files?.[0] || null })}
+                        aria-label={`Upload quote file for ${row.supplierName || 'supplier quotation'}`}
+                      />
+                    )}
+                  </div>
                 </td>
                 <td style={{ ...s.td, textAlign: 'center' }}>
                   <button type="button" onClick={() => removeRow(row.id)} style={s.removeBtn || s.iconBtn} title="Remove supplier">x</button>
@@ -149,7 +161,7 @@ export default function SupplierQuotationEditor({
         </table>
       </div>
 
-      <div style={{ ...(s.row2Cols || s.formGrid), marginTop: 16 }}>
+      <div style={{ marginTop: 16 }}>
         <div style={s.field || {}}>
           <label style={s.label || s.formLabel}>Current Cost / Budget (OMR)</label>
           <input
@@ -160,21 +172,6 @@ export default function SupplierQuotationEditor({
             min="0"
             step="0.01"
             style={s.input}
-          />
-        </div>
-        <div style={s.field || {}}>
-          <label style={s.label || s.formLabel}>Selected Supplier</label>
-          <SelectField
-            value={rows.find((row) => row.isSelected)?.supplierName || ''}
-            onChange={(supplierName) => {
-              const found = rows.find((row) => row.supplierName === supplierName);
-              if (found) selectRow(found.id);
-            }}
-            options={rows.map((row) => row.supplierName).filter(Boolean)}
-            placeholder="Select supplier..."
-            disabled={!allowSelection}
-            style={s.select || s.input}
-            aria-label="Selected Supplier"
           />
         </div>
       </div>

@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, expect, test } from 'vitest';
@@ -52,10 +52,34 @@ test('tier badge updates without submitting the form', async () => {
   // No form submission happened — badge updated purely from state
 });
 
-test('quote warning appears when fewer than 3 quotes attached', async () => {
+test('quote warning appears when fewer than 3 quotes are entered', async () => {
   renderForm();
-  // No files attached by default — warning should show
+  // No supplier quotes entered by default - warning should show.
   expect(screen.getByTestId('quote-warning')).toBeInTheDocument();
+});
+
+test('supplier selection checkbox allows one selected supplier or none', async () => {
+  renderForm();
+
+  fireEvent.change(screen.getByPlaceholderText('Supplier name'), { target: { value: 'Supplier A' } });
+  await userEvent.click(screen.getByRole('button', { name: /\+ add supplier/i }));
+  fireEvent.change(screen.getAllByPlaceholderText('Supplier name')[1], { target: { value: 'Supplier B' } });
+
+  const supplierA = screen.getByRole('checkbox', { name: /select supplier a/i });
+  const supplierB = screen.getByRole('checkbox', { name: /select supplier b/i });
+
+  await userEvent.click(supplierA);
+  expect(supplierA).toBeChecked();
+  expect(supplierB).not.toBeChecked();
+
+  await userEvent.click(supplierB);
+  expect(supplierA).not.toBeChecked();
+  expect(supplierB).toBeChecked();
+
+  await userEvent.click(supplierB);
+  expect(supplierA).not.toBeChecked();
+  expect(supplierB).not.toBeChecked();
+  expect(screen.queryByLabelText('Selected Supplier')).not.toBeInTheDocument();
 });
 
 test('risk selects render with Low defaults', () => {

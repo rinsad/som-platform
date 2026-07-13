@@ -73,7 +73,7 @@ export default function NewPurchaseRequest() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (needsJustification && !justification.trim()) {
-      setSubmitError('Justification is required when fewer than 3 quotes are attached.');
+      setSubmitError('Justification is required when fewer than 3 supplier quotes are entered.');
       return;
     }
     let quotationPayload;
@@ -219,7 +219,7 @@ export default function NewPurchaseRequest() {
             <div style={s.card}>
               <div style={s.cardTitleRow}>
                 <h2 style={s.cardTitle}>Line Items</h2>
-                <button type="button" onClick={addRow} style={s.addRowBtn}>+ Add Row</button>
+                <button type="button" onClick={addRow} style={s.supplierAddBtn}>+ Add Row</button>
               </div>
 
               <div style={s.tableWrap}>
@@ -227,7 +227,16 @@ export default function NewPurchaseRequest() {
                   <thead>
                     <tr>
                       {['Description', 'Qty', 'Unit Price (OMR)', 'Line Total', ''].map((h) => (
-                        <th key={h} style={s.th}>{h}</th>
+                        <th
+                          key={h}
+                          style={
+                            h === 'Qty' || h === 'Unit Price (OMR)' || h === 'Line Total'
+                              ? { ...s.th, textAlign: 'right' }
+                              : s.th
+                          }
+                        >
+                          {h}
+                        </th>
                       ))}
                     </tr>
                   </thead>
@@ -308,7 +317,7 @@ export default function NewPurchaseRequest() {
               {/* Quote warning */}
               {needsJustification && (
                 <div data-testid="quote-warning" style={s.quoteWarning}>
-                  Minimum 3 quotes required. Add justification or attach more quotes.
+                  Minimum 3 quotes required. Add justification or enter more quotes.
                 </div>
               )}
 
@@ -354,7 +363,7 @@ export default function NewPurchaseRequest() {
                 <span style={s.summaryVal}>{rows.length}</span>
               </div>
               <div style={s.summaryRow}>
-                <span style={s.summaryLabel}>Quotes attached</span>
+                <span style={s.summaryLabel}>Quotes entered</span>
                 <span style={{ ...s.summaryVal, color: needsJustification ? 'var(--danger)' : 'var(--success)' }}>
                   {quoteCount} / 3
                 </span>
@@ -422,6 +431,7 @@ const s = {
   textarea: { padding: '10px 13px', fontSize: '14px', border: '1px solid var(--gray-200)', borderRadius: 'var(--radius-md)', outline: 'none', color: 'var(--gray-900)', background: 'var(--gray-50)', fontFamily: 'inherit', resize: 'vertical', width: '100%' },
 
   addRowBtn: { padding: '5px 13px', background: 'var(--info-bg)', border: '1px solid var(--info)', color: 'var(--info)', borderRadius: 'var(--radius-sm)', fontSize: '12.5px', fontWeight: '600', cursor: 'pointer', fontFamily: 'inherit' },
+  supplierAddBtn: { padding: '7px 13px', background: 'var(--surface)', border: '1px solid var(--gray-300)', color: 'var(--gray-700)', borderRadius: 'var(--radius-sm)', fontSize: '12.5px', fontWeight: '700', cursor: 'pointer', fontFamily: 'inherit', boxShadow: 'var(--shadow-xs)' },
 
   tableWrap: { overflowX: 'auto', marginBottom: '0' },
   table: { width: '100%', borderCollapse: 'collapse', fontSize: '13.5px' },
@@ -439,14 +449,18 @@ const s = {
 
   quoteRow: { display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '10px' },
   fileLabel: { cursor: 'pointer' },
-  fileBtn: { display: 'inline-block', padding: '8px 16px', background: 'var(--info-bg)', border: '1px solid var(--info)', borderRadius: 'var(--radius-md)', fontSize: '13px', fontWeight: '600', color: 'var(--info)', cursor: 'pointer' },
+  fileBtn: { display: 'inline-block', padding: '8px 16px', background: 'var(--surface)', border: '1px solid var(--gray-300)', borderRadius: 'var(--radius-sm)', fontSize: '13px', fontWeight: '600', color: 'var(--gray-900)', cursor: 'pointer' },
+  quoteFileCell: { display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '6px', minWidth: '150px' },
+  quoteFileSelected: { display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0, padding: '8px 0' },
+  quoteFileName: { fontSize: '12px', color: 'var(--gray-500)', maxWidth: '180px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
+  quoteFileClearBtn: { background: 'transparent', border: 'none', color: 'var(--gray-400)', cursor: 'pointer', fontSize: '14px', padding: 0, lineHeight: 1, fontFamily: 'inherit' },
   quoteCount: { padding: '5px 12px', borderRadius: 'var(--radius-pill)', fontSize: '12.5px', fontWeight: '600' },
   fileList: { display: 'flex', flexDirection: 'column', gap: '6px', marginBottom: '12px' },
   fileItem: { display: 'flex', alignItems: 'center', gap: '8px', background: 'var(--gray-50)', border: '1px solid var(--gray-100)', borderRadius: 'var(--radius-sm)', padding: '6px 10px' },
   fileIcon: { fontSize: '14px' },
   fileName: { fontSize: '12.5px', color: 'var(--gray-600)', fontWeight: '500' },
 
-  quoteWarning: { background: 'var(--danger-bg)', border: '1px solid var(--danger)', color: 'var(--danger)', borderRadius: 'var(--radius-md)', padding: '10px 14px', fontSize: '13px', fontWeight: '500' },
+  quoteWarning: { marginTop: '14px', background: 'var(--accent-amber-bg)', border: '1px solid var(--accent-amber-line)', color: 'var(--accent-amber-text)', borderRadius: 'var(--radius-md)', padding: '10px 14px', fontSize: '13px', fontWeight: '500' },
 
   metricGrid: { display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: '12px', marginTop: '6px' },
   metricBox: { background: 'var(--gray-50)', border: '1px solid var(--gray-100)', borderRadius: 'var(--radius-md)', padding: '12px 14px' },
@@ -464,7 +478,7 @@ const s = {
   summaryLabel: { fontSize: '13px', color: 'var(--gray-500)' },
   summaryVal: { fontSize: '13.5px', fontWeight: '600', color: 'var(--gray-700)' },
 
-  submitBtn: { width: '100%', padding: '12px', background: 'linear-gradient(135deg, var(--shell-navy), var(--shell-red))', color: '#fff', border: 'none', borderRadius: 'var(--radius-md)', fontSize: '14px', fontWeight: '700', cursor: 'pointer', fontFamily: 'inherit', boxShadow: '0 4px 12px rgba(0,51,102,0.25)', transition: 'opacity 0.15s' },
+  submitBtn: { width: '100%', padding: '9px 18px', background: 'var(--shell-red)', color: '#fff', border: '1px solid var(--shell-red-dark)', borderRadius: 'var(--radius-sm)', fontSize: '14px', fontWeight: '800', cursor: 'pointer', fontFamily: 'inherit', transition: 'opacity 0.15s' },
   submitBtnDisabled: { opacity: 0.6, cursor: 'not-allowed' },
   submitError: { background: 'var(--danger-bg)', border: '1px solid var(--danger)', color: 'var(--danger)', padding: '10px 14px', borderRadius: 'var(--radius-md)', fontSize: '13px', fontWeight: '500', textAlign: 'center' },
 };

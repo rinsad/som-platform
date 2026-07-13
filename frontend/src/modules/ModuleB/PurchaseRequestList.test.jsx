@@ -88,7 +88,7 @@ test('Approved filter shows only approved PRs', async () => {
 test('shows justification warning banner', async () => {
   renderList();
   await waitFor(() =>
-    expect(screen.getByText(/fewer than 3 quotes attached/i)).toBeInTheDocument()
+    expect(screen.getByText(/fewer than 3 quotes entered/i)).toBeInTheDocument()
   );
 });
 

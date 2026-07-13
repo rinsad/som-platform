@@ -812,7 +812,7 @@ export default function PRDetail() {
       {/* Justification alert */}
       {pr.requiresJustification && pr.status === 'PENDING_APPROVAL' && (
         <div style={s.alertBanner} data-testid="justification-alert">
-          ⚠ <strong>Justification Alert:</strong> This PR has fewer than 3 quotes attached. Justification required.
+          ⚠ <strong>Justification Alert:</strong> This PR has fewer than 3 quotes entered. Justification required.
         </div>
       )}
 
