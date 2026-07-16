@@ -40,8 +40,8 @@ export default function CapexRequestForm({ onSubmit, onCancel }) {
   const fyOptions = useMemo(() => financialYearOptions(), []);
   const [form, setForm] = useState({
     title: '',
-    department: DEPT_NAMES[0],
     businessFunction: DEPT_NAMES[0],
+    department: DEPT_NAMES[0],
     budgetHolder: '',
     financialYear: new Date().getFullYear(),
     currentCostBudget: '',
@@ -64,6 +64,10 @@ export default function CapexRequestForm({ onSubmit, onCancel }) {
 
   const band = useMemo(() => valueBand(form.estimatedValue), [form.estimatedValue]);
   const validQuotes = form.quotations.filter(q => q.supplierName.trim() && Number(q.quoteValue) > 0);
+  const selectedQuote = validQuotes.find(q => q.isSelected);
+  const selectedCost = Number(selectedQuote?.quoteValue || 0);
+  const budgetValue = Number(form.currentCostBudget || 0);
+  const budgetVariance = budgetValue > 0 && selectedCost > 0 ? budgetValue - selectedCost : null;
   const needsJustification = validQuotes.length < 3;
 
   function set(field, value) {
@@ -95,7 +99,7 @@ export default function CapexRequestForm({ onSubmit, onCancel }) {
   async function handleSubmit(e) {
     e.preventDefault();
     if (!form.title.trim()) return setError('Request title is required.');
-    if (!form.scopeDetails.trim()) return setError('Scope details are required.');
+    if (!form.scopeDetails.trim()) return setError('Project description is required.');
     if (!form.estimatedValue || Number(form.estimatedValue) <= 0) return setError('Estimated value must be greater than zero.');
     if (!validQuotes.length) return setError('At least one supplier quotation is required.');
     if (needsJustification && !form.fewerThan3Justification.trim()) return setError('Justification is required when fewer than 3 quotations are provided.');
@@ -109,7 +113,7 @@ export default function CapexRequestForm({ onSubmit, onCancel }) {
         financialYear: Number(form.financialYear),
         currentCostBudget: Number(form.currentCostBudget || 0),
         estimatedValue: Number(form.estimatedValue),
-        savings: form.savings === '' ? undefined : Number(form.savings),
+        savings: budgetVariance === null ? undefined : budgetVariance,
         quotations: validQuotes.map(q => {
           const clean = { ...q, quoteValue: Number(q.quoteValue) };
           delete clean._uid;
@@ -136,11 +140,11 @@ export default function CapexRequestForm({ onSubmit, onCancel }) {
           <Field label="Request Title *" wide>
             <input style={s.input} value={form.title} onChange={e => set('title', e.target.value)} placeholder="e.g. Station canopy upgrade" />
           </Field>
-          <Field label="Department *">
-            <SelectField style={s.input} value={form.department} onChange={v => set('department', v)} options={DEPT_NAMES} aria-label="Department" />
-          </Field>
           <Field label="Business / Function">
             <SelectField style={s.input} value={form.businessFunction} onChange={v => set('businessFunction', v)} options={DEPT_NAMES} aria-label="Business / Function" />
+          </Field>
+          <Field label="Department *">
+            <SelectField style={s.input} value={form.department} onChange={v => set('department', v)} options={DEPT_NAMES} aria-label="Department" />
           </Field>
           <Field label="Budget Holder">
             <input style={s.input} value={form.budgetHolder} onChange={e => set('budgetHolder', e.target.value)} placeholder="Name" />
@@ -161,29 +165,32 @@ export default function CapexRequestForm({ onSubmit, onCancel }) {
           <Checkbox style={s.check} checked={form.urgent} onChange={c => set('urgent', c)} label="Urgent requirement" />
         </div>
 
-        <Field label="Scope Details *">
+        <Field label="Project Description *">
           <textarea style={{ ...s.input, minHeight: 78 }} value={form.scopeDetails} onChange={e => set('scopeDetails', e.target.value)} placeholder="Describe the scope and business need." />
         </Field>
 
         <div style={s.grid3}>
-          <Field label="Frequency">
-            <SelectField style={s.input} value={form.frequency} onChange={v => set('frequency', v)} options={['One-time', 'Annual', '2 years', 'Recurring']} aria-label="Frequency" />
-          </Field>
-          <Field label="Volume / Year">
-            <input style={s.input} value={form.volumePerYear} onChange={e => set('volumePerYear', e.target.value)} />
-          </Field>
           <Field label="HSSE Risk">
             <SelectField style={s.input} value={form.hsseRisk} onChange={v => set('hsseRisk', v)} options={['Low', 'Medium', 'High']} aria-label="HSSE Risk" />
           </Field>
           <Field label="Worker Welfare Risk">
             <SelectField style={s.input} value={form.workerWelfareRisk} onChange={v => set('workerWelfareRisk', v)} options={['Low', 'Medium', 'High']} aria-label="Worker Welfare Risk" />
           </Field>
-          <Field label="Savings">
-            <input style={s.input} type="number" step="0.001" value={form.savings} onChange={e => set('savings', e.target.value)} />
-          </Field>
           <Field label="ROI">
             <input style={s.input} value={form.roi} onChange={e => set('roi', e.target.value)} />
           </Field>
+        </div>
+
+        <div style={s.varianceCard}>
+          <span style={s.varianceLabel}>{budgetVariance === null ? 'Budget variance' : budgetVariance >= 0 ? 'Savings' : 'Over Budget'}</span>
+          <strong style={{ ...s.varianceValue, color: budgetVariance === null ? 'var(--label-secondary)' : budgetVariance >= 0 ? 'var(--success)' : 'var(--shell-red)' }}>
+            {budgetVariance === null
+              ? 'Select a quote and enter budget'
+              : `OMR ${Math.abs(budgetVariance).toLocaleString('en-GB', { minimumFractionDigits: 3, maximumFractionDigits: 3 })}`}
+          </strong>
+          <span style={s.varianceHint}>
+            Calculated from current budget minus the selected proposed vendor cost.
+          </span>
         </div>
 
         <div style={s.sectionTitleRow}>
@@ -197,7 +204,7 @@ export default function CapexRequestForm({ onSubmit, onCancel }) {
               <input style={s.input} type="number" min="0" step="0.001" placeholder="Quote value" value={q.quoteValue} onChange={e => setQuote(i, 'quoteValue', e.target.value)} />
               <input style={s.input} placeholder="Payment terms" value={q.paymentTerms} onChange={e => setQuote(i, 'paymentTerms', e.target.value)} />
               <input style={s.input} placeholder="Attachment filename" value={q.attachmentName} onChange={e => setQuote(i, 'attachmentName', e.target.value)} />
-              <label style={s.radio}><input type="radio" checked={q.isSelected} onChange={() => setQuote(i, 'isSelected', true)} /> Selected</label>
+              <label style={s.radio}><input type="radio" checked={q.isSelected} onChange={() => setQuote(i, 'isSelected', true)} /> Proposed</label>
               <button type="button" style={s.removeBtn} onClick={() => removeQuote(i)}>Remove</button>
             </div>
           ))}
@@ -253,6 +260,20 @@ const s = {
   bandRow: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 },
   badge: { background: 'var(--accent-amber-bg)', color: 'var(--accent-amber-text)', border: '1px solid var(--accent-amber-line)', borderRadius: 'var(--radius-pill)', padding: '5px 12px', fontSize: 12, fontWeight: 850 },
   check: { display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--gray-600)' },
+  varianceCard: {
+    display: 'grid',
+    gridTemplateColumns: 'minmax(130px, max-content) minmax(140px, max-content) minmax(0, 1fr)',
+    alignItems: 'center',
+    gap: 12,
+    background: 'var(--gray-50)',
+    border: '1px solid var(--gray-200)',
+    borderRadius: 'var(--radius-md)',
+    padding: '12px 14px',
+    margin: '2px 0 16px',
+  },
+  varianceLabel: { fontSize: 11, fontWeight: 850, color: 'var(--label-secondary)', textTransform: 'uppercase', letterSpacing: '0.3px' },
+  varianceValue: { fontSize: 15, fontVariantNumeric: 'tabular-nums' },
+  varianceHint: { fontSize: 12, color: 'var(--label-tertiary)', lineHeight: 1.35 },
   sectionTitleRow: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', margin: '6px 0 10px' },
   sectionTitle: { margin: 0, fontSize: 14, fontWeight: 850, color: 'var(--label)' },
   quoteList: { display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 14 },

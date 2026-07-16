@@ -500,7 +500,7 @@ export default function CapexDashboard() {
   const navigate = useNavigate();
   const { requestId: routeRequestId } = useParams();
   const isRequestDetailRoute = Boolean(routeRequestId);
-  const { role, canView, canCreate, canEdit } = usePermissions();
+  const { canView, canCreate, canEdit } = usePermissions();
 
   const TABS = ALL_TABS.filter(t => {
     if (t.permKey && !canView(t.permKey)) return false;
@@ -561,7 +561,7 @@ export default function CapexDashboard() {
   const [docVersionForm, setDocVersionForm] = useState({ documentType: 'MOA', documentName: '', versionLabel: 'v1', changelog: '', retentionUntil: '' });
   const [signatureForm,  setSignatureForm]  = useState({ linkedType: 'MOA', linkedId: '', decision: 'Signed' });
   const [scheduleForm,   setScheduleForm]   = useState({ reportName: 'Monthly CAPEX Governance Pack', reportType: 'governance', audience: 'CEO/CFO', frequency: 'Monthly', format: 'PDF', recipients: '', nextRunDate: '' });
-  const [returnedEditForm, setReturnedEditForm] = useState({ title: '', estimatedValue: '', acvPoValue: '', scopeDetails: '', fewerThan3Justification: '', savings: '' });
+  const [returnedEditForm, setReturnedEditForm] = useState({ title: '', currentCostBudget: '', estimatedValue: '', acvPoValue: '', scopeDetails: '', fewerThan3Justification: '' });
   const [delegateTo,     setDelegateTo]     = useState('');
   const [delegateCandidates, setDelegateCandidates] = useState([]);
   const [delegateLoadState, setDelegateLoadState] = useState('idle');
@@ -692,11 +692,11 @@ export default function CapexDashboard() {
     });
     setReturnedEditForm({
       title: selectedRequest.title || '',
+      currentCostBudget: selectedRequest.currentCostBudget ?? '',
       estimatedValue: selectedRequest.estimatedValue ?? '',
       acvPoValue: selectedRequest.acvPoValue ?? '',
       scopeDetails: selectedRequest.scopeDetails || '',
       fewerThan3Justification: selectedRequest.fewerThan3Justification || '',
-      savings: selectedRequest.savings ?? '',
     });
     setClosureForm({
       actualSpend: selectedRequest.financialClosure?.actualSpend || '',
@@ -937,7 +937,10 @@ export default function CapexDashboard() {
   async function handleSaveReturnedEdit() {
     if (!selectedRequest) return;
     try {
-      const updated = await updateCapexRequest(selectedRequest.id, returnedEditForm);
+      const updated = await updateCapexRequest(selectedRequest.id, {
+        ...returnedEditForm,
+        savings: returnedBudgetVariance === null ? undefined : returnedBudgetVariance,
+      });
       setSelectedRequest(updated);
       notifySuccess('Request changes saved.');
     } catch (err) {
@@ -1639,6 +1642,12 @@ export default function CapexDashboard() {
       : delegateCandidateOptions.length
         ? 'Select delegate'
         : 'No eligible delegates';
+  const returnedSelectedQuote = (selectedRequest?.quotations || []).find((quotation) => quotation.isSelected);
+  const returnedBudgetValue = Number(returnedEditForm.currentCostBudget || 0);
+  const returnedSelectedCost = Number(returnedSelectedQuote?.quoteValue || 0);
+  const returnedBudgetVariance = returnedBudgetValue > 0 && returnedSelectedCost > 0
+    ? returnedBudgetValue - returnedSelectedCost
+    : null;
 
   // ── States ──────────────────────────────────────────────────────────────────
   if (loading) return (
@@ -2139,7 +2148,7 @@ export default function CapexDashboard() {
             <div style={s.dCardCol}>
 
               <section id="capex-sec-summary" style={s.dCard}>
-                  <h4 style={s.detailTitle}>Scope</h4>
+                  <h4 style={s.detailTitle}>Project Description</h4>
                   <p style={s.detailText}>{selectedRequest.scopeDetails}</p>
 
                   {selectedRequest.fewerThan3Justification && (
@@ -2175,13 +2184,21 @@ export default function CapexDashboard() {
                       <div style={s.lifecycleGrid}>
                         <Field label="Title"><input style={s.fieldInput} placeholder="Title" value={returnedEditForm.title}
                           onChange={e => setReturnedEditForm(p => ({ ...p, title: e.target.value }))} /></Field>
+                        <Field label="Current budget (OMR)"><input style={s.fieldInput} type="number" placeholder="0" value={returnedEditForm.currentCostBudget ?? ''}
+                          onChange={e => setReturnedEditForm(p => ({ ...p, currentCostBudget: e.target.value }))} /></Field>
                         <Field label="Estimated value (OMR)"><input style={s.fieldInput} type="number" placeholder="0" value={returnedEditForm.estimatedValue}
                           onChange={e => setReturnedEditForm(p => ({ ...p, estimatedValue: e.target.value }))} /></Field>
                         <Field label="ACV / PO value (OMR)"><input style={s.fieldInput} type="number" placeholder="0" value={returnedEditForm.acvPoValue ?? ''}
                           onChange={e => setReturnedEditForm(p => ({ ...p, acvPoValue: e.target.value }))} /></Field>
-                        <Field label="Savings (OMR)"><input style={s.fieldInput} type="number" placeholder="0" value={returnedEditForm.savings ?? ''}
-                          onChange={e => setReturnedEditForm(p => ({ ...p, savings: e.target.value }))} /></Field>
-                        <Field label="Scope details" full><input style={s.fieldInput} placeholder="Scope details" value={returnedEditForm.scopeDetails}
+                        <div style={s.miniInfo}>
+                          <span style={s.miniLabel}>{returnedBudgetVariance === null ? 'Budget variance' : returnedBudgetVariance >= 0 ? 'Savings' : 'Over budget'}</span>
+                          <span style={{ ...s.miniValue, color: returnedBudgetVariance === null ? 'var(--label-secondary)' : returnedBudgetVariance >= 0 ? 'var(--success)' : 'var(--shell-red)', fontWeight: 850 }}>
+                            {returnedBudgetVariance === null
+                              ? 'Select quote and budget'
+                              : `OMR ${Math.abs(returnedBudgetVariance).toLocaleString('en-GB', { minimumFractionDigits: 3, maximumFractionDigits: 3 })}`}
+                          </span>
+                        </div>
+                        <Field label="Project description" full><input style={s.fieldInput} placeholder="Project description" value={returnedEditForm.scopeDetails}
                           onChange={e => setReturnedEditForm(p => ({ ...p, scopeDetails: e.target.value }))} /></Field>
                         <Field label="Justification if fewer than 3 quotations" full><input style={s.fieldInput} placeholder="Justification if fewer than 3 quotations" value={returnedEditForm.fewerThan3Justification}
                           onChange={e => setReturnedEditForm(p => ({ ...p, fewerThan3Justification: e.target.value }))} /></Field>
@@ -2200,7 +2217,7 @@ export default function CapexDashboard() {
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 16 }}>
                     {(selectedRequest.quotations || []).map((q) => (
                       <div key={q.id} style={s.compactRow}>
-                        <span style={{ fontWeight: q.isSelected ? 700 : 500 }}>{q.supplierName}{q.isSelected ? ' (selected)' : ''}</span>
+                        <span style={{ fontWeight: q.isSelected ? 700 : 500 }}>{q.supplierName}{q.isSelected ? ' (proposed)' : ''}</span>
                         <span>{fmtOMR(q.quoteValue)}</span>
                       </div>
                     ))}
