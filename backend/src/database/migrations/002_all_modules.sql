@@ -82,10 +82,10 @@ CREATE TABLE IF NOT EXISTS gsap_approved_budgets (
 INSERT INTO capex_departments (name, total_budget, committed, actual) VALUES
   ('HR & Real Estate',                    800000, 120000, 350000),
   ('Finance & Operations',                600000,  80000, 210000),
-  ('Trading, Lubricants & Supply Chain', 2000000, 250000, 890000),
+  ('Trading, Lubricants & Supply Chain', 2000000, 317000, 890000),
   ('Aviation',                           1500000, 180000, 720000),
-  ('Mobility',                           1200000, 150000, 480000),
-  ('General',                             500000,  60000, 140000)
+  ('Mobility',                           1200000, 150000, 498600),
+  ('General',                             530000,  60000, 140000)
 ON CONFLICT (name) DO NOTHING;
 
 -- ── Seed: capex_department_monthly ───────────────────────────
@@ -110,7 +110,7 @@ BEGIN
     (aid,'Oct',110000, 98000),(aid,'Nov',120000,115000),(aid,'Dec',130000,142000),
     (aid,'Jan',125000,128000),(aid,'Feb',115000,112000),(aid,'Mar',130000,125000),
     (mid,'Oct', 75000, 68000),(mid,'Nov', 80000, 85000),(mid,'Dec', 90000, 95000),
-    (mid,'Jan', 85000, 82000),(mid,'Feb', 78000, 72000),(mid,'Mar', 90000, 78000),
+    (mid,'Jan', 85000, 82000),(mid,'Feb', 78000, 72000),(mid,'Mar', 90000, 96600),
     (gid,'Oct', 20000, 18000),(gid,'Nov', 23000, 22000),(gid,'Dec', 25000, 28000),
     (gid,'Jan', 24000, 25000),(gid,'Feb', 22000, 20000),(gid,'Mar', 26000, 27000)
   ON CONFLICT (department_id, month_label) DO NOTHING;
@@ -141,8 +141,8 @@ INSERT INTO gsap_approved_budgets (wbs_code, description, department, approved_a
   ('WBS-OM-2026-FIN-001','Finance & Operations — Systems and Process Capex',        'Finance & Operations',                600000, 210000, 'manual'),
   ('WBS-OM-2026-TLS-001','Trading, Lubricants & Supply Chain — Infrastructure Capex','Trading, Lubricants & Supply Chain', 2000000, 890000, 'manual'),
   ('WBS-OM-2026-AVN-001','Aviation — Equipment and Facilities Capex',               'Aviation',                           1500000, 720000, 'manual'),
-  ('WBS-OM-2026-MOB-001','Mobility — Fleet and Charging Infrastructure Capex',      'Mobility',                           1200000, 480000, 'manual'),
-  ('WBS-OM-2026-GEN-001','General — Organisation-Wide Capex',                       'General',                             500000, 140000, 'manual')
+  ('WBS-OM-2026-MOB-001','Mobility — Fleet and Charging Infrastructure Capex',      'Mobility',                           1200000, 498600, 'manual'),
+  ('WBS-OM-2026-GEN-001','General — Organisation-Wide Capex',                       'General',                             530000, 140000, 'manual')
 ON CONFLICT (wbs_code) DO NOTHING;
 
 -- ──────────────────────────────────────────────────────────────
