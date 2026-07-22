@@ -30,6 +30,15 @@
   --accent-red:        var(--shell-red);     --accent-red-bg:   #fff1f1;  --accent-red-line:  #ffd3d3;
   --accent-amber:      #b45309;              --accent-amber-bg: #fff7ed;  --accent-amber-line: #f1d36a;  --accent-amber-text: #8a5d00;
 
+  /* ── Learning topic identity — navigation accents, never status colors ────── */
+  --learning-topic-home:          var(--gray-700);
+  --learning-topic-access:        #d97706;
+  --learning-topic-devices:       #0891b2;
+  --learning-topic-data:          #d29d00;
+  --learning-topic-collaboration: #16866b;
+  --learning-topic-phishing:      var(--shell-red);
+  --learning-topic-outside:       #65a30d;
+
   /* ── Semantic status — the ONLY status palette (accent / text / soft-bg) ──── */
   --success:      #16a34a;  --success-text: #166534;  --success-bg: #f0fdf4;
   --warning:      #f59e0b;  --warning-text: #92400e;  --warning-bg: #fff8cc;

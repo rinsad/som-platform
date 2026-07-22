@@ -11,6 +11,7 @@ import PRDetail from './modules/ModuleB/PRDetail';
 import AssetRegistry from './modules/ModuleC/AssetRegistry';
 import IntraPortal from './modules/ModuleD/IntraPortal';
 import IntraPortalPreview from './modules/ModuleD/IntraPortalPreview';
+import IntraPortalV3 from './modules/ModuleD/IntraPortalV3';
 import UserManagement from './modules/Admin/UserManagement';
 import KBManagement from './modules/Admin/KBManagement';
 import PermissionsPage from './modules/Admin/PermissionsPage';
@@ -54,6 +55,7 @@ function App() {
       />
       <Routes>
         <Route path="/login" element={<Login />} />
+        <Route path="/intraportal-v3" element={<IntraPortalV3 />} />
 
         {/* Public portal — home page at /, no auth required. Must come first so
             React Router resolves / here instead of the authenticated group. */}

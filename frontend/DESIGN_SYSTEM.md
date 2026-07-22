@@ -90,6 +90,21 @@ Each functional module carries one accent for framing (icon tiles, hero borders,
 
 > The public portal ([ModuleD](src/modules/ModuleD/)) is a marketing surface with its own dark hero/footer (`#1f1f1f`, `#262626`, `#272727`) — the one place raw dark hex is intentional and permitted.
 
+### Learning topic accents
+The Think Secure learning navigation uses a controlled seven-color sequence for its bottom rules. These colors communicate topic identity and ordering—not status—and should not replace the semantic status palette.
+
+| Topic | Token | Value |
+|-------|-------|-------|
+| Think Secure Home | `--learning-topic-home` | `var(--gray-700)` |
+| Access | `--learning-topic-access` | `#d97706` |
+| Devices | `--learning-topic-devices` | `#0891b2` |
+| Data & Information | `--learning-topic-data` | `#d29d00` |
+| Collaboration & Connection | `--learning-topic-collaboration` | `#16866b` |
+| Social Engineering & Phishing | `--learning-topic-phishing` | `var(--shell-red)` |
+| Outside of Shell | `--learning-topic-outside` | `#65a30d` |
+
+Use these tokens only for compact learning-topic cues such as tab underlines, section markers, or matching legend keys. Keep surfaces neutral and text on the standard label scale.
+
 ---
 
 ## 3. Typography
