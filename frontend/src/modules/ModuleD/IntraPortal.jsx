@@ -954,9 +954,10 @@ const s = {
   heroImage: {
     position: 'absolute',
     inset: 0,
-    backgroundImage: 'linear-gradient(90deg, rgba(0,0,0,0.78) 0%, rgba(0,0,0,0.52) 42%, rgba(0,0,0,0.12) 100%), url(/logo.jpeg)',
-    backgroundSize: 'cover',
-    backgroundPosition: 'center',
+    backgroundImage: 'linear-gradient(90deg, rgba(0,0,0,0.82) 0%, rgba(0,0,0,0.58) 46%, rgba(0,0,0,0.2) 100%), url(/leen-logo.png)',
+    backgroundSize: 'cover, min(56vw, 760px) auto',
+    backgroundPosition: 'center, 78% center',
+    backgroundRepeat: 'no-repeat',
     transform: 'scale(1.02)',
   },
   heroOverlay: { position: 'relative', minHeight: 520, display: 'flex', alignItems: 'center', borderBottom: `14px solid ${SHELL_YELLOW}` },

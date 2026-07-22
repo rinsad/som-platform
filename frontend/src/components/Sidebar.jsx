@@ -42,7 +42,7 @@ export default function Sidebar() {
     <aside style={s.sidebar}>
       <a href="/dashboard" style={s.brand} aria-label="Shell Oman Marketing dashboard">
         <span style={s.logoMark}>
-          <img src="/logo.png" alt="Shell Oman Marketing" style={s.logoImg} />
+          <img src="/leen-logo.png" alt="Leen" style={s.logoImg} />
         </span>
         <span>
           <strong style={s.brandName}>Shell Oman Marketing</strong>
@@ -120,8 +120,8 @@ const s = {
     borderBottom: '1px solid var(--gray-100)',
   },
   logoMark: {
-    width: 30,
-    height: 30,
+    width: 48,
+    height: 34,
     flexShrink: 0,
     display: 'block',
   },

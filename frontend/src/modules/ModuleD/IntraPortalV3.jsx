@@ -416,9 +416,8 @@ export default function IntraPortalV3() {
       <a className="ip3-skip-link" href="#ip3-main">Skip to portal content</a>
 
       <aside className={`ip3-sidebar ${navOpen ? 'is-open' : ''}`} aria-label="Portal sidebar">
-        <button className="ip3-brand" type="button" onClick={() => goTo('top')} aria-label="Sada Shell portal home">
-          <img src="/logo.png" alt="Shell" />
-          <span>Sada Shell</span>
+        <button className="ip3-brand" type="button" onClick={() => goTo('top')} aria-label="Leen portal home">
+          <img src="/leen-logo.png" alt="Leen" />
         </button>
 
         <nav className="ip3-nav" aria-label="Portal navigation">
@@ -556,7 +555,7 @@ export default function IntraPortalV3() {
                       <p>Every SOM employee can move the scorecard.</p>
                     </header>
 
-                    <img className="ip3-scorecard-mark" src="/logo.png" alt="" aria-hidden="true" />
+                    <img className="ip3-scorecard-mark" src="/leen-logo.png" alt="" aria-hidden="true" />
 
                     <div className="ip3-phishing-actions">
                       <div>

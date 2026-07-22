@@ -705,9 +705,10 @@ const s = {
   heroImage: {
     position: 'absolute',
     inset: 0,
-    backgroundImage: 'linear-gradient(90deg, rgba(0,0,0,0.78), rgba(0,0,0,0.42), rgba(0,0,0,0.1)), url(/logo.jpeg)',
-    backgroundSize: 'cover',
-    backgroundPosition: 'center',
+    backgroundImage: 'linear-gradient(90deg, rgba(0,0,0,0.82), rgba(0,0,0,0.5), rgba(0,0,0,0.18)), url(/leen-logo.png)',
+    backgroundSize: 'cover, min(56vw, 760px) auto',
+    backgroundPosition: 'center, 78% center',
+    backgroundRepeat: 'no-repeat',
     transform: 'scale(1.02)',
   },
   heroContent: { position: 'relative', maxWidth: 1180, margin: '0 auto', minHeight: 500, padding: '78px 24px', color: '#fff', display: 'flex', flexDirection: 'column', justifyContent: 'center' },
