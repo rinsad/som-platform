@@ -1,10 +1,11 @@
+import { lazy, Suspense } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'sonner';
 import AppShell from './layouts/AppShell';
 import PublicShell from './layouts/PublicShell';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
-import CapexDashboard from './modules/ModuleA/CapexDashboard';
+import CapexV2Shell from './modules/CapexV2/CapexV2Shell';
 import PurchaseRequestList from './modules/ModuleB/PurchaseRequestList';
 import NewPurchaseRequest from './modules/ModuleB/NewPurchaseRequest';
 import PRDetail from './modules/ModuleB/PRDetail';
@@ -16,6 +17,19 @@ import UserManagement from './modules/Admin/UserManagement';
 import KBManagement from './modules/Admin/KBManagement';
 import PermissionsPage from './modules/Admin/PermissionsPage';
 import { buildPermMap, can } from './utils/permissions';
+
+const CapexDashboard = lazy(() => import('./modules/ModuleA/CapexDashboard'));
+const NewCapexRequest = lazy(() => import('./modules/ModuleA/NewCapexRequest'));
+const CapexV2Dashboard = lazy(() => import('./modules/CapexV2/CapexV2Dashboard'));
+const CapexV2Requests = lazy(() => import('./modules/CapexV2/CapexV2Requests'));
+const CapexV2RequestForm = lazy(() => import('./modules/CapexV2/CapexV2RequestForm'));
+const CapexV2RequestDetail = lazy(() => import('./modules/CapexV2/CapexV2RequestDetail'));
+const CapexV2Budgets = lazy(() => import('./modules/CapexV2/CapexV2Budgets'));
+const CapexV2Configuration = lazy(() => import('./modules/CapexV2/CapexV2Configuration'));
+
+function Deferred({ children }) {
+  return <Suspense fallback={<div role="status" aria-live="polite" style={{ padding: 24 }}>Loading workspace…</div>}>{children}</Suspense>;
+}
 
 function RequireAuth({ children }) {
   const token = localStorage.getItem('som_token');
@@ -56,6 +70,13 @@ function App() {
       <Routes>
         <Route path="/login" element={<Login />} />
         <Route path="/intraportal-v3" element={<IntraPortalV3 />} />
+        <Route path="/intraportal-v3/this-is-shell" element={<IntraPortalV3 page="this-is-shell" />} />
+        <Route path="/intraportal-v3/ceo-corner" element={<IntraPortalV3 page="ceo-corner" />} />
+        <Route path="/intraportal-v3/hr-online" element={<IntraPortalV3 page="hr-online" />} />
+        <Route path="/intraportal-v3/business-mileage-claim" element={<IntraPortalV3 page="business-mileage-claim" />} />
+        <Route path="/intraportal-v3/recreational-wellness-scheme" element={<IntraPortalV3 page="recreational-wellness-scheme" />} />
+        <Route path="/intraportal-v3/healthcare-benefits" element={<IntraPortalV3 page="healthcare-benefits" />} />
+        <Route path="/intraportal-v3/mobile-phones-business-numbers" element={<IntraPortalV3 page="mobile-phones-business-numbers" />} />
 
         {/* Public portal — home page at /, no auth required. Must come first so
             React Router resolves / here instead of the authenticated group. */}
@@ -73,8 +94,19 @@ function App() {
           }
         >
           <Route path="/dashboard"              element={<Dashboard />} />
-          <Route path="/capex"                  element={<RequirePerm permKey="capex"><CapexDashboard /></RequirePerm>} />
-          <Route path="/capex/requests/:requestId" element={<RequirePerm permKey="capex"><CapexDashboard /></RequirePerm>} />
+          <Route path="/capex"                  element={<RequirePerm permKey="capex"><Deferred><CapexDashboard /></Deferred></RequirePerm>} />
+          <Route path="/capex/requests/new"     element={<RequirePerm permKey="capex.requests" action="can_create"><Deferred><NewCapexRequest /></Deferred></RequirePerm>} />
+          <Route path="/capex/requests/:requestId" element={<RequirePerm permKey="capex"><Deferred><CapexDashboard /></Deferred></RequirePerm>} />
+          <Route path="/capex-v2" element={<RequirePerm permKey="capex"><CapexV2Shell /></RequirePerm>}>
+            <Route index element={<Deferred><CapexV2Dashboard view="operational" /></Deferred>} />
+            <Route path="requests" element={<Deferred><CapexV2Requests /></Deferred>} />
+            <Route path="requests/new" element={<Deferred><CapexV2RequestForm /></Deferred>} />
+            <Route path="requests/:requestId" element={<Deferred><CapexV2RequestDetail /></Deferred>} />
+            <Route path="budgets" element={<Deferred><CapexV2Budgets /></Deferred>} />
+            <Route path="business-unit" element={<Deferred><CapexV2Dashboard view="business-unit" /></Deferred>} />
+            <Route path="executive" element={<Deferred><CapexV2Dashboard view="executive" /></Deferred>} />
+            <Route path="configuration" element={<RequireAdmin><Deferred><CapexV2Configuration /></Deferred></RequireAdmin>} />
+          </Route>
           <Route path="/purchase-requests"      element={<RequirePerm permKey="purchase-requests"><PurchaseRequestList /></RequirePerm>} />
           <Route path="/purchase-requests/new"  element={<RequirePerm permKey="purchase-requests" action="can_create"><NewPurchaseRequest /></RequirePerm>} />
           <Route path="/purchase-requests/:id"  element={<RequirePerm permKey="purchase-requests"><PRDetail /></RequirePerm>} />

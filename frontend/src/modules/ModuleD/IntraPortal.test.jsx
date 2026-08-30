@@ -1,4 +1,3 @@
-/* global vi, beforeEach, afterEach, test, expect, jest, global */
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import IntraPortal from './IntraPortal';
 

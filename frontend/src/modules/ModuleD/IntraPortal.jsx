@@ -954,7 +954,7 @@ const s = {
   heroImage: {
     position: 'absolute',
     inset: 0,
-    backgroundImage: 'linear-gradient(90deg, rgba(0,0,0,0.82) 0%, rgba(0,0,0,0.58) 46%, rgba(0,0,0,0.2) 100%), url(/leen-logo.png)',
+    backgroundImage: 'linear-gradient(90deg, rgba(0,0,0,0.82) 0%, rgba(0,0,0,0.58) 46%, rgba(0,0,0,0.2) 100%), url(/som-connect-logo.png)',
     backgroundSize: 'cover, min(56vw, 760px) auto',
     backgroundPosition: 'center, 78% center',
     backgroundRepeat: 'no-repeat',
