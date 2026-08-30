@@ -30,12 +30,13 @@ In short: most downstream forms should not be actively filled during the approva
 
 | Section / Form | Primary owner | Supporting roles | When it should be filled | Notes |
 | --- | --- | --- | --- | --- |
-| CAPEX Request / Overview | Project Owner, Project Engineer | Manager, FiB | At request creation and before submission | This is the starting form for the workflow. |
+| CAPEX Request / Overview | Project Owner | Admin (on a requester's behalf) | At request creation and before submission | This is the starting form for the workflow. Only the Project Owner raises requests; Project Engineer may still edit an existing one. |
 | Approval actions (approve, return, reject, delegate) | Assigned approver for the current step | Admin for configuration only | During approval workflow | Only the currently assigned approver should take the step action. |
 | Procurement Tracking | CP Manager, CP Lead, Project Engineer | Project Owner as viewer; Internal Audit as viewer | After request is approved for procurement | Functional spec says approved request moves to procurement tracking after approvals. |
 | NDA / DPA / vendor registration / agreement status | CP / Procurement, sometimes Project Engineer | CP Focal | After approval, during procurement readiness | These are procurement readiness controls, not requester-stage fields. |
-| GSAP project reference / PR number / PO number / PO value / PO status | CP / Procurement, Project Engineer | Finance may review later | After procurement starts; PO-specific fields after PR/PO exist | Docs say MVP permits manual entry of these references. |
-| PO attachment | CP / Procurement, Project Engineer | Documents owner if document handling is split | When PO document exists | This should be an upload, not a raw textbox. |
+| GSAP project reference / PR number | CP / Procurement, Project Engineer | Finance may review later | After procurement starts | Docs say MVP permits manual entry of these references. |
+| PO number / PO value / PO status | Project Owner | CP / Procurement, Project Engineer | After PR/PO exists | Updating the PO is the Project Owner's responsibility. |
+| PO attachment | Project Owner | CP / Procurement, Project Engineer | When PO document exists | This should be an upload, not a raw textbox. |
 | Execution / Milestones / Staged payments | Project Engineer | Project Owner | After PO creation and when project delivery starts | Functional spec says Project Engineers track milestones and execution. |
 | Financial Closure | Finance, Finance Manager, CFO, Finance in Business | Asset Team may support related finance data | After execution is complete | Docs say Finance completes financial closure after execution. |
 | AUC tracking | Finance / Corporate Controller / Asset Team | CFO | After PO exists or execution starts, then through closure | PRD ties AUC to finance governance and aging controls. |

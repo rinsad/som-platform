@@ -2,6 +2,14 @@ const pool = require('../database/db');
 const multer = require('multer');
 const { getValueThresholds, calcValueBandWithThresholds } = require('../config/capexThresholds');
 const { parsePagination, buildPaginationMeta } = require('../config/pagination');
+const { decisionAuthority } = require('../config/capexStateMachine');
+const { canRoleCreateRequests } = require('../config/capexRolePermissions');
+const {
+  getScopeContext,
+  scopeFilterForTable,
+  requireRequestInScope,
+  resolveOrganizationUnitId,
+} = require('../services/scopeContext');
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const toUuid = (v) => (typeof v === 'string' && UUID_RE.test(v) ? v : null);
@@ -366,48 +374,76 @@ exports.getAll = async (req, res, next) => {
     const { status } = req.query;
     const pagination = parsePagination(req.query, { defaultPageSize: 10, maxPageSize: 100 });
     const hasStatusFilter = status && status.toUpperCase() !== 'ALL';
-    const filterValues = hasStatusFilter ? [status.toUpperCase()] : [];
-    const whereClause = hasStatusFilter ? 'WHERE UPPER(status) = $1' : '';
-    const orderClause = 'ORDER BY created_at DESC, id DESC';
+
+    // Every predicate is built as an explicitly aliased fragment with its own
+    // placeholder. The previous version rewrote unaliased SQL with String.replace
+    // ('status' -> 'pr.status'), which silently corrupts any clause containing
+    // those substrings.
+    const conditions = [];
+    const filterValues = [];
+    if (hasStatusFilter) {
+      filterValues.push(status.toUpperCase());
+      conditions.push(`UPPER(pr.status) = $${filterValues.length}`);
+    }
+
+    const scope = await getScopeContext(req);
+    const filter = scopeFilterForTable(scope, 'purchase_requests', {
+      alias: 'pr',
+      startIndex: filterValues.length + 1,
+    });
+    conditions.push(filter.sql);
+    filterValues.push(...filter.params);
+
+    // Every query below aliases purchase_requests as `pr`, so one fragment serves all.
+    const whereClause = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
+    const orderBy = 'ORDER BY pr.created_at DESC, pr.id DESC';
 
     if (!pagination.enabled) {
       const { rows } = await pool.query(
         `${quotationSelect()}
-         ${whereClause ? whereClause.replace('status', 'pr.status') : ''}
-         GROUP BY pr.id ${orderClause.replace('created_at', 'pr.created_at').replace('id', 'pr.id')}`,
+         ${whereClause}
+         GROUP BY pr.id
+         ${orderBy}`,
         filterValues
       );
       return res.json(rows.map(mapPR));
     }
 
+    // The counts query carries no status filter, so its predicate starts at $1.
+    const countsFilter = scopeFilterForTable(scope, 'purchase_requests', { alias: 'pr' });
     const itemQueryValues = [...filterValues, pagination.limit, pagination.offset];
-    const limitParam = hasStatusFilter ? '$2' : '$1';
-    const offsetParam = hasStatusFilter ? '$3' : '$2';
+    const limitParam = `$${filterValues.length + 1}`;
+    const offsetParam = `$${filterValues.length + 2}`;
 
     const [itemsResult, totalResult, countsResult] = await Promise.all([
       pool.query(
         `${quotationSelect()}
-         ${whereClause ? whereClause.replace('status', 'pr.status') : ''}
+         ${whereClause}
          GROUP BY pr.id
-         ${orderClause.replace('created_at', 'pr.created_at').replace('id', 'pr.id')}
+         ${orderBy}
          LIMIT ${limitParam} OFFSET ${offsetParam}`,
         itemQueryValues
       ),
       pool.query(
         `SELECT COUNT(*)::int AS total
-         FROM purchase_requests
+         FROM purchase_requests pr
          ${whereClause}`,
         filterValues
       ),
+      // The tab badges must count the same rows the list shows, so this shares
+      // the list's predicates rather than counting the whole table. The status
+      // filter is deliberately excluded — these ARE the per-status counts.
       pool.query(
         `SELECT
            COUNT(*)::int AS total,
-           COUNT(*) FILTER (WHERE requires_justification = true)::int AS needs_justification,
-           COUNT(*) FILTER (WHERE status = 'PENDING_APPROVAL')::int AS pending_approval,
-           COUNT(*) FILTER (WHERE status = 'APPROVED')::int AS approved,
-           COUNT(*) FILTER (WHERE status = 'REJECTED')::int AS rejected,
-           COUNT(*) FILTER (WHERE status = 'DRAFT')::int AS draft
-         FROM purchase_requests`
+           COUNT(*) FILTER (WHERE pr.requires_justification = true)::int AS needs_justification,
+           COUNT(*) FILTER (WHERE pr.status = 'PENDING_APPROVAL')::int AS pending_approval,
+           COUNT(*) FILTER (WHERE pr.status = 'APPROVED')::int AS approved,
+           COUNT(*) FILTER (WHERE pr.status = 'REJECTED')::int AS rejected,
+           COUNT(*) FILTER (WHERE pr.status = 'DRAFT')::int AS draft
+         FROM purchase_requests pr
+         WHERE ${countsFilter.sql}`,
+        countsFilter.params
       ),
     ]);
 
@@ -436,6 +472,7 @@ exports.getAll = async (req, res, next) => {
 // ── GET /api/purchase-requests/:id ────────────────────────────────────────────
 exports.getById = async (req, res, next) => {
   try {
+    await requireRequestInScope(pool, req, 'purchase_requests', req.params.id);
     const pr = await readPRById(pool, req.params.id);
     if (!pr) return res.status(404).json({ error: 'Purchase request not found' });
     const workflow = await buildPRWorkflow(pool, workflowInputs(pr));
@@ -447,8 +484,15 @@ exports.getById = async (req, res, next) => {
 exports.create = async (req, res, next) => {
   let client;
   try {
+    // Same rule as CAPEX: only the Project Owner originates requests.
+    if (!canRoleCreateRequests(req.user?.role)) {
+      return res.status(403).json({
+        error: `Role '${req.user?.role || 'Unknown'}' cannot raise purchase requests — this is the Project Owner's responsibility`,
+      });
+    }
+
     const body = requestBody(req);
-    const { title, description, requestorName, department, totalValue, lineItems, justification, capexRequestId } = body;
+    const { title, description, requestorName, department, organizationUnitId, totalValue, lineItems, justification, capexRequestId } = body;
     if (!title || totalValue === undefined) {
       return res.status(400).json({ error: 'title and totalValue are required' });
     }
@@ -477,20 +521,27 @@ exports.create = async (req, res, next) => {
     const reqName = requestorName || req.user?.full_name || req.user?.email || 'Unknown';
 
     const uploadedBy = req.user?.full_name || req.user?.email || 'Unknown';
+    // The business this request belongs to — sent explicitly by newer clients,
+    // otherwise mapped from the free-text department by the alias bridge.
+    const organizationUnit = await resolveOrganizationUnitId(client, {
+      organizationUnitId,
+      department,
+    });
     const { rows: [row] } = await client.query(
       `INSERT INTO purchase_requests
          (id, title, description, requestor_name, requestor_id, department, total_value,
           tier, status, quote_count, requires_justification, justification, line_items,
           approval_history, current_step_index, capex_request_id,
-          hsse_risk, worker_welfare_risk, suppliers, selected_supplier, current_budget_omr)
+          hsse_risk, worker_welfare_risk, suppliers, selected_supplier, current_budget_omr,
+          organization_unit_id)
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,'PENDING_APPROVAL',$9,$10,$11,$12,'[]'::jsonb,0,$13,
-               $14,$15,$16,$17,$18)
+               $14,$15,$16,$17,$18,$19)
        RETURNING *`,
       [id, title, description||'', reqName, toUuid(req.user?.id), department||'Unknown',
        Number(totalValue), tier, quotes, quotes < 3,
        justification||'', JSON.stringify(lineItems||[]), linkedCapexId,
        intake.hsseRisk, intake.workerWelfareRisk, JSON.stringify([]),
-       null, intake.currentBudget]
+       null, intake.currentBudget, organizationUnit]
     );
     const insertedQuotations = await replaceQuotations(client, id, quotations, uploadedBy);
     await syncPurchaseRequestQuoteProjection(client, id, insertedQuotations.map((q) => ({
@@ -538,6 +589,7 @@ exports.updateDraft = async (req, res, next) => {
     client = await pool.connect();
     await client.query('BEGIN');
 
+    await requireRequestInScope(client, req, 'purchase_requests', req.params.id);
     const { rows: [existing] } = await client.query(
       `SELECT * FROM purchase_requests WHERE id = $1 FOR UPDATE`, [req.params.id]
     );
@@ -605,6 +657,7 @@ exports.resubmit = async (req, res, next) => {
     client = await pool.connect();
     await client.query('BEGIN');
 
+    await requireRequestInScope(client, req, 'purchase_requests', req.params.id);
     const { rows: [existing] } = await client.query(
       `SELECT * FROM purchase_requests WHERE id = $1 FOR UPDATE`, [req.params.id]
     );
@@ -704,11 +757,31 @@ exports.approve = async (req, res, next) => {
       await client.query('ROLLBACK');
       return res.status(403).json({ error: 'You cannot approve or decide your own purchase request' });
     }
-    if (!isAdmin && currentStep && req.user?.role !== currentStep.role) {
-      await client.query('ROLLBACK');
-      return res.status(403).json({
-        error: `Role '${req.user?.role || 'Unknown'}' is not authorised to decide step '${currentStep.label}' (requires: ${currentStep.role})`,
+    if (!isAdmin && currentStep) {
+      // Same authority rules as CAPEX: the step's role is the only allowed role,
+      // and — once scoping is enforced — the decider must belong to the business
+      // the request was raised in.
+      const scope = await getScopeContext(req, client);
+      const authority = decisionAuthority(req.user, {}, [currentStep.role], {
+        tier: scope.tier,
+        isAdmin: scope.isAdmin,
+        organizationUnitIds: scope.organizationUnitIds,
+        requestOrganizationUnitId: pr.organization_unit_id,
+        requesterId: pr.requestor_id,
       });
+
+      const outOfScope = authority === 'out-of-scope';
+      if (outOfScope && scope.enforcement !== 'on') {
+        // Shadow mode: allow, but record what enforcement would have blocked.
+        console.warn(`[scope-shadow] ${req.user?.email || req.user?.role} decided ${pr.id} step '${currentStep.label}' outside their business`);
+      } else if (authority === 'denied' || authority === 'unconfigured' || outOfScope) {
+        await client.query('ROLLBACK');
+        return res.status(403).json({
+          error: outOfScope
+            ? `Role '${req.user?.role || 'Unknown'}' is authorised for step '${currentStep.label}', but ${pr.id} belongs to a business outside your assignment`
+            : `Role '${req.user?.role || 'Unknown'}' is not authorised to decide step '${currentStep.label}' (requires: ${currentStep.role})`,
+        });
+      }
     }
 
     const historyEntry = {
@@ -777,6 +850,7 @@ exports.selectSupplierQuotation = async (req, res, next) => {
     client = await pool.connect();
     await client.query('BEGIN');
 
+    await requireRequestInScope(client, req, 'purchase_requests', req.params.id);
     const { rows: [pr] } = await client.query(
       `SELECT * FROM purchase_requests WHERE id = $1 FOR UPDATE`,
       [req.params.id]
@@ -840,6 +914,7 @@ exports.selectSupplierQuotation = async (req, res, next) => {
 // ── GET /api/purchase-requests/:id/documents ─────────────────────────────────
 exports.getDocuments = async (req, res, next) => {
   try {
+    await requireRequestInScope(pool, req, 'purchase_requests', req.params.id);
     const { rows } = await pool.query(
       `SELECT id, pr_id, name, type, size, uploaded_by, uploaded_at, file_data IS NOT NULL AS has_file
        FROM pr_documents WHERE pr_id = $1 ORDER BY uploaded_at, id`,
@@ -867,6 +942,7 @@ exports.uploadDocument = async (req, res, next) => {
     client = await pool.connect();
     await client.query('BEGIN');
 
+    await requireRequestInScope(client, req, 'purchase_requests', req.params.id);
     const { rows: [pr] } = await client.query(
       `SELECT id FROM purchase_requests WHERE id = $1 FOR UPDATE`, [req.params.id]
     );
@@ -920,6 +996,7 @@ exports.uploadDocument = async (req, res, next) => {
 // ── GET /api/purchase-requests/:id/documents/:docId/download ─────────────────
 exports.downloadDocument = async (req, res, next) => {
   try {
+    await requireRequestInScope(pool, req, 'purchase_requests', req.params.id);
     const { rows: [row] } = await pool.query(
       `SELECT name, mime_type, file_data FROM pr_documents WHERE pr_id = $1 AND id = $2`,
       [req.params.id, req.params.docId]
@@ -934,6 +1011,7 @@ exports.downloadDocument = async (req, res, next) => {
 // ── GET /api/purchase-requests/:id/workflow ───────────────────────────────────
 exports.getWorkflowForPR = async (req, res, next) => {
   try {
+    await requireRequestInScope(pool, req, 'purchase_requests', req.params.id);
     const { rows: [pr] } = await pool.query(
       `SELECT department, tier, quote_count, hsse_risk, worker_welfare_risk
        FROM purchase_requests

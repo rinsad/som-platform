@@ -3,7 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { createPR } from '../../services/prService';
 import SelectField from '../../components/SelectField';
 import { notifyError, notifySuccess, notifyWarning } from '../../utils/toast';
-import SupplierQuotationEditor, { completeQuotationCount, emptyQuotationRow, normalizeQuotationRows } from './SupplierQuotationEditor';
+import SupplierQuotationEditor from './SupplierQuotationEditor';
+import { completeQuotationCount, emptyQuotationRow, normalizeQuotationRows } from './supplierQuotationUtils';
 
 const DEPARTMENTS = [
   'Admin', 'Finance', 'HR', 'Infrastructure',

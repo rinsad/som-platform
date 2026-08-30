@@ -89,8 +89,8 @@ export default function Navbar({ user, onLogout, showDashboardLink = false, vari
 
         <div className="som-public-main-row" style={styles.mainRow}>
           <div className="som-public-inner" style={styles.inner}>
-            <a href="/" style={styles.publicLogo} aria-label="Shell Oman Marketing home">
-              <img src="/leen-logo.png" alt="Leen" style={styles.publicLogoImg} />
+            <a href="/" style={styles.publicLogo} aria-label="SOM Connect home">
+              <img src="/som-connect-logo.png" alt="SOM Connect" style={styles.publicLogoImg} />
             </a>
 
             <nav className={`som-public-nav${isPreview ? ' is-preview-menu' : ''}`} style={isPreview ? { ...styles.navLinks, ...styles.previewNavLinks } : styles.navLinks} aria-label="Primary">
@@ -449,7 +449,7 @@ const publicStyles = {
     gap: 24,
   },
   publicLogo: {
-    width: 96,
+    width: 132,
     height: 78,
     display: 'flex',
     alignItems: 'center',
@@ -457,8 +457,8 @@ const publicStyles = {
     flexShrink: 0,
   },
   publicLogoImg: {
-    width: 92,
-    height: 68,
+    width: 128,
+    height: 72,
     objectFit: 'contain',
     display: 'block',
   },

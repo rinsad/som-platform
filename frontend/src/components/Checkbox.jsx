@@ -16,6 +16,7 @@ export default function Checkbox({
   id,
   style,
   'aria-label': ariaLabel,
+  'aria-describedby': ariaDescribedBy,
 }) {
   const ref = useRef(null);
 
@@ -40,6 +41,7 @@ export default function Checkbox({
         checked={checked}
         disabled={disabled}
         aria-label={ariaLabel}
+        aria-describedby={ariaDescribedBy}
         onChange={(e) => onChange?.(e.target.checked)}
       />
       <span className="som-checkbox-box" aria-hidden="true">

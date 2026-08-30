@@ -1,14 +1,54 @@
 const bcrypt = require('bcryptjs');
 const pool = require('../database/db');
 const { getRolePermissionPreset } = require('../config/capexRolePermissions');
+const { BUSINESS_FUNCTION_ANCHOR_ROLE, syncUserScopeAssignments } = require('../services/userScopeSync');
+const { roleScopeCatalog } = require('../config/capexDataScopes');
+
+const USER_PROFILE_SELECT = `
+  SELECT u.id, u.employee_id, u.full_name, u.email, u.role, u.department,
+         u.is_active, u.created_at,
+         business_function.organization_unit_id AS business_function_id,
+         business_function.name AS business_function_name
+    FROM som_users u
+    LEFT JOIN LATERAL (
+      SELECT a.organization_unit_id, o.name
+        FROM capex_v2.user_scope_assignments a
+        JOIN capex_v2.organization_units o ON o.id = a.organization_unit_id
+       WHERE a.user_id = u.id
+         AND a.role_name = '${BUSINESS_FUNCTION_ANCHOR_ROLE}'
+         AND a.scope_type = 'OWN'
+         AND a.is_active = TRUE
+         AND a.effective_from <= CURRENT_DATE
+         AND (a.effective_to IS NULL OR a.effective_to >= CURRENT_DATE)
+       ORDER BY a.created_at DESC
+       LIMIT 1
+    ) business_function ON TRUE`;
+
+// Reads the user's current Business / Function so a role change can re-derive
+// the scope row without the caller having to resend the business.
+async function currentBusinessFunctionId(client, userId) {
+  const { rows: [anchor] } = await client.query(
+    `SELECT organization_unit_id
+       FROM capex_v2.user_scope_assignments
+      WHERE user_id = $1
+        AND role_name = $2
+        AND scope_type = 'OWN'
+        AND is_active = TRUE
+        AND effective_from <= CURRENT_DATE
+        AND (effective_to IS NULL OR effective_to >= CURRENT_DATE)
+      ORDER BY created_at DESC
+      LIMIT 1`,
+    [userId, BUSINESS_FUNCTION_ANCHOR_ROLE]
+  );
+  return anchor?.organization_unit_id || null;
+}
 
 // ── List all users (no password hashes) ─────────────────────────────────────
 exports.listUsers = async (req, res, next) => {
   try {
     const { rows } = await pool.query(
-      `SELECT id, employee_id, full_name, email, role, department, is_active, created_at
-       FROM som_users
-       ORDER BY created_at DESC`
+      `${USER_PROFILE_SELECT}
+       ORDER BY u.created_at DESC`
     );
     res.json(rows);
   } catch (err) {
@@ -22,8 +62,8 @@ exports.getUser = async (req, res, next) => {
     const { id } = req.params;
 
     const userResult = await pool.query(
-      `SELECT id, employee_id, full_name, email, role, department, is_active, created_at
-       FROM som_users WHERE id = $1`,
+      `${USER_PROFILE_SELECT}
+       WHERE u.id = $1`,
       [id]
     );
     if (userResult.rows.length === 0) {
@@ -47,7 +87,7 @@ exports.getUser = async (req, res, next) => {
 exports.createUser = async (req, res, next) => {
   const client = await pool.connect();
   try {
-    const { employee_id, full_name, email, password, role, department, permissions = [] } = req.body;
+    const { employee_id, full_name, email, password, role, department, business_function_id, permissions = [] } = req.body;
 
     if (!full_name || !email || !password || !role) {
       return res.status(400).json({ error: 'full_name, email, password and role are required' });
@@ -68,9 +108,15 @@ exports.createUser = async (req, res, next) => {
     if (permissionsToApply.length > 0) {
       await _upsertPermissions(client, user.id, permissionsToApply);
     }
+    await syncUserScopeAssignments(client, {
+      userId: user.id,
+      role,
+      organizationUnitId: business_function_id || null,
+      actorId: req.user.id,
+    });
 
     await client.query('COMMIT');
-    res.status(201).json(user);
+    res.status(201).json({ ...user, business_function_id: business_function_id || null });
   } catch (err) {
     await client.query('ROLLBACK');
     if (err.code === '23505') {
@@ -87,7 +133,7 @@ exports.updateUser = async (req, res, next) => {
   const client = await pool.connect();
   try {
     const { id } = req.params;
-    const { employee_id, full_name, email, password, role, department, is_active, permissions } = req.body;
+    const { employee_id, full_name, email, password, role, department, business_function_id, is_active, permissions } = req.body;
 
     await client.query('BEGIN');
 
@@ -143,6 +189,22 @@ exports.updateUser = async (req, res, next) => {
       }
     }
 
+    // Re-derive scope rows whenever the business OR the role changes — the
+    // derived row is keyed on both, so a role change with no business in the
+    // payload would otherwise leave a stale assignment behind.
+    const roleChanged = role !== undefined && role !== existingUser.role;
+    if (business_function_id !== undefined || roleChanged) {
+      const organizationUnitId = business_function_id !== undefined
+        ? (business_function_id || null)
+        : await currentBusinessFunctionId(client, id);
+      await syncUserScopeAssignments(client, {
+        userId: id,
+        role: role !== undefined ? role : existingUser.role,
+        organizationUnitId,
+        actorId: req.user.id,
+      });
+    }
+
     await client.query('COMMIT');
     res.json({ message: 'User updated' });
   } catch (err) {
@@ -153,6 +215,28 @@ exports.updateUser = async (req, res, next) => {
     next(err);
   } finally {
     client.release();
+  }
+};
+
+// Which roles are company-wide and which need a Business / Function. Served so
+// the admin user form validates against the same map the backend enforces.
+exports.listRoleScopes = (req, res) => {
+  res.json(roleScopeCatalog());
+};
+
+exports.listBusinessFunctions = async (req, res, next) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT id, name
+         FROM capex_v2.organization_units
+        WHERE is_active = TRUE
+          AND effective_from <= CURRENT_DATE
+          AND (effective_to IS NULL OR effective_to >= CURRENT_DATE)
+        ORDER BY name`
+    );
+    res.json(rows);
+  } catch (err) {
+    next(err);
   }
 };
 

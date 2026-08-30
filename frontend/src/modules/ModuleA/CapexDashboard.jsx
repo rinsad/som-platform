@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useRef, useId } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import {
   Chart, BarController, BarElement, CategoryScale, LinearScale, Tooltip, Legend,
 } from 'chart.js';
@@ -7,7 +7,7 @@ import { ArrowRight, CalendarClock, ChevronDown, CircleAlert, Download, Plus, Re
 import {
   getDepartments, getSyncStatus, getGsapData,
   getInitiations, createInitiation,
-  getCapexRequests, getCapexRequest, createCapexRequest, decideCapexRequest,
+  getCapexRequests, getCapexRequest, decideCapexRequest,
   updateCapexRequest, resubmitCapexRequest, delegateCapexStep, getCapexDelegateCandidates, decideCapexBudgetVariation,
   updateCapexProcurement, createCapexMilestone, updateCapexMilestone,
   saveCapexFinancialClosure, getCapexAuditLogs, getCapexReportCsvUrl,
@@ -18,6 +18,7 @@ import {
   createCapexMoa, createCapexDocumentVersion, createCapexSignature,
   createCapexBudgetVariation, updateCapexProcurementPerformance, updateCapexDecisionGate,
   getCapexAdminConfig, updateCapexThresholds, updateCapexWorkflowRule,
+  createCapexAssetCategory, updateCapexAssetCategory,
   uploadCapexAttachment, downloadCapexAttachment,
   getManualEntries, createManualEntry,
   DEPT_NAMES,
@@ -30,13 +31,13 @@ import SelectField from '../../components/SelectField';
 import FileUploadField from '../../components/FileUploadField';
 import Checkbox from '../../components/Checkbox';
 import Badge from '../../components/Badge';
+import NoBusinessScope from '../../components/NoBusinessScope';
 import { fieldInputStyle } from '../../components/fieldStyles';
 import { USER_ROLES } from '../../services/usersService';
 import { notifyError, notifySuccess, notifyWarning } from '../../utils/toast';
 import ManualEntryModal        from './ManualEntryModal';
 import CapexInitiationForm     from './CapexInitiationForm';
 import CapexBudgetUploadModal  from './CapexBudgetUploadModal';
-import CapexRequestForm        from './CapexRequestForm';
 
 if (typeof Chart.register === 'function') {
   Chart.register(BarController, BarElement, CategoryScale, LinearScale, Tooltip, Legend);
@@ -55,6 +56,7 @@ const AUDIT_EVENT_LABELS = {
   REQUEST_REJECTED: 'Rejected',
   REQUEST_EDITED: 'Edited after return',
   REQUEST_RESUBMITTED: 'Resubmitted',
+  HSSE_ASSESSED: 'HSSE screening completed',
   APPROVAL_STEP_APPROVED: 'Approval step approved',
   APPROVAL_OVERRIDE: 'Admin override',
   STEP_DELEGATED: 'Delegated',
@@ -83,9 +85,36 @@ function fmtDateTime(value) {
 
 function fmtDate(value) {
   if (!value) return '-';
-  const date = new Date(value);
+  // DATE columns arrive as a bare 'YYYY-MM-DD' calendar day. `new Date` would
+  // read that as UTC midnight and render the previous day west of Greenwich, so
+  // build it from local parts instead. Timestamps still go through `new Date`.
+  const dayOnly = typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value);
+  const date = dayOnly
+    ? new Date(Number(value.slice(0, 4)), Number(value.slice(5, 7)) - 1, Number(value.slice(8, 10)))
+    : new Date(value);
   if (Number.isNaN(date.getTime())) return '-';
   return date.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+}
+
+// "Stage one is from which period to which period" — the planned window, plus
+// the actual completion once it lands, so slippage reads off a single line.
+function milestonePeriodLabel(milestone) {
+  const { plannedStartDate, plannedDate, actualDate } = milestone;
+  let planned;
+  if (plannedStartDate && plannedDate) planned = `${fmtDate(plannedStartDate)} → ${fmtDate(plannedDate)}`;
+  else if (plannedDate) planned = `Due ${fmtDate(plannedDate)}`;
+  else if (plannedStartDate) planned = `From ${fmtDate(plannedStartDate)}`;
+  else planned = 'No planned period';
+  if (!actualDate) return planned;
+
+  let variance = '';
+  if (plannedDate) {
+    const days = Math.round((new Date(actualDate) - new Date(plannedDate)) / 86400000);
+    if (days > 0) variance = ` · ${days} day${days === 1 ? '' : 's'} late`;
+    else if (days < 0) variance = ` · ${-days} day${days === -1 ? '' : 's'} early`;
+    else variance = ' · on time';
+  }
+  return `${planned} · Completed ${fmtDate(actualDate)}${variance}`;
 }
 
 function latestBenefitReview(reviews = []) {
@@ -179,6 +208,7 @@ const WORKFLOW_ROLE_OPTIONS = [
   'CFO',
   'CEO/Board',
 ];
+const HSSE_RISK_RATINGS = ['Low', 'Medium', 'High'];
 
 const WORKFLOW_USER_ROLE_OPTIONS = USER_ROLES.filter(role => WORKFLOW_ROLE_OPTIONS.includes(role));
 
@@ -476,6 +506,9 @@ function WorkflowStepper({ steps = [], currentStepId }) {
             </div>
             <div style={s.stepLabel} title={step.label}>{step.label}</div>
             <span style={{ ...s.stepPill, ...pill }}>{isDone ? 'Approved' : isCurrent ? 'Current' : step.status}</span>
+            {isCurrent && step.pendingDays !== null && step.pendingDays !== undefined && (
+              <span style={s.stepAge}>{step.pendingDays} pending day{step.pendingDays === 1 ? '' : 's'}</span>
+            )}
           </div>
         );
       })}
@@ -495,10 +528,96 @@ const ALL_TABS = [
   { id: 'initiations', label: 'Initiations',    permKey: 'capex.initiations' },
 ];
 
+const DETAIL_GROUPS = [
+  { key: 'overview', label: 'Overview', sections: [{ key: 'summary', label: 'Project overview' }] },
+  {
+    key: 'approvals',
+    label: 'Approvals',
+    sections: [
+      { key: 'approvals', label: 'Approval workflow' },
+      { key: 'governance', label: 'MOA & decision gates' },
+    ],
+  },
+  { key: 'procurement', label: 'Procurement', sections: [{ key: 'procurement', label: 'Supplier & purchasing' }] },
+  {
+    key: 'execution',
+    label: 'Execution & risk',
+    sections: [
+      { key: 'execution', label: 'Milestones' },
+      { key: 'performance', label: 'Performance, benefits & risk' },
+    ],
+  },
+  {
+    key: 'closure',
+    label: 'Closure',
+    sections: [
+      { key: 'financial', label: 'Financial closure' },
+      { key: 'auc', label: 'AUC & PO closure' },
+      { key: 'checklist', label: 'Closure checklist' },
+    ],
+  },
+  {
+    key: 'documents',
+    label: 'Documents',
+    sections: [{ key: 'documents', label: 'Documents & signatures' }],
+  },
+  { key: 'audit', label: 'Audit trail', sections: [{ key: 'audit', label: 'Audit trail' }] },
+];
+
+const DETAIL_SECTION_KEYS = new Set(DETAIL_GROUPS.flatMap((group) => group.sections.map((section) => section.key)));
+
+const PROCUREMENT_VISIBLE_STATUSES = new Set([
+  'Approved', 'Procurement in progress', 'GSAP project created', 'PR created',
+  'PO created', 'PO uploaded', 'In execution', 'Delayed', 'Technically complete',
+  'Physically complete', 'Pending PO closure', 'Pending AUC review',
+  'Pending capitalization', 'Pending asset handover', 'Pending benefits review',
+  'Pending final closure', 'Closed',
+]);
+const AUC_VISIBLE_STATUSES = new Set([
+  'PO created', 'PO uploaded', 'In execution', 'Delayed', 'Technically complete',
+  'Physically complete', 'Pending PO closure', 'Pending AUC review',
+  'Pending capitalization', 'Pending asset handover', 'Pending benefits review',
+  'Pending final closure', 'Closed',
+]);
+const EXECUTION_VISIBLE_STATUSES = new Set([
+  'PO uploaded', 'In execution', 'Delayed', 'Technically complete', 'Physically complete',
+  'Pending PO closure', 'Pending AUC review', 'Pending capitalization',
+  'Pending asset handover', 'Pending benefits review', 'Pending final closure', 'Closed',
+]);
+const CLOSURE_VISIBLE_STATUSES = new Set([
+  'Technically complete', 'Physically complete', 'Pending PO closure',
+  'Pending AUC review', 'Pending capitalization', 'Pending asset handover',
+  'Pending benefits review', 'Pending final closure', 'Closed',
+]);
+
+function detailGroupsForStatus(status) {
+  return DETAIL_GROUPS.flatMap(group => {
+    if (group.key === 'procurement' && !PROCUREMENT_VISIBLE_STATUSES.has(status)) return [];
+    if (group.key === 'execution' && !EXECUTION_VISIBLE_STATUSES.has(status)) return [];
+    if (group.key !== 'closure') return [group];
+
+    const sections = group.sections.filter(section => (
+      section.key === 'auc' ? AUC_VISIBLE_STATUSES.has(status) : CLOSURE_VISIBLE_STATUSES.has(status)
+    ));
+    return sections.length ? [{ ...group, label: sections.length === 1 ? 'AUC / PO Tracking' : group.label, sections }] : [];
+  });
+}
+
+function detailSectionIsVisible(status, sectionKey) {
+  return detailGroupsForStatus(status).some(group => group.sections.some(section => section.key === sectionKey));
+}
+
+function detailSectionFromHash() {
+  if (typeof window === 'undefined') return 'summary';
+  const section = window.location.hash.replace(/^#/, '');
+  return DETAIL_SECTION_KEYS.has(section) ? section : 'summary';
+}
+
 // ── Component ─────────────────────────────────────────────────────────────────
 export default function CapexDashboard() {
   const navigate = useNavigate();
   const { requestId: routeRequestId } = useParams();
+  const [searchParams] = useSearchParams();
   const isRequestDetailRoute = Boolean(routeRequestId);
   const { canView, canCreate, canEdit } = usePermissions();
 
@@ -507,7 +626,11 @@ export default function CapexDashboard() {
     return true;
   });
 
-  const [activeTab,      setActiveTab]      = useState(() => (routeRequestId ? 'requests' : (TABS[0]?.id || 'overview')));
+  const [activeTab,      setActiveTab]      = useState(() => {
+    if (routeRequestId) return 'requests';
+    const requestedTab = searchParams.get('tab');
+    return TABS.some((tab) => tab.id === requestedTab) ? requestedTab : (TABS[0]?.id || 'overview');
+  });
   const [depts,          setDepts]          = useState([]);
   const [syncStatus,     setSyncStatus]     = useState(null);
   const [gsapData,       setGsapData]       = useState(null);
@@ -519,17 +642,20 @@ export default function CapexDashboard() {
   const [error,          setError]          = useState('');
   const [selectedDept,   setSelectedDept]   = useState('');
   const [showManual,     setShowManual]      = useState(false);
-  const [showRequestForm,setShowRequestForm] = useState(false);
   const [showInitForm,   setShowInitForm]    = useState(false);
   const [showBudgetUpload, setShowBudgetUpload] = useState(false);
   const [thresholdSaveState, setThresholdSaveState] = useState('idle');
   const [workflowSaveState, setWorkflowSaveState] = useState({});
+  const [assetCategorySaveState, setAssetCategorySaveState] = useState({});
+  const [newAssetCategory, setNewAssetCategory] = useState({ name: '', description: '', sortOrder: '' });
+  const [newAssetCategoryState, setNewAssetCategoryState] = useState('idle');
   const [auditLogs,      setAuditLogs]      = useState([]);
   const [approvalActionState, setApprovalActionState] = useState('idle');
   const [approvalActionNotice, setApprovalActionNotice] = useState('');
   const [procurementForm,setProcurementForm]= useState({});
   const [procurementError, setProcurementError] = useState('');
-  const [milestoneForm,  setMilestoneForm]  = useState({ stageName: '', milestoneName: '', plannedDate: '', actualDate: '', paymentPercentage: '', paymentAmount: '', completionEvidence: '' });
+  const [milestoneForm,  setMilestoneForm]  = useState({ stageName: '', milestoneName: '', plannedStartDate: '', plannedDate: '', actualDate: '', paymentPercentage: '', paymentAmount: '', comments: '' });
+  const [milestoneEvidenceUploadId, setMilestoneEvidenceUploadId] = useState(null);
   const [milestoneError, setMilestoneError] = useState('');
   const [closureForm,    setClosureForm]    = useState({ actualSpend: '', finalRoi: '', finalSavings: '', financeComments: '', capexFormAttachment: '' });
   const [closureError,   setClosureError]   = useState('');
@@ -542,7 +668,7 @@ export default function CapexDashboard() {
   const [showAllSchedules, setShowAllSchedules] = useState(false);
   const [adminConfig,    setAdminConfig]    = useState(null);
   const [thresholdForm,  setThresholdForm]  = useState({ lowMaxOmr: 25000, mediumMaxOmr: 300000 });
-  const [attachmentType, setAttachmentType] = useState('Scope Document');
+  const [attachmentType, setAttachmentType] = useState('HSSE Evidence');
   const [uploadProgress, setUploadProgress] = useState(null); // null = idle, 0–100 = uploading
   const [poAttachmentUploadProgress, setPoAttachmentUploadProgress] = useState(null);
   const [closureAttachmentUploadProgress, setClosureAttachmentUploadProgress] = useState(null);
@@ -561,25 +687,28 @@ export default function CapexDashboard() {
   const [docVersionForm, setDocVersionForm] = useState({ documentType: 'MOA', documentName: '', versionLabel: 'v1', changelog: '', retentionUntil: '' });
   const [signatureForm,  setSignatureForm]  = useState({ linkedType: 'MOA', linkedId: '', decision: 'Signed' });
   const [scheduleForm,   setScheduleForm]   = useState({ reportName: 'Monthly CAPEX Governance Pack', reportType: 'governance', audience: 'CEO/CFO', frequency: 'Monthly', format: 'PDF', recipients: '', nextRunDate: '' });
-  const [returnedEditForm, setReturnedEditForm] = useState({ title: '', currentCostBudget: '', estimatedValue: '', acvPoValue: '', scopeDetails: '', fewerThan3Justification: '' });
+  const [returnedEditForm, setReturnedEditForm] = useState({ title: '', currentCostBudget: '', estimatedValue: '', acvPoValue: '', urgent: false, scopeDetails: '', fewerThan3Justification: '' });
   const [delegateTo,     setDelegateTo]     = useState('');
   const [delegateCandidates, setDelegateCandidates] = useState([]);
   const [delegateLoadState, setDelegateLoadState] = useState('idle');
   const [reqSearch,      setReqSearch]      = useState('');
   const [reqStatusFilter,setReqStatusFilter]= useState('');
   const [reqDeptFilter,  setReqDeptFilter]  = useState('');
+  const [reqUrgencyFilter,setReqUrgencyFilter] = useState('');
   const [reqSort,        setReqSort]        = useState({ key: 'submitted', direction: 'desc' });
-  const [activeSection,  setActiveSection]  = useState('summary');
+  const [activeSection,  setActiveSection]  = useState(detailSectionFromHash);
   const [showMoaModal,   setShowMoaModal]   = useState(false);
   const [editingMoaId,   setEditingMoaId]   = useState(null);
   const [showVariationModal, setShowVariationModal] = useState(false);
   const [showRiskModal,  setShowRiskModal]  = useState(false);
   const [showScheduleModal, setShowScheduleModal] = useState(false);
   const [decisionModal,  setDecisionModal]  = useState({ decision: '', comment: '', error: '' });
+  const [hsseAssessment, setHsseAssessment] = useState({ hsseRisk: '', workerWelfareRisk: '' });
 
   const currentUser = (() => { try { return JSON.parse(localStorage.getItem('som_user') || '{}'); } catch { return {}; } })();
   const currentStep = currentApprovalStep(selectedRequest);
   const canDecideCurrentStep = canUserDecideStep(currentUser, currentStep.step);
+  const isCurrentHsseScreening = currentStep.step?.approverRole === 'HSSE Focal';
 
   const overviewChartRef = useRef(null);
   const overviewChartInst = useRef(null);
@@ -662,6 +791,12 @@ export default function CapexDashboard() {
   }, [routeRequestId]);
 
   useEffect(() => {
+    if (routeRequestId) return;
+    const requestedTab = searchParams.get('tab');
+    if (TABS.some((tab) => tab.id === requestedTab)) setActiveTab(requestedTab);
+  }, [routeRequestId, searchParams]);
+
+  useEffect(() => {
     if (!selectedRequest) return;
     setProcurementError('');
     setMilestoneError('');
@@ -695,8 +830,13 @@ export default function CapexDashboard() {
       currentCostBudget: selectedRequest.currentCostBudget ?? '',
       estimatedValue: selectedRequest.estimatedValue ?? '',
       acvPoValue: selectedRequest.acvPoValue ?? '',
+      urgent: !!selectedRequest.urgent,
       scopeDetails: selectedRequest.scopeDetails || '',
       fewerThan3Justification: selectedRequest.fewerThan3Justification || '',
+    });
+    setHsseAssessment({
+      hsseRisk: HSSE_RISK_RATINGS.includes(selectedRequest.hsseRisk) ? selectedRequest.hsseRisk : '',
+      workerWelfareRisk: HSSE_RISK_RATINGS.includes(selectedRequest.workerWelfareRisk) ? selectedRequest.workerWelfareRisk : '',
     });
     setClosureForm({
       actualSpend: selectedRequest.financialClosure?.actualSpend || '',
@@ -781,20 +921,6 @@ export default function CapexDashboard() {
     return () => { cancelled = true; };
   }, [selectedRequest?.id, selectedRequest?.currentStepId, canDecideCurrentStep]);
 
-  // Scroll-spy: keep the "On this request" rail in sync with the section in view
-  useEffect(() => {
-    if (!selectedRequest) return;
-    const els = Array.from(document.querySelectorAll('[id^="capex-sec-"]'));
-    if (!els.length) return;
-    const observer = new IntersectionObserver((entries) => {
-      const visible = entries.filter(e => e.isIntersecting)
-        .sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top);
-      if (visible.length) setActiveSection(visible[0].target.id.replace('capex-sec-', ''));
-    }, { rootMargin: '-15% 0px -75% 0px', threshold: 0 });
-    els.forEach(el => observer.observe(el));
-    return () => observer.disconnect();
-  }, [selectedRequest]);
-
   useEffect(() => {
     let cancelled = false;
 
@@ -803,7 +929,7 @@ export default function CapexDashboard() {
       return () => { cancelled = true; };
     }
 
-    setActiveSection('summary');
+    setActiveSection(detailSectionFromHash());
     window.scrollTo({ top: 0, behavior: 'auto' });
 
     getCapexRequest(routeRequestId)
@@ -822,6 +948,13 @@ export default function CapexDashboard() {
   }, [navigate, routeRequestId]);
 
   useEffect(() => {
+    if (!selectedRequest || detailSectionIsVisible(selectedRequest.status, activeSection)) return;
+    setActiveSection('summary');
+    const nextUrl = `${window.location.pathname}${window.location.search}#summary`;
+    window.history.replaceState(window.history.state, '', nextUrl);
+  }, [activeSection, selectedRequest]);
+
+  useEffect(() => {
     if (routeRequestId && activeTab !== 'requests') {
       navigate('/capex', { replace: true });
     }
@@ -835,9 +968,47 @@ export default function CapexDashboard() {
     navigate('/capex');
   }
 
-  function scrollToSection(key) {
+  function selectDetailSection(key) {
     setActiveSection(key);
-    document.getElementById(`capex-sec-${key}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    const nextUrl = `${window.location.pathname}${window.location.search}#${key}`;
+    window.history.replaceState(window.history.state, '', nextUrl);
+    requestAnimationFrame(() => {
+      document.getElementById('capex-detail-tabs')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  }
+
+  function selectDetailGroup(group) {
+    const currentSectionBelongsToGroup = group.sections.some((section) => section.key === activeSection);
+    selectDetailSection(currentSectionBelongsToGroup ? activeSection : group.sections[0].key);
+  }
+
+  function detailGroupProgress(groupKey) {
+    if (!selectedRequest) return '';
+
+    if (groupKey === 'overview') return selectedRequest.scopeDetails ? 'Complete' : 'Needs input';
+    if (groupKey === 'approvals') {
+      const steps = (selectedRequest.approvalSteps || []).filter((step) => step.status !== 'Superseded');
+      const completed = steps.filter((step) => ['Approved', 'Completed', 'Passed'].includes(step.status)).length;
+      return `${completed}/${steps.length} approved`;
+    }
+    if (groupKey === 'procurement') {
+      const quoteCount = selectedRequest.quotations?.length || 0;
+      return quoteCount >= 3 ? 'Quote-ready' : `${quoteCount}/3 quotes`;
+    }
+    if (groupKey === 'execution') {
+      const milestoneCount = selectedRequest.milestones?.length || 0;
+      return `${milestoneCount} milestone${milestoneCount === 1 ? '' : 's'}`;
+    }
+    if (groupKey === 'closure') {
+      const checklist = selectedRequest.closureChecklist || [];
+      const completed = checklist.filter((item) => item.status === 'Completed').length;
+      return `${completed}/${checklist.length} complete`;
+    }
+    if (groupKey === 'documents') {
+      const documentCount = selectedRequest.attachments?.length || 0;
+      return `${documentCount} file${documentCount === 1 ? '' : 's'}`;
+    }
+    return `${auditLogs.length} event${auditLogs.length === 1 ? '' : 's'}`;
   }
 
   function openCreateMoaModal() {
@@ -886,13 +1057,6 @@ export default function CapexDashboard() {
     setDrilldownRows(drill.rows || []);
   }
 
-  async function handleCreateCapexRequest(data) {
-    const created = await createCapexRequest(data);
-    setCapexRequests((prev) => [created, ...prev]);
-    setShowRequestForm(false);
-    notifySuccess(`CAPEX request "${created.title}" created.`);
-  }
-
   async function handleCapexDecision(decision) {
     if (!selectedRequest) return;
     if (decision !== 'APPROVED') {
@@ -902,7 +1066,8 @@ export default function CapexDashboard() {
     setApprovalActionState('saving');
     setApprovalActionNotice('');
     try {
-      const updated = await decideCapexRequest(selectedRequest.id, decision, '');
+      const assessment = isCurrentHsseScreening ? hsseAssessment : {};
+      const updated = await decideCapexRequest(selectedRequest.id, decision, '', assessment);
       setSelectedRequest(updated);
       const requests = await getCapexRequests();
       setCapexRequests(requests);
@@ -942,6 +1107,7 @@ export default function CapexDashboard() {
         savings: returnedBudgetVariance === null ? undefined : returnedBudgetVariance,
       });
       setSelectedRequest(updated);
+      setCapexRequests(await getCapexRequests());
       notifySuccess('Request changes saved.');
     } catch (err) {
       notifyError(err, 'Failed to save changes.');
@@ -1017,9 +1183,14 @@ export default function CapexDashboard() {
       setMilestoneError(`Milestones can be added after PO upload. Current status: ${selectedRequest.status || 'Unknown'}.`);
       return;
     }
+    if (milestoneForm.plannedStartDate && milestoneForm.plannedDate
+      && milestoneForm.plannedStartDate > milestoneForm.plannedDate) {
+      setMilestoneError('Planned start date cannot be after the planned completion date.');
+      return;
+    }
     try {
       await createCapexMilestone(selectedRequest.id, milestoneForm);
-      setMilestoneForm({ stageName: '', milestoneName: '', plannedDate: '', actualDate: '', paymentPercentage: '', paymentAmount: '', completionEvidence: '' });
+      setMilestoneForm({ stageName: '', milestoneName: '', plannedStartDate: '', plannedDate: '', actualDate: '', paymentPercentage: '', paymentAmount: '', comments: '' });
       setMilestoneError('');
       await refreshSelectedRequest();
       notifySuccess('Milestone added.');
@@ -1364,6 +1535,32 @@ export default function CapexDashboard() {
     }
   }
 
+  async function handleMilestoneEvidenceUpload(e, milestone) {
+    const file = e.target.files?.[0];
+    if (!file || !selectedRequest) return;
+    const input = e.target;
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('type', 'Milestone Evidence');
+    formData.append('linkedType', 'Milestone');
+    formData.append('linkedId', String(milestone.id));
+    formData.append('retentionYears', '7');
+    setMilestoneEvidenceUploadId(milestone.id);
+    try {
+      await uploadCapexAttachment(selectedRequest.id, formData);
+      input.value = '';
+      setMilestoneError('');
+      await refreshSelectedRequest();
+      notifySuccess('Milestone evidence uploaded.');
+    } catch (err) {
+      const message = err.message || 'Failed to upload milestone evidence.';
+      setMilestoneError(message);
+      notifyError(message);
+    } finally {
+      setMilestoneEvidenceUploadId(null);
+    }
+  }
+
   async function handleClosureAttachmentUpload(e) {
     const file = e.target.files?.[0];
     if (!file || !selectedRequest) return;
@@ -1451,6 +1648,68 @@ export default function CapexDashboard() {
     }
   }
 
+  // ── Asset categories (admin-maintained list of values) ─────────────────────
+  // Edits are held locally per row and pushed on Save, matching the workflow
+  // matrix above. There is no delete: categories are referenced by requests and
+  // capitalization records, so retiring one means clearing Active.
+
+  function handleAssetCategoryChange(category, field, value) {
+    setAdminConfig(prev => ({
+      ...prev,
+      assetCategories: prev.assetCategories.map(c => c.id === category.id ? { ...c, [field]: value } : c),
+    }));
+  }
+
+  async function handleSaveAssetCategory(category) {
+    if (!String(category.name || '').trim()) {
+      notifyError('Asset category name cannot be blank.');
+      return;
+    }
+    setAssetCategorySaveState(prev => ({ ...prev, [category.id]: 'saving' }));
+    try {
+      await updateCapexAssetCategory(category.id, {
+        name: category.name,
+        description: category.description,
+        sortOrder: Number(category.sortOrder),
+        isActive: category.isActive,
+      });
+      const config = await getCapexAdminConfig();
+      setAdminConfig(config);
+      setAssetCategorySaveState(prev => ({ ...prev, [category.id]: 'saved' }));
+      notifySuccess('Asset category saved.');
+      setTimeout(() => {
+        setAssetCategorySaveState(prev => ({ ...prev, [category.id]: 'idle' }));
+      }, 1600);
+    } catch (err) {
+      setAssetCategorySaveState(prev => ({ ...prev, [category.id]: 'idle' }));
+      notifyError(err, 'Failed to save asset category.');
+    }
+  }
+
+  async function handleCreateAssetCategory() {
+    if (!newAssetCategory.name.trim()) {
+      notifyError('Asset category name is required.');
+      return;
+    }
+    setNewAssetCategoryState('saving');
+    try {
+      await createCapexAssetCategory({
+        name: newAssetCategory.name.trim(),
+        description: newAssetCategory.description.trim() || null,
+        sortOrder: newAssetCategory.sortOrder === '' ? undefined : Number(newAssetCategory.sortOrder),
+      });
+      const config = await getCapexAdminConfig();
+      setAdminConfig(config);
+      setNewAssetCategory({ name: '', description: '', sortOrder: '' });
+      setNewAssetCategoryState('saved');
+      notifySuccess('Asset category added.');
+      setTimeout(() => setNewAssetCategoryState('idle'), 1600);
+    } catch (err) {
+      setNewAssetCategoryState('idle');
+      notifyError(err, 'Failed to add asset category.');
+    }
+  }
+
   // ── Overview chart (aggregated monthly) ────────────────────────────────────
   useEffect(() => {
     if (activeTab !== 'overview') return;
@@ -1522,7 +1781,9 @@ export default function CapexDashboard() {
     const matchesSearch = !q || [r.id, r.title, r.department].some((v) => String(v || '').toLowerCase().includes(q));
     const matchesStatus = !reqStatusFilter || r.status === reqStatusFilter;
     const matchesDept   = !reqDeptFilter || r.department === reqDeptFilter;
-    return matchesSearch && matchesStatus && matchesDept;
+    const matchesUrgency = !reqUrgencyFilter
+      || (reqUrgencyFilter === 'urgent' ? !!r.urgent : !r.urgent);
+    return matchesSearch && matchesStatus && matchesDept && matchesUrgency;
   });
   const sortedRequests = useMemo(() => {
     const dateFor = (row) => reqSort.key === 'updated'
@@ -1536,28 +1797,19 @@ export default function CapexDashboard() {
       return (requestSequenceValue(a.id) - requestSequenceValue(b.id)) * multiplier;
     });
   }, [filteredRequests, reqSort]);
-  const requestFiltersActive = !!(reqSearch.trim() || reqStatusFilter || reqDeptFilter);
-  const clearRequestFilters = () => { setReqSearch(''); setReqStatusFilter(''); setReqDeptFilter(''); };
+  const requestFiltersActive = !!(reqSearch.trim() || reqStatusFilter || reqDeptFilter || reqUrgencyFilter);
+  const clearRequestFilters = () => {
+    setReqSearch('');
+    setReqStatusFilter('');
+    setReqDeptFilter('');
+    setReqUrgencyFilter('');
+  };
   const handleRequestSort = (key) => {
     setReqSort(prev => ({
       key,
       direction: prev.key === key && prev.direction === 'desc' ? 'asc' : 'desc',
     }));
   };
-
-  const DETAIL_SECTIONS = [
-    { key: 'summary',     label: 'Overview' },
-    { key: 'approvals',   label: 'Approvals' },
-    { key: 'procurement', label: 'Procurement' },
-    { key: 'execution',   label: 'Execution' },
-    { key: 'financial',   label: 'Financial closure' },
-    { key: 'auc',         label: 'AUC & PO closure' },
-    { key: 'checklist',   label: 'Closure checklist' },
-    { key: 'governance',  label: 'MOA & gates' },
-    { key: 'performance', label: 'Performance & risk' },
-    { key: 'documents',   label: 'Documents' },
-    { key: 'audit',       label: 'Audit history' },
-  ];
 
   // ── Totals ──────────────────────────────────────────────────────────────────
   const totalBudget    = depts.reduce((s, d) => s + d.totalBudget, 0);
@@ -1607,6 +1859,15 @@ export default function CapexDashboard() {
   const canEditProcurementPerformance = canEdit('capex.procurement');
   const canEditBenefitReview = canEdit('capex.finance');
   const canEditDocuments = canCreate('capex.documents');
+  const visibleDetailGroups = detailGroupsForStatus(selectedRequest?.status);
+  const strategyAttachment = (selectedRequest?.attachments || []).find(attachment => attachment.type === 'Project Strategy / Scope');
+  const proposedQuotation = (selectedRequest?.quotations || []).find(quotation => quotation.isSelected);
+  const quotationAttachment = (quotation) => (selectedRequest?.attachments || []).find(attachment =>
+    attachment.linkedType === 'Supplier Quotation' && String(attachment.linkedId) === String(quotation.id)
+  );
+  const milestoneAttachments = (milestone) => (selectedRequest?.attachments || []).filter(attachment =>
+    attachment.linkedType === 'Milestone' && String(attachment.linkedId) === String(milestone.id)
+  );
   const poAttachmentRecord = (selectedRequest?.attachments || []).find((attachment) => attachment.name === procurementForm.poAttachmentName);
   const closureAttachmentOptions = (selectedRequest?.attachments || []).map((attachment) => ({
     value: attachment.name,
@@ -2023,17 +2284,10 @@ export default function CapexDashboard() {
                 <a href={getCapexReportCsvUrl()} style={{ ...s.secondaryBtn, textDecoration: 'none' }}>Export CSV</a>
               )}
               {canCreate('capex.requests') && (
-                <button type="button" style={s.primaryBtn} onClick={() => setShowRequestForm(true)}>+ New CAPEX Request</button>
+                <button type="button" style={s.primaryBtn} onClick={() => navigate('/capex/requests/new')}>+ New CAPEX Request</button>
               )}
             </div>
           </div>
-
-          {showRequestForm && (
-            <CapexRequestForm
-              onSubmit={handleCreateCapexRequest}
-              onCancel={() => setShowRequestForm(false)}
-            />
-          )}
 
           <div style={s.section}>
             <div style={s.reqToolbar}>
@@ -2045,14 +2299,30 @@ export default function CapexDashboard() {
               />
               <SelectField style={s.reqFilter} value={reqStatusFilter} onChange={setReqStatusFilter} options={requestStatusOptions} placeholder="All statuses" aria-label="Filter by status" />
               <SelectField style={s.reqFilter} value={reqDeptFilter} onChange={setReqDeptFilter} options={requestDeptOptions} placeholder="All departments" aria-label="Filter by department" />
+              <SelectField
+                style={s.reqFilter}
+                value={reqUrgencyFilter}
+                onChange={setReqUrgencyFilter}
+                options={[
+                  { value: 'urgent', label: 'Urgent' },
+                  { value: 'standard', label: 'Standard' },
+                ]}
+                placeholder="All urgency"
+                aria-label="Filter by urgency"
+              />
               {requestFiltersActive && <button type="button" style={s.secondaryBtn} onClick={clearRequestFilters}>Clear</button>}
               <span style={s.reqCount}>Showing {filteredRequests.length} of {capexRequests.length}</span>
             </div>
 
             {!capexRequests.length ? (
-              <p style={{ color: 'var(--label-secondary)', fontSize: 14, padding: '16px 0' }}>
-                No CAPEX requests yet. Create the first request to start workflow routing.
-              </p>
+              <>
+                {/* An unassigned user sees an empty list because scoping fails
+                    closed — say so rather than implying there is no work. */}
+                <NoBusinessScope />
+                <p style={{ color: 'var(--label-secondary)', fontSize: 14, padding: '16px 0' }}>
+                  No CAPEX requests yet. Create the first request to start workflow routing.
+                </p>
+              </>
             ) : !filteredRequests.length ? (
               <div style={{ padding: '24px 0', textAlign: 'center' }}>
                 <p style={{ color: 'var(--label-secondary)', fontSize: 14, marginBottom: 10 }}>No requests match your filters.</p>
@@ -2068,7 +2338,9 @@ export default function CapexDashboard() {
                       <th style={s.th}>Department</th>
                       <th style={{ ...s.th, textAlign: 'right' }}>Value</th>
                       <th style={s.th}>Band</th>
+                      <th style={s.th}>Priority</th>
                       <th style={s.th}>Status</th>
+                      <th style={s.th}>Pending</th>
                       <th style={s.th} aria-sort={reqSort.key === 'submitted' ? (reqSort.direction === 'desc' ? 'descending' : 'ascending') : 'none'}>
                         <SortableDateHeader label="Submitted" sortKey="submitted" currentSort={reqSort} onSort={handleRequestSort} />
                       </th>
@@ -2088,7 +2360,9 @@ export default function CapexDashboard() {
                         <td style={s.td}>{r.department}</td>
                         <td style={{ ...s.td, textAlign: 'right', fontWeight: 700 }}>{fmtOMR(r.estimatedValue)}</td>
                         <td style={s.td}><Badge status={r.valueBand === 'LOW' ? 'Low' : r.valueBand === 'MEDIUM' ? 'Medium' : 'High'} /></td>
+                        <td style={s.td}>{r.urgent ? <Badge tone="danger">Urgent</Badge> : '—'}</td>
                         <td style={s.td}><Badge status={r.status} /></td>
+                        <td style={s.td}>{r.pendingDays === null || r.pendingDays === undefined ? '—' : `${r.pendingDays}d`}</td>
                         <td style={s.td}>{fmtDate(r.submittedAt || r.createdAt)}</td>
                         <td style={s.td}>{fmtDate(r.updatedAt)}</td>
                         <td style={{ ...s.td, textAlign: 'right', color: 'var(--gray-400)', fontWeight: 900 }}>›</td>
@@ -2115,7 +2389,10 @@ export default function CapexDashboard() {
                   {selectedRequest.id} · {selectedRequest.department} · <span style={{ color: 'var(--label)', fontWeight: 700 }}>{fmtOMR(selectedRequest.estimatedValue)}</span>
                 </div>
               </div>
-              <Badge status={selectedRequest.status} />
+              <div style={s.dHeaderBadges}>
+                {selectedRequest.urgent && <Badge tone="danger">Urgent</Badge>}
+                <Badge status={selectedRequest.status} />
+              </div>
             </div>
 
             <WorkflowStepper steps={selectedRequest.approvalSteps} currentStepId={selectedRequest.currentStepId} />
@@ -2128,28 +2405,111 @@ export default function CapexDashboard() {
             </div>
           </div>
 
-          <div style={s.dTwoPane}>
-            <div style={s.dNavRail}>
-              <div style={s.dNavRailHead}>On this request</div>
-              {DETAIL_SECTIONS.map((sec) => {
-                const active = activeSection === sec.key;
+          <div style={s.dDetailBody}>
+            <nav id="capex-detail-tabs" className="capex-detail-tabs" style={s.dTabsCard} aria-label="CAPEX request workflow">
+              <div className="capex-detail-primary-tabs" style={s.dPrimaryTabs} role="tablist" aria-label="Workflow stages">
+                {visibleDetailGroups.map((group) => {
+                  const active = group.sections.some((section) => section.key === activeSection);
+                  return (
+                    <button
+                      key={group.key}
+                      type="button"
+                      role="tab"
+                      aria-selected={active}
+                      className="capex-detail-tab"
+                      onClick={() => selectDetailGroup(group)}
+                      style={{ ...s.dPrimaryTab, ...(active ? s.dPrimaryTabActive : {}) }}
+                    >
+                      <span style={s.dPrimaryTabLabel}>{group.label}</span>
+                      <span style={{ ...s.dPrimaryTabMeta, ...(active ? s.dPrimaryTabMetaActive : {}) }}>
+                        {detailGroupProgress(group.key)}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {visibleDetailGroups.map((group) => {
+                const active = group.sections.some((section) => section.key === activeSection);
+                if (!active || group.sections.length < 2) return null;
                 return (
-                  <a
-                    key={sec.key}
-                    onClick={() => scrollToSection(sec.key)}
-                    style={{ ...s.dNavItem, ...(active ? s.dNavItemActive : {}) }}
-                  >
-                    <span style={{ ...s.dNavDot, background: active ? 'var(--shell-red)' : 'var(--gray-200)' }} />{sec.label}
-                  </a>
+                  <div key={group.key} style={s.dSecondaryTabs} role="tablist" aria-label={`${group.label} sections`}>
+                    {group.sections.map((section) => {
+                      const selected = section.key === activeSection;
+                      return (
+                        <button
+                          key={section.key}
+                          type="button"
+                          role="tab"
+                          aria-selected={selected}
+                          onClick={() => selectDetailSection(section.key)}
+                          style={{ ...s.dSecondaryTab, ...(selected ? s.dSecondaryTabActive : {}) }}
+                        >
+                          {section.label}
+                        </button>
+                      );
+                    })}
+                  </div>
                 );
               })}
-            </div>
+            </nav>
 
             <div style={s.dCardCol}>
 
-              <section id="capex-sec-summary" style={s.dCard}>
+              <section id="capex-sec-summary" style={s.dCard} hidden={activeSection !== 'summary'}>
+                  <h4 style={s.detailTitle}>Approval Summary</h4>
+                  <div className="capex-approval-info-grid" style={s.approvalInfoGrid}>
+                    <MiniInfo label="Request ID" value={selectedRequest.id} />
+                    <MiniInfo label="Requester" value={selectedRequest.requesterName || '—'} />
+                    <MiniInfo label="Business / Function" value={selectedRequest.businessFunction || '—'} />
+                    <MiniInfo label="Department" value={selectedRequest.department || '—'} />
+                    <MiniInfo label="Budget Holder" value={selectedRequest.budgetHolder || '—'} />
+                    <MiniInfo label="Financial Year" value={selectedRequest.financialYear ? `FY ${selectedRequest.financialYear}` : '—'} />
+                    <MiniInfo label="Current Budget" value={fmtOMR(selectedRequest.currentCostBudget)} />
+                    <MiniInfo label="Estimated Value" value={fmtOMR(selectedRequest.estimatedValue)} />
+                    <MiniInfo label="Proposed Quote" value={proposedQuotation ? fmtOMR(proposedQuotation.quoteValue) : '—'} />
+                    <MiniInfo label="Value Band" value={selectedRequest.valueBand || '—'} />
+                    <MiniInfo label="Urgency" value={selectedRequest.urgent ? 'Urgent' : 'Standard'} />
+                    <MiniInfo label="Budget Position" value={selectedRequest.savings === null || selectedRequest.savings === undefined ? '—' : `${selectedRequest.savings >= 0 ? 'Savings' : 'Over budget'} · ${fmtOMR(Math.abs(selectedRequest.savings))}`} />
+                    <MiniInfo label="ROI" value={selectedRequest.roi || 'Not entered'} />
+                    <MiniInfo label="HSSE Risk" value={selectedRequest.hsseRisk || '—'} />
+                    <MiniInfo label="Worker Welfare Risk" value={selectedRequest.workerWelfareRisk || '—'} />
+                    <MiniInfo label="Payment Terms" value={selectedRequest.paymentTerms || '—'} />
+                    <MiniInfo label="Terms Agreed" value={selectedRequest.paymentTermsAgreed ? 'Yes' : 'No'} />
+                  </div>
+
+                  <div style={s.dDivider} />
                   <h4 style={s.detailTitle}>Project Description</h4>
-                  <p style={s.detailText}>{selectedRequest.scopeDetails}</p>
+                  <p style={s.detailText}>{selectedRequest.scopeDetails || 'No project description provided.'}</p>
+
+                  <div style={s.dDivider} />
+                  <h4 style={s.detailTitle}>Approval Evidence</h4>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 16 }}>
+                    <div style={s.evidenceRow}>
+                      <span>
+                        <strong>Project Strategy / Scope</strong>
+                        <span style={s.evidenceMeta}>{strategyAttachment?.name || 'Missing required evidence'}</span>
+                      </span>
+                      {strategyAttachment
+                        ? <button type="button" style={s.linkBtn} onClick={() => downloadCapexAttachment(selectedRequest.id, strategyAttachment)}>Download</button>
+                        : <span style={s.missingEvidence}>Missing</span>}
+                    </div>
+                    {(selectedRequest.quotations || []).map(quotation => {
+                      const attachment = quotationAttachment(quotation);
+                      return (
+                        <div key={quotation.id} style={s.evidenceRow}>
+                          <span style={s.evidenceDetails}>
+                            <strong>{quotation.supplierName}{quotation.isSelected ? ' (proposed)' : ''}</strong>
+                            <span>{fmtOMR(quotation.quoteValue)} · {quotation.paymentTerms || 'No payment terms'}</span>
+                            <span style={s.evidenceMeta}>{attachment?.name || quotation.attachmentName || 'No quotation evidence recorded'}</span>
+                          </span>
+                          {attachment
+                            ? <button type="button" style={s.linkBtn} onClick={() => downloadCapexAttachment(selectedRequest.id, attachment)}>Download</button>
+                            : <span style={s.legacyEvidence}>{quotation.attachmentName ? 'Recorded filename only' : 'Missing evidence'}</span>}
+                        </div>
+                      );
+                    })}
+                  </div>
 
                   {selectedRequest.fewerThan3Justification && (
                     <>
@@ -2159,7 +2519,7 @@ export default function CapexDashboard() {
                   )}
               </section>
 
-              <section id="capex-sec-approvals" style={s.dCard}>
+              <section id="capex-sec-approvals" style={s.dCard} hidden={activeSection !== 'approvals'}>
                   <h4 style={s.detailTitle}>Approval Workflow</h4>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                     {(selectedRequest.approvalSteps || []).filter((step) => step.status !== 'Superseded').map((step, index) => (
@@ -2168,7 +2528,10 @@ export default function CapexDashboard() {
                           {index + 1}. {step.label}
                           {step.assignedTo ? ` — assigned to ${step.assignedTo}` : ''}
                         </span>
-                        <Badge status={step.status} />
+                        <span style={s.stepDecisionMeta}>
+                          {step.pendingDays !== null && step.pendingDays !== undefined && <span>{step.pendingDays} pending day{step.pendingDays === 1 ? '' : 's'}</span>}
+                          <Badge status={step.status} />
+                        </span>
                       </div>
                     ))}
                   </div>
@@ -2190,6 +2553,14 @@ export default function CapexDashboard() {
                           onChange={e => setReturnedEditForm(p => ({ ...p, estimatedValue: e.target.value }))} /></Field>
                         <Field label="ACV / PO value (OMR)"><input style={s.fieldInput} type="number" placeholder="0" value={returnedEditForm.acvPoValue ?? ''}
                           onChange={e => setReturnedEditForm(p => ({ ...p, acvPoValue: e.target.value }))} /></Field>
+                        <div style={s.returnedUrgencyField}>
+                          <span style={s.miniLabel}>Urgency</span>
+                          <Checkbox
+                            checked={returnedEditForm.urgent}
+                            onChange={urgent => setReturnedEditForm(p => ({ ...p, urgent }))}
+                            label="Urgent requirement"
+                          />
+                        </div>
                         <div style={s.miniInfo}>
                           <span style={s.miniLabel}>{returnedBudgetVariance === null ? 'Budget variance' : returnedBudgetVariance >= 0 ? 'Savings' : 'Over budget'}</span>
                           <span style={{ ...s.miniValue, color: returnedBudgetVariance === null ? 'var(--label-secondary)' : returnedBudgetVariance >= 0 ? 'var(--success)' : 'var(--shell-red)', fontWeight: 850 }}>
@@ -2212,7 +2583,7 @@ export default function CapexDashboard() {
 
               </section>
 
-              <section id="capex-sec-procurement" style={s.dCard}>
+              <section id="capex-sec-procurement" style={s.dCard} hidden={activeSection !== 'procurement'}>
                   <h4 style={s.detailTitle}>Supplier Quotations</h4>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 16 }}>
                     {(selectedRequest.quotations || []).map((q) => (
@@ -2225,8 +2596,8 @@ export default function CapexDashboard() {
 
                   <h4 style={s.detailTitle}>Attachments</h4>
                   <div style={s.lifecycleGrid}>
-                    <SelectField style={s.compactInput} value={attachmentType} onChange={setAttachmentType} options={['Scope Document', 'Supplier Quotation', 'HSSE Evidence', 'PO Document', 'Milestone Evidence', 'CAPEX Closure Form']} aria-label="Attachment type" />
-                    {canCreate('capex.documents') && (
+                    <SelectField style={s.compactInput} value={attachmentType} onChange={setAttachmentType} options={['HSSE Evidence', 'PO Document']} aria-label="Attachment type" />
+                    {canCreate('capex.documents') && canEditProcurementNow && (
                       <FileUploadField onChange={handleAttachmentUpload} uploading={uploadProgress !== null} progress={uploadProgress ?? 0} aria-label="Upload file" />
                     )}
                   </div>
@@ -2314,21 +2685,48 @@ export default function CapexDashboard() {
                   )}
               </section>
 
-              <section id="capex-sec-execution" style={s.dCard}>
+              <section id="capex-sec-execution" style={s.dCard} hidden={activeSection !== 'execution'}>
                   <div style={s.sectionTitleRow}>
                     <h4 style={{ ...s.detailTitle, margin: 0 }}>Project Execution</h4>
                     {!canAddMilestoneNow && <span style={s.lockBadge}>{canEditExecutionByRole ? 'Locked until PO uploaded' : 'View only'}</span>}
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 12 }}>
-                    {(selectedRequest.milestones || []).map((m) => (
-                      <div key={m.id} style={s.compactRow}>
-                        <span>{m.stageName} - {m.milestoneName}</span>
-                        <span style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                          <Badge status={m.status} />
-                          {canEditExecutionByRole && m.status !== 'Completed' && <button type="button" style={s.miniBtn} onClick={() => handleCompleteMilestone(m)}>Complete</button>}
-                        </span>
-                      </div>
-                    ))}
+                    {(selectedRequest.milestones || []).map((m) => {
+                      const evidence = milestoneAttachments(m);
+                      return (
+                        <div key={m.id} style={s.milestoneRow}>
+                          <div style={s.milestoneRowHead}>
+                            <span style={s.evidenceDetails}>
+                              <strong>{m.stageName} - {m.milestoneName}</strong>
+                              <span style={s.evidenceMeta}>{milestonePeriodLabel(m)}</span>
+                            </span>
+                            <span style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                              <Badge status={m.status} />
+                              {canEditExecutionByRole && m.status !== 'Completed' && <button type="button" style={s.miniBtn} onClick={() => handleCompleteMilestone(m)}>Complete</button>}
+                            </span>
+                          </div>
+                          {m.comments && <p style={s.milestoneComment}>{m.comments}</p>}
+                          <div style={s.milestoneEvidence}>
+                            {evidence.length > 0 && evidence.map((attachment) => (
+                              <button key={attachment.id} type="button" style={s.linkBtn} onClick={() => downloadCapexAttachment(selectedRequest.id, attachment)}>{attachment.name}</button>
+                            ))}
+                            {evidence.length === 0 && m.completionEvidence && (
+                              <span style={s.legacyEvidence}>{m.completionEvidence} — recorded filename only</span>
+                            )}
+                            {evidence.length === 0 && !m.completionEvidence && (
+                              <span style={s.evidenceMeta}>No evidence uploaded</span>
+                            )}
+                            {canEditExecutionByRole && canAddMilestoneNow && (
+                              <FileUploadField
+                                onChange={(event) => handleMilestoneEvidenceUpload(event, m)}
+                                uploading={milestoneEvidenceUploadId === m.id}
+                                aria-label={`Upload evidence for ${m.milestoneName}`}
+                              />
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
                   {canEditExecutionByRole && <form onSubmit={handleAddMilestone} style={s.lifecycleGrid}>
                     {!canAddMilestoneNow && (
@@ -2343,16 +2741,28 @@ export default function CapexDashboard() {
                     )}
                     <Field label="Stage"><input style={canAddMilestoneNow ? s.fieldInput : s.disabledInput} placeholder="Stage" value={milestoneForm.stageName} onChange={e => setMilestoneForm(p => ({ ...p, stageName: e.target.value }))} disabled={!canAddMilestoneNow} /></Field>
                     <Field label="Milestone"><input style={canAddMilestoneNow ? s.fieldInput : s.disabledInput} placeholder="Milestone" value={milestoneForm.milestoneName} onChange={e => setMilestoneForm(p => ({ ...p, milestoneName: e.target.value }))} disabled={!canAddMilestoneNow} /></Field>
-                    <Field label="Planned date"><DateField style={canAddMilestoneNow ? s.fieldInput : s.disabledInput} value={milestoneForm.plannedDate} onChange={v => setMilestoneForm(p => ({ ...p, plannedDate: v }))} disabled={!canAddMilestoneNow} /></Field>
+                    <Field label="Planned start"><DateField style={canAddMilestoneNow ? s.fieldInput : s.disabledInput} value={milestoneForm.plannedStartDate} onChange={v => setMilestoneForm(p => ({ ...p, plannedStartDate: v }))} disabled={!canAddMilestoneNow} /></Field>
+                    <Field label="Planned completion"><DateField style={canAddMilestoneNow ? s.fieldInput : s.disabledInput} value={milestoneForm.plannedDate} onChange={v => setMilestoneForm(p => ({ ...p, plannedDate: v }))} disabled={!canAddMilestoneNow} /></Field>
                     <Field label="Payment %"><input style={canAddMilestoneNow ? s.fieldInput : s.disabledInput} type="number" placeholder="Payment %" value={milestoneForm.paymentPercentage} onChange={e => setMilestoneForm(p => ({ ...p, paymentPercentage: e.target.value }))} disabled={!canAddMilestoneNow} /></Field>
                     <Field label="Payment amount (OMR)"><input style={canAddMilestoneNow ? s.fieldInput : s.disabledInput} type="number" placeholder="Payment amount" value={milestoneForm.paymentAmount} onChange={e => setMilestoneForm(p => ({ ...p, paymentAmount: e.target.value }))} disabled={!canAddMilestoneNow} /></Field>
-                    <Field label="Evidence filename"><input style={canAddMilestoneNow ? s.fieldInput : s.disabledInput} placeholder="Evidence filename" value={milestoneForm.completionEvidence} onChange={e => setMilestoneForm(p => ({ ...p, completionEvidence: e.target.value }))} disabled={!canAddMilestoneNow} /></Field>
-                    <div><button style={canAddMilestoneNow ? s.primaryBtn : s.disabledBtn} type="submit" disabled={!canAddMilestoneNow}>Add Milestone</button></div>
+                    <Field label="Comments" full>
+                      <textarea
+                        style={{ ...(canAddMilestoneNow ? s.fieldInput : s.disabledInput), minHeight: 72, resize: 'vertical' }}
+                        placeholder="Progress note for this milestone"
+                        value={milestoneForm.comments}
+                        onChange={e => setMilestoneForm(p => ({ ...p, comments: e.target.value }))}
+                        disabled={!canAddMilestoneNow}
+                      />
+                    </Field>
+                    <div style={{ gridColumn: '1 / -1' }}>
+                      <button style={canAddMilestoneNow ? s.primaryBtn : s.disabledBtn} type="submit" disabled={!canAddMilestoneNow}>Add Milestone</button>
+                      <p style={s.evidenceMeta}>Attach completion evidence to the milestone once it is added.</p>
+                    </div>
                   </form>}
 
               </section>
 
-              <section id="capex-sec-financial" style={s.dCard}>
+              <section id="capex-sec-financial" style={s.dCard} hidden={activeSection !== 'financial'}>
                   <div style={s.sectionTitleRow}>
                     <h4 style={{ ...s.detailTitle, margin: 0 }}>Financial Closure</h4>
                     {!canEditFinancialClosureNow && <span style={s.lockBadge}>{isRequestClosed ? 'Closed' : canEditFinancialClosureByRole ? 'Locked until approval complete' : 'View only'}</span>}
@@ -2429,7 +2839,7 @@ export default function CapexDashboard() {
                   )}
               </section>
 
-              <section id="capex-sec-auc" style={s.dCard}>
+              <section id="capex-sec-auc" style={s.dCard} hidden={activeSection !== 'auc'}>
                   <h4 style={s.detailTitle}>AUC, Capitalization & PO Closure</h4>
 
                   <div style={s.sectionTitleRow}>
@@ -2510,7 +2920,7 @@ export default function CapexDashboard() {
                   {canEdit('capex.closure') && <div><button type="button" style={canEditPoClosureNow ? s.primaryBtn : s.disabledBtn} onClick={handleSavePoClosure} disabled={!canEditPoClosureNow}>Save PO Closure</button></div>}
               </section>
 
-              <section id="capex-sec-checklist" style={s.dCard}>
+              <section id="capex-sec-checklist" style={s.dCard} hidden={activeSection !== 'checklist'}>
                   <h4 style={s.detailTitle}>Closure Checklist</h4>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 12 }}>
                     {(selectedRequest.closureChecklist || []).map(item => (
@@ -2526,7 +2936,7 @@ export default function CapexDashboard() {
 
               </section>
 
-              <section id="capex-sec-governance" style={s.dCard}>
+              <section id="capex-sec-governance" style={s.dCard} hidden={activeSection !== 'governance'}>
                   <h4 style={s.detailTitle}>MOA, Variation & Decision Gates</h4>
                   <div style={s.dGroupHead}>
                     <div style={{ ...s.dSubLabel, margin: 0 }}>Memorandum of agreement</div>
@@ -2616,7 +3026,7 @@ export default function CapexDashboard() {
                   </div>
               </section>
 
-              <section id="capex-sec-performance" style={s.dCard}>
+              <section id="capex-sec-performance" style={s.dCard} hidden={activeSection !== 'performance'}>
                   <h4 style={s.detailTitle}>Procurement Performance, Benefits & Risk</h4>
 
                   <div style={s.dSubLabel}>Procurement KPIs</div>
@@ -2690,7 +3100,7 @@ export default function CapexDashboard() {
                   </div>
               </section>
 
-              <section id="capex-sec-documents" style={s.dCard}>
+              <section id="capex-sec-documents" style={s.dCard} hidden={activeSection !== 'documents'}>
                   <h4 style={s.detailTitle}>Document Versioning & Signatures</h4>
 
                   <div style={s.dSubLabel}>Document version</div>
@@ -2715,8 +3125,8 @@ export default function CapexDashboard() {
                   {canEditDocuments && <div><button type="button" style={s.primaryBtn} onClick={handleCreateSignature}>Capture Signature</button></div>}
               </section>
 
-              <section id="capex-sec-audit" style={s.dCard}>
-                  <h4 style={s.detailTitle}>Audit History</h4>
+              <section id="capex-sec-audit" style={s.dCard} hidden={activeSection !== 'audit'}>
+                  <h4 style={s.detailTitle}>Audit Trail</h4>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                     {auditLogs.length ? auditLogs.map(log => (
                       <div key={log.id} style={s.auditRow}>
@@ -2886,6 +3296,29 @@ export default function CapexDashboard() {
               </div>
               {canDecideCurrentStep && (
                 <>
+                  {isCurrentHsseScreening && (
+                    <div style={s.hsseAssessmentControls} aria-label="HSSE Focal assessment">
+                      <span style={{ ...s.actionBarMeta, gridColumn: '1 / -1' }}>Required HSSE assessment</span>
+                      <SelectField
+                        style={s.compactInput}
+                        placeholder="HSSE risk"
+                        value={hsseAssessment.hsseRisk}
+                        onChange={hsseRisk => setHsseAssessment(current => ({ ...current, hsseRisk }))}
+                        options={HSSE_RISK_RATINGS}
+                        aria-label="Assess HSSE Risk"
+                        disabled={approvalActionState === 'saving'}
+                      />
+                      <SelectField
+                        style={s.compactInput}
+                        placeholder="Worker welfare risk"
+                        value={hsseAssessment.workerWelfareRisk}
+                        onChange={workerWelfareRisk => setHsseAssessment(current => ({ ...current, workerWelfareRisk }))}
+                        options={HSSE_RISK_RATINGS}
+                        aria-label="Assess Worker Welfare Risk"
+                        disabled={approvalActionState === 'saving'}
+                      />
+                    </div>
+                  )}
                   <SelectField
                     style={{ ...s.compactInput, minWidth: 220 }}
                     placeholder={delegatePlaceholder}
@@ -2905,6 +3338,7 @@ export default function CapexDashboard() {
                     savedLabel="Approved"
                     style={s.primaryBtn}
                     onClick={() => handleCapexDecision('APPROVED')}
+                    disabled={isCurrentHsseScreening && (!hsseAssessment.hsseRisk || !hsseAssessment.workerWelfareRisk)}
                   />
                 </>
               )}
@@ -3094,7 +3528,7 @@ export default function CapexDashboard() {
           <div style={s.tabActionRow}>
             <div>
               <h2 style={s.sectionTitle}>CAPEX Admin Configuration</h2>
-              <p style={s.tabSubtitle}>Maintain first-build governance thresholds and approval matrix rules.</p>
+              <p style={s.tabSubtitle}>Maintain governance thresholds, approval matrix rules, and the asset category list.</p>
             </div>
           </div>
 
@@ -3169,6 +3603,90 @@ export default function CapexDashboard() {
               emptyMsg="Workflow configuration has not loaded."
             />
           </div>
+
+          <div style={s.section}>
+            <h3 style={s.detailTitle}>Asset Categories</h3>
+            <p style={s.tabSubtitle}>
+              The asset classifications offered on the CAPEX request form. Categories cannot be
+              deleted — clear <strong>Active</strong> to retire one. It stays visible on the requests
+              that already use it, but can no longer be selected.
+            </p>
+
+            {canCreate('capex.admin') && (
+              <div style={{ ...s.lifecycleGrid, maxWidth: 720, marginBottom: 16 }}>
+                <input
+                  style={s.compactInput}
+                  value={newAssetCategory.name}
+                  onChange={e => setNewAssetCategory(p => ({ ...p, name: e.target.value }))}
+                  placeholder="Category name"
+                  aria-label="New asset category name"
+                />
+                <input
+                  style={s.compactInput}
+                  value={newAssetCategory.description}
+                  onChange={e => setNewAssetCategory(p => ({ ...p, description: e.target.value }))}
+                  placeholder="Description (optional)"
+                  aria-label="New asset category description"
+                />
+                <input
+                  style={{ ...s.compactInput, width: 110 }}
+                  type="number"
+                  value={newAssetCategory.sortOrder}
+                  onChange={e => setNewAssetCategory(p => ({ ...p, sortOrder: e.target.value }))}
+                  placeholder="Order"
+                  aria-label="New asset category sort order"
+                />
+                <SubmitFeedbackButton
+                  state={newAssetCategoryState}
+                  idleLabel="+ Add Category"
+                  savingLabel="Adding"
+                  savedLabel="Added"
+                  style={s.primaryBtn}
+                  onClick={handleCreateAssetCategory}
+                />
+              </div>
+            )}
+
+            <DataTable
+              columns={[
+                { key: 'name', label: 'Category',
+                  render: (v, row) => canEdit('capex.admin')
+                    ? <input style={s.compactInput} value={v} onChange={e => handleAssetCategoryChange(row, 'name', e.target.value)} aria-label={`Name for ${row.name}`} />
+                    : v
+                },
+                { key: 'description', label: 'Description',
+                  render: (v, row) => canEdit('capex.admin')
+                    ? <input style={s.compactInput} value={v || ''} onChange={e => handleAssetCategoryChange(row, 'description', e.target.value)} aria-label={`Description for ${row.name}`} />
+                    : (v || '—')
+                },
+                { key: 'sortOrder', label: 'Order',
+                  render: (v, row) => canEdit('capex.admin')
+                    ? <input style={{ ...s.compactInput, width: 74 }} type="number" value={v} onChange={e => handleAssetCategoryChange(row, 'sortOrder', Number(e.target.value))} aria-label={`Order for ${row.name}`} />
+                    : v
+                },
+                { key: 'isActive', label: 'Active',
+                  render: (v, row) => canEdit('capex.admin')
+                    ? <Checkbox checked={!!v} onChange={c => handleAssetCategoryChange(row, 'isActive', c)} aria-label={`Active for ${row.name}`} />
+                    : (v ? 'Yes' : 'Retired')
+                },
+                { key: 'updatedBy', label: 'Last Updated By', render: (v) => v || '—' },
+                { key: 'id', label: 'Action',
+                  render: (_, row) => canEdit('capex.admin') ? (
+                    <SubmitFeedbackButton
+                      state={assetCategorySaveState[row.id] || 'idle'}
+                      idleLabel="Save"
+                      savingLabel="Saving"
+                      savedLabel="Saved"
+                      style={s.miniBtn}
+                      onClick={() => handleSaveAssetCategory(row)}
+                    />
+                  ) : '-'
+                },
+              ]}
+              rows={adminConfig?.assetCategories || []}
+              emptyMsg="No asset categories configured yet."
+            />
+          </div>
         </div>
       )}
 
@@ -3216,7 +3734,7 @@ export default function CapexDashboard() {
                 { key: 'estimatedBudget',  label: 'Est. Budget', render: (v) => fmtOMR(v) },
                 { key: 'priority',         label: 'Priority', render: (v) => <Badge status={v} /> },
                 { key: 'status',           label: 'Status',   render: (v) => <Badge status={v} /> },
-                { key: 'createdAt',        label: 'Submitted' },
+                { key: 'createdAt',        label: 'Submitted', render: (v) => fmtDate(v) },
               ]}
               rows={initiations}
               emptyMsg="No initiations submitted yet."
@@ -3593,6 +4111,11 @@ const s = {
     background: 'var(--gray-50)', border: '1px solid var(--gray-200)',
     borderRadius: 'var(--radius-sm)', padding: '11px 12px',
   },
+  returnedUrgencyField: {
+    display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 8,
+    background: 'var(--gray-50)', border: '1px solid var(--gray-200)',
+    borderRadius: 'var(--radius-sm)', padding: '10px 12px',
+  },
   miniLabel: {
     display: 'block', fontSize: 10, fontWeight: 700,
     color: 'var(--label-secondary)', textTransform: 'uppercase', letterSpacing: '0.4px',
@@ -3605,6 +4128,21 @@ const s = {
     background: '#FFFFFF', border: '1px solid var(--separator-clear)',
     borderRadius: 'var(--radius-md)', padding: '11px 14px', fontSize: 13.5,
   },
+  milestoneRow: {
+    display: 'flex', flexDirection: 'column', gap: 8,
+    background: '#FFFFFF', border: '1px solid var(--separator-clear)',
+    borderRadius: 'var(--radius-md)', padding: '11px 14px', fontSize: 13.5,
+  },
+  milestoneRowHead: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 },
+  milestoneComment: { margin: 0, color: 'var(--label-secondary)', fontSize: 12.5, whiteSpace: 'pre-wrap' },
+  milestoneEvidence: { display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 10 },
+  approvalInfoGrid: { display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 10, marginBottom: 18 },
+  evidenceRow: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 14, padding: '12px 14px', border: '1px solid var(--separator-clear)', borderRadius: 'var(--radius-md)', background: '#FFFFFF', fontSize: 13 },
+  evidenceDetails: { display: 'flex', flexDirection: 'column', gap: 3, minWidth: 0 },
+  evidenceMeta: { display: 'block', marginTop: 3, color: 'var(--label-tertiary)', fontSize: 11.5, overflowWrap: 'anywhere' },
+  missingEvidence: { color: 'var(--shell-red)', fontSize: 11.5, fontWeight: 850 },
+  legacyEvidence: { color: 'var(--warning-text)', fontSize: 11.5, fontWeight: 800, textAlign: 'right' },
+  stepDecisionMeta: { display: 'flex', alignItems: 'center', gap: 9, color: 'var(--label-tertiary)', fontSize: 11.5 },
   gateInfo: {
     display: 'flex',
     flexDirection: 'column',
@@ -3768,6 +4306,7 @@ const s = {
     background: '#FFFFFF', fontFamily: 'inherit', cursor: 'pointer',
   },
   reqCount: { marginLeft: 'auto', fontSize: 12, color: 'var(--gray-500)', fontWeight: 700, whiteSpace: 'nowrap' },
+  dHeaderBadges: { display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 8, flexWrap: 'wrap' },
   sortHeadBtn: {
     display: 'inline-flex',
     alignItems: 'center',
@@ -3841,6 +4380,10 @@ const s = {
     minWidth: 300,
     animation: 'fadeIn 0.22s ease',
   },
+  hsseAssessmentControls: {
+    display: 'grid', gridTemplateColumns: 'repeat(2, minmax(150px, 1fr))', gap: 8,
+    flex: '1 1 340px', minWidth: 300,
+  },
   actionBarMeta: {
     fontSize: 10,
     fontWeight: 850,
@@ -3870,21 +4413,37 @@ const s = {
   dStatTile: { background: 'var(--gray-50)', border: '1px solid var(--gray-50)', borderRadius: 'var(--radius-md)', padding: '13px 15px' },
   dStatLabel: { fontSize: 10.5, fontWeight: 700, letterSpacing: '.05em', color: 'var(--label-quaternary)', textTransform: 'uppercase' },
   dStatValue: { fontSize: 17, fontWeight: 800, marginTop: 4, color: 'var(--label)' },
-  dTwoPane: { display: 'grid', gridTemplateColumns: '212px minmax(0,1fr)', gap: 20, alignItems: 'start' },
-  dNavRail: {
-    position: 'sticky', top: 12, alignSelf: 'start',
-    display: 'flex', flexDirection: 'column', gap: 6,
+  stepAge: { marginTop: 5, color: 'var(--label-tertiary)', fontSize: 10.5, fontWeight: 700, whiteSpace: 'nowrap' },
+  dDetailBody: { display: 'flex', flexDirection: 'column', gap: 18, minWidth: 0 },
+  dTabsCard: {
+    position: 'sticky', top: 0, alignSelf: 'stretch', zIndex: 2,
     background: '#FFFFFF', border: '1px solid var(--gray-200)', borderRadius: 'var(--radius-md)',
-    padding: '14px 12px', boxShadow: '0 1px 2px rgba(16,24,40,0.04)',
+    boxShadow: 'var(--shadow-sm)', overflow: 'hidden', scrollMarginTop: 12,
   },
-  dNavRailHead: { fontSize: 11, fontWeight: 800, letterSpacing: '.06em', color: 'var(--label-quaternary)', textTransform: 'uppercase', padding: '4px 10px 8px' },
-  dNavItem: {
-    display: 'flex', alignItems: 'center', gap: 10,
-    padding: '8px 10px', borderRadius: 'var(--radius-md)', fontSize: 13.5, fontWeight: 500,
-    color: 'var(--gray-600)', cursor: 'pointer', textDecoration: 'none',
+  dPrimaryTabs: { display: 'flex', alignItems: 'stretch', overflowX: 'auto', overflowY: 'hidden', scrollbarWidth: 'thin' },
+  dPrimaryTab: {
+    appearance: 'none', minWidth: 150, flex: '1 0 auto',
+    display: 'flex', flexDirection: 'column', alignItems: 'flex-start', justifyContent: 'center', gap: 3,
+    padding: '13px 16px 12px',
+    borderStyle: 'solid', borderTopWidth: 0, borderLeftWidth: 0, borderRightWidth: 1, borderBottomWidth: 3,
+    borderTopColor: 'transparent', borderLeftColor: 'transparent', borderRightColor: 'var(--gray-100)', borderBottomColor: 'transparent',
+    background: '#FFFFFF', color: 'var(--gray-600)', cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left',
+    transition: 'background var(--transition), color var(--transition), border-color var(--transition)',
   },
-  dNavItemActive: { background: 'var(--accent-red-bg)', color: 'var(--shell-red)', fontWeight: 700 },
-  dNavDot: { width: 7, height: 7, borderRadius: '50%', flex: '0 0 auto' },
+  dPrimaryTabActive: { background: 'var(--accent-red-bg)', color: 'var(--shell-red)', borderBottomColor: 'var(--shell-red)' },
+  dPrimaryTabLabel: { fontSize: 13.5, fontWeight: 850, whiteSpace: 'nowrap' },
+  dPrimaryTabMeta: { fontSize: 10.5, fontWeight: 700, color: 'var(--label-tertiary)', whiteSpace: 'nowrap' },
+  dPrimaryTabMetaActive: { color: 'var(--shell-red)' },
+  dSecondaryTabs: {
+    display: 'flex', gap: 6, overflowX: 'auto', padding: '9px 12px',
+    borderTop: '1px solid var(--gray-100)', background: 'var(--gray-50)',
+  },
+  dSecondaryTab: {
+    flex: '0 0 auto', padding: '7px 11px', border: '1px solid transparent', borderRadius: 'var(--radius-sm)',
+    background: 'transparent', color: 'var(--label-secondary)', fontSize: 12, fontWeight: 750,
+    cursor: 'pointer', fontFamily: 'inherit', transition: 'background var(--transition), color var(--transition), border-color var(--transition)',
+  },
+  dSecondaryTabActive: { background: '#FFFFFF', color: 'var(--shell-red)', borderColor: 'var(--gray-200)', boxShadow: 'var(--shadow-xs)' },
   dCardCol: { display: 'flex', flexDirection: 'column', gap: 18, minWidth: 0 },
   dSubLabel: { fontSize: 12, fontWeight: 800, color: 'var(--neutral)', textTransform: 'uppercase', letterSpacing: '.05em', margin: '0 0 12px' },
   dSubNote: { fontSize: 12.5, color: 'var(--label-quaternary)', margin: '-6px 0 12px', fontWeight: 500 },

@@ -26,10 +26,12 @@ export default function DateField({
   value,
   onChange,
   style,
+  className = '',
   id,
   placeholder = 'Select date…',
   disabled = false,
   clearable = true,
+  'aria-label': ariaLabel,
 }) {
   const [open, setOpen] = useState(false);
   const [dropUp, setDropUp] = useState(false);
@@ -70,9 +72,21 @@ export default function DateField({
     close();
   };
 
-  const clear = (e) => {
-    e.stopPropagation();
-    onChange('');
+  const handleTriggerClick = (event) => {
+    if (event.target.closest('[data-date-clear]')) {
+      onChange('');
+      close();
+      return;
+    }
+    toggle();
+  };
+
+  const handleTriggerKeyDown = (event) => {
+    if (selected && clearable && !disabled && ['Backspace', 'Delete'].includes(event.key)) {
+      event.preventDefault();
+      onChange('');
+      close();
+    }
   };
 
   const label = selected ? format(selected, DISPLAY_FMT) : placeholder;
@@ -82,24 +96,27 @@ export default function DateField({
       <button
         type="button"
         id={id}
+        className={className}
         ref={triggerRef}
-        onClick={toggle}
+        onClick={handleTriggerClick}
+        onKeyDown={handleTriggerKeyDown}
         disabled={disabled}
         aria-haspopup="dialog"
         aria-expanded={open}
+        aria-label={ariaLabel}
         style={{ ...s.triggerBase, ...style, ...s.triggerLayout, ...(disabled ? s.disabled : null) }}
       >
         <span style={selected ? s.value : s.placeholder}>{label}</span>
         <span style={s.icons}>
           {clearable && selected && !disabled && (
-            <span role="button" tabIndex={-1} aria-label="Clear date" onClick={clear} style={s.clear}>×</span>
+            <span data-date-clear aria-hidden="true" style={s.clear}>×</span>
           )}
           <CalendarIcon />
         </span>
       </button>
 
       {open && (
-        <div style={{ ...s.popover, ...(dropUp ? s.popoverUp : s.popoverDown) }} role="dialog">
+        <dialog open style={{ ...s.popover, ...(dropUp ? s.popoverUp : s.popoverDown) }} aria-label="Choose date">
           <DayPicker
             className="som-datefield-calendar"
             mode="single"
@@ -112,7 +129,7 @@ export default function DateField({
             startMonth={new Date(2000, 0)}
             endMonth={new Date(2100, 11)}
           />
-        </div>
+        </dialog>
       )}
     </div>
   );
@@ -149,6 +166,7 @@ const s = {
     position: 'absolute', left: 0, zIndex: 1100,
     background: 'var(--surface)', border: '1px solid var(--gray-200)',
     borderRadius: 'var(--radius-md)', boxShadow: '0 20px 60px rgba(16,24,40,0.24)',
+    margin: 0, padding: 0,
   },
   popoverDown: { top: 'calc(100% + 6px)' },
   popoverUp: { bottom: 'calc(100% + 6px)' },

@@ -79,7 +79,7 @@ The document defines the expected workflows, screens, fields, validation rules, 
 | Line Manager | Review and endorse request scope and business need. |
 | Budget Holder | Review budget usage and request alignment with allocated budget. |
 | FiB | Validate budget, financial data, savings, and financial completeness. |
-| HSSE Focal | Review HSSE and worker welfare risk when risk is Medium or High. |
+| HSSE Focal | Screen every CAPEX request and assign the HSSE and worker welfare risk ratings. |
 | CP Focal | Review procurement readiness and route procurement activities. |
 | CP Manager | Review medium spend and procurement governance cases. |
 | Head of CP | Approve low-value cases with fewer than 3 quotations and relevant CP exceptions. |
@@ -128,8 +128,7 @@ Open point: the process map mentions a possible OMR 250,000 threshold. Until con
 
 | Trigger | Required Routing |
 | --- | --- |
-| HSSE risk is Medium or High | HSSE Focal approval required. |
-| Worker welfare risk is Medium or High | HSSE Focal approval required. |
+| Every submitted or resubmitted request | HSSE Focal screening and both qualified risk ratings are required. |
 | Fewer than 3 quotations | Justification required and additional CP/Finance approval triggered. |
 | High value request | Contract Board approval required. |
 | Request returned for correction | Requester must amend and resubmit. |
@@ -138,23 +137,21 @@ Open point: the process map mentions a possible OMR 250,000 threshold. Until con
 
 | Condition | Required Steps |
 | --- | --- |
-| Low value with 3 or more quotations | Requester submission, Line Manager endorsement, FiB validation, CP Lead pre-support, applicable IT Manager approval, Business GM approval. |
-| Low value with fewer than 3 quotations | Requester submission, fewer-than-3 justification, Line Manager endorsement, FiB validation, CP Lead pre-support, Head of CP approval, applicable IT Manager approval, Business GM approval. |
-| Low value with Medium/High HSSE or worker welfare risk | Add HSSE Focal approval before final management approval. |
+| Low value with 3 or more quotations | Requester submission, Line Manager endorsement, HSSE Focal screening, FiB validation, CP Lead pre-support, applicable IT Manager approval, Business GM approval. |
+| Low value with fewer than 3 quotations | Requester submission, fewer-than-3 justification, Line Manager endorsement, HSSE Focal screening, FiB validation, CP Lead pre-support, Head of CP approval, applicable IT Manager approval, Business GM approval. |
 
 ### 8.3 Medium-Value Route
 
 | Condition | Required Steps |
 | --- | --- |
-| Medium value with 3 or more quotations/tender | Requester submission, Contract Holder/Owner pre-support, FiB validation, CP Manager or Head of CP approval, EMT approval. |
-| Medium value with fewer than 3 quotations | Requester submission, fewer-than-3 justification, Contract Holder/Owner pre-support, FiB validation, CP Manager or Head of CP approval, CFO approval, EMT approval. |
-| Medium value with Medium/High HSSE or worker welfare risk | Add HSSE Focal approval before final management approval. |
+| Medium value with 3 or more quotations/tender | Requester submission, Line Manager endorsement, HSSE Focal screening, Contract Holder/Owner pre-support, FiB validation, CP Manager or Head of CP approval, EMT approval. |
+| Medium value with fewer than 3 quotations | Requester submission, fewer-than-3 justification, Line Manager endorsement, HSSE Focal screening, Contract Holder/Owner pre-support, FiB validation, CP Manager or Head of CP approval, CFO approval, EMT approval. |
 
 ### 8.4 High-Value Route
 
 | Condition | Required Steps |
 | --- | --- |
-| High value | Requester submission, CP review, contract strategy/award proposal/tender, FiB validation, applicable HSSE approval, Contract Board approval. |
+| High value | Requester submission, Line Manager endorsement, HSSE Focal screening, CP review, contract strategy/award proposal/tender, FiB validation, Contract Board approval. |
 
 High-value routing shall remain configurable until Contract Board rules are confirmed.
 
@@ -352,7 +349,7 @@ Configuration areas:
 | Department Code | Dropdown | Yes | Requester/System | May default from user profile. |
 | Business/Function | Dropdown | Yes | Requester/System | Used for workflow routing. |
 | Budget Holder | User | Yes | Requester | Used for budget accountability. |
-| Urgent Requirement | Boolean | No | Requester | Used for filtering and priority display. |
+| Urgent Requirement | Boolean | No | Requester | Marks a time-sensitive request for priority display and register filtering. It does not change or bypass approval routing. It may be changed only when the request is returned for correction. |
 | Status | Dropdown/system | Yes | System | Controlled by workflow. |
 | Created Date | Date/time | Yes | System | Audit field. |
 | Last Updated Date | Date/time | Yes | System | Audit field. |
@@ -379,16 +376,16 @@ Configuration areas:
 | Frequency of Requirement | Dropdown | Yes | Requester | Example: one-time, annual, 2 years. |
 | Volume / Quantity Per Year | Number/text | Conditional | Requester | Required for recurring requirements. |
 | Required Date | Date | No | Requester | Target need date. |
-| Scope Attachment | Attachment | Yes | Requester | Required before submission. |
+| Project Documents & Presentations | Multi-attachment | At least one | Requester | Shown with Project Description in Project & Budget. Supports multiple project documents, spreadsheets, images, and presentations; maximum 5 MB per file. |
 
 ### 11.4 Risk and Compliance Fields
 
 | Field | Type | Required | Editable By | Notes |
 | --- | --- | --- | --- | --- |
-| HSSE Risk | Dropdown | Yes | Requester | Low, Medium, High. |
-| Worker Welfare Risk | Dropdown | Yes | Requester | Low, Medium, High. |
-| HSSE Focal | User | Conditional | System/Admin | Required for Medium/High risk. |
-| HSSE Approval Status | System | Conditional | System | Pending, Approved, Rejected, Returned. |
+| HSSE Risk | Dropdown | Yes, during screening | HSSE Focal | Defaults to Not assessed. HSSE Focal assigns Low, Medium, or High. Not shown on the requester form. |
+| Worker Welfare Risk | Dropdown | Yes, during screening | HSSE Focal | Defaults to Not assessed. HSSE Focal assigns Low, Medium, or High. Not shown on the requester form. |
+| HSSE Focal | User | Yes | System/Admin | Mandatory screening step for every request. |
+| HSSE Approval Status | System | Yes | System | Pending, Approved, Rejected, Returned. |
 | HSSE Evidence | Attachment | Conditional | Requester/HSSE | Required based on risk and policy. |
 | Ethics and Compliance Flag | Boolean | Conditional | Requester/Approver | Required where applicable. |
 
@@ -453,14 +450,14 @@ Configuration areas:
 
 | Rule ID | Rule |
 | --- | --- |
-| FS-BR-001 | Request cannot be submitted without request title, department, business/function, budget holder, scope details, value, HSSE risk, and worker welfare risk. |
-| FS-BR-002 | Scope attachment is mandatory before submission. |
+| FS-BR-001 | Request cannot be submitted without request title, department, business/function, budget holder, scope details, and value. Requesters do not assign HSSE or worker welfare ratings. |
+| FS-BR-002 | At least one project document or presentation is mandatory before submission; the requester may upload multiple supporting files. |
 | FS-BR-003 | Value band shall be calculated from ACV / PO value where available; otherwise from estimated request value. |
 | FS-BR-004 | A request with fewer than 3 quotations must include fewer-than-3 justification. |
 | FS-BR-005 | Each quotation row must include supplier name, quote value, currency, and attachment. |
 | FS-BR-006 | One selected supplier is required before submission. |
-| FS-BR-007 | Medium or High HSSE risk triggers HSSE Focal approval. |
-| FS-BR-008 | Medium or High worker welfare risk triggers HSSE Focal approval. |
+| FS-BR-007 | Every submitted or resubmitted request triggers HSSE Focal screening. |
+| FS-BR-008 | The HSSE step cannot be approved until the HSSE Focal assigns both HSSE and worker welfare ratings. |
 | FS-BR-009 | Low-value fewer-than-3-quotation request triggers Head of CP approval. |
 | FS-BR-010 | Medium-value fewer-than-3-quotation request triggers CFO approval. |
 | FS-BR-011 | High-value request triggers Contract Board approval. |
@@ -653,8 +650,8 @@ The module shall store or reference:
 | UAT-003 | Create medium-value request with 3 quotations. | Request routes through medium-value CP and management approvals. |
 | UAT-004 | Create medium-value request with fewer than 3 quotations. | System requires justification and CFO approval. |
 | UAT-005 | Create high-value request. | System routes to CP and Contract Board approval. |
-| UAT-006 | Select Medium HSSE risk. | HSSE Focal approval is inserted into workflow. |
-| UAT-007 | Select High worker welfare risk. | HSSE Focal approval is inserted into workflow. |
+| UAT-006 | Submit a request without requester-entered risk ratings. | HSSE Focal screening is inserted after Line Manager endorsement. |
+| UAT-007 | Attempt to approve HSSE screening without both ratings. | System blocks approval until HSSE Focal assigns both ratings. |
 | UAT-008 | Approver returns request for correction. | Requester can edit and resubmit; audit history is retained. |
 | UAT-009 | Approver rejects request. | Request becomes Rejected and cannot proceed. |
 | UAT-010 | Approved request moves to procurement tracking. | CP/Project Engineer can enter NDA, DPA, vendor, GSAP, PR, and PO details. |

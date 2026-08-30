@@ -176,3 +176,57 @@ input, textarea, select { font-family: inherit; }
   background: #F1F5F9;
   color: var(--shell-red);
 }
+
+.capex-detail-tab:hover {
+  background: var(--gray-50) !important;
+  color: var(--shell-red) !important;
+}
+
+.capex-detail-tab:active {
+  transform: scale(0.985);
+}
+
+.capex-detail-tab:focus-visible {
+  outline: 2px solid var(--shell-red);
+  outline-offset: -4px;
+}
+
+@media (max-width: 760px) {
+  .capex-approval-info-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  .capex-detail-tabs {
+    position: static !important;
+  }
+
+  .capex-detail-primary-tabs {
+    scroll-snap-type: x proximity;
+  }
+
+  .capex-detail-tab {
+    min-width: 142px !important;
+    scroll-snap-align: start;
+  }
+}
+
+@media (max-width: 1100px) {
+  .capex-request-form-layout {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  .capex-request-summary {
+    position: static !important;
+  }
+
+  .capex-request-grid-3 {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+}
+
+@media (max-width: 760px) {
+  .capex-request-grid-3,
+  .capex-request-quote-row {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+}

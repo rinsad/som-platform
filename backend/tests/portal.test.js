@@ -9,32 +9,21 @@ const makeToken = (role) =>
     { expiresIn: '1h' }
   );
 
-// ─── Role-based app visibility ────────────────────────────────────────────────
-describe('Role-based app visibility', () => {
-  test('Employee does not see Admin Console', async () => {
-    const res = await request(app).get('/api/portal/apps')
-      .set({ Authorization: `Bearer ${makeToken('Employee')}` });
-    const names = res.body.map(a => a.name);
-    expect(names).not.toContain('Admin Console');
-  });
-
-  test('Admin sees Admin Console', async () => {
-    const res = await request(app).get('/api/portal/apps')
-      .set({ Authorization: `Bearer ${makeToken('Admin')}` });
-    const names = res.body.map(a => a.name);
-    expect(names).toContain('Admin Console');
-  });
-
-  test('Finance does not see Admin Console', async () => {
-    const res = await request(app).get('/api/portal/apps')
-      .set({ Authorization: `Bearer ${makeToken('Finance')}` });
-    const names = res.body.map(a => a.name);
-    expect(names).not.toContain('Admin Console');
-  });
-
-  test('unauthenticated request returns 401', async () => {
+// ─── Public app catalogue ────────────────────────────────────────────────────
+describe('Public app catalogue', () => {
+  test('is available without authentication', async () => {
     const res = await request(app).get('/api/portal/apps');
-    expect(res.statusCode).toBe(401);
+    expect(res.statusCode).toBe(200);
+    expect(Array.isArray(res.body)).toBe(true);
+  });
+
+  test.each(['Employee', 'Admin', 'Finance'])('returns the same catalogue for %s', async (role) => {
+    const publicResponse = await request(app).get('/api/portal/apps');
+    const authenticatedResponse = await request(app).get('/api/portal/apps')
+      .set({ Authorization: `Bearer ${makeToken(role)}` });
+    expect(authenticatedResponse.statusCode).toBe(200);
+    expect(authenticatedResponse.body).toEqual(publicResponse.body);
+    expect(authenticatedResponse.body.map((appItem) => appItem.name)).toContain('Admin Console');
   });
 });
 

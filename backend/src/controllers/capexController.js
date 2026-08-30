@@ -12,6 +12,15 @@ const {
   requestStatusForStep,
 } = require('../config/capexStateMachine');
 const { getValueThresholds, calcValueBandWithThresholds } = require('../config/capexThresholds');
+const { canRoleCreateRequests } = require('../config/capexRolePermissions');
+const {
+  getScopeContext,
+  scopeFilterForTable,
+  departmentScopeFilter,
+  requireRequestInScope,
+  resolveOrganizationUnitId,
+  resolveStepAssigneeSoft,
+} = require('../services/scopeContext');
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const toUuid = (v) => (typeof v === 'string' && UUID_RE.test(v) ? v : null);
@@ -20,6 +29,11 @@ const ALLOWED_PERMISSION_ACTIONS = new Set(['can_view', 'can_create', 'can_edit'
 const _upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } });
 exports.csvUploadMiddleware = _upload.single('file');
 exports.attachmentUploadMiddleware = _upload.single('file');
+exports.requestEvidenceUploadMiddleware = _upload.fields([
+  { name: 'strategyFile', maxCount: 1 },
+  { name: 'projectFiles', maxCount: 20 },
+  { name: 'quotationFiles', maxCount: 20 },
+]);
 
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
@@ -86,14 +100,13 @@ function approvalRouteForBand(valueBand) {
   return 'Contract Board';
 }
 
-function buildCapexWorkflow({ valueBand, quoteCount, hsseRisk, workerWelfareRisk }) {
+function buildCapexWorkflow({ valueBand, quoteCount }) {
   const steps = [];
   const add = (role, label) => steps.push({ role, label });
-  const needsHsse = ['Medium', 'High'].includes(hsseRisk) || ['Medium', 'High'].includes(workerWelfareRisk);
   const fewerThan3 = Number(quoteCount || 0) < 3;
 
   add('Manager', 'Line Manager Endorsement');
-  if (needsHsse) add('HSSE Focal', 'HSSE Focal Review');
+  add('HSSE Focal', 'HSSE Focal Screening');
 
   if (valueBand === 'LOW') {
     add('Finance in Business', 'FiB Validation');
@@ -116,18 +129,16 @@ function buildCapexWorkflow({ valueBand, quoteCount, hsseRisk, workerWelfareRisk
 }
 
 function displayWorkflowLabel(row) {
-  if (row.approver_role === 'HSSE Focal' && row.label === 'HSSE / Worker Welfare Approval') {
-    return 'HSSE Focal Review';
+  if (row.approver_role === 'HSSE Focal') {
+    return 'HSSE Focal Screening';
   }
   return row.label;
 }
 
-async function buildConfiguredCapexWorkflow(db, { valueBand, quoteCount, hsseRisk, workerWelfareRisk }) {
+async function buildConfiguredCapexWorkflow(db, { valueBand, quoteCount }) {
   try {
-    const needsHsse = ['Medium', 'High'].includes(hsseRisk) || ['Medium', 'High'].includes(workerWelfareRisk);
     const fewerThan3 = Number(quoteCount || 0) < 3;
-    const conditions = ['standard'];
-    if (needsHsse) conditions.push('hsse_required');
+    const conditions = ['standard', 'hsse_required'];
     if (fewerThan3) conditions.push('fewer_than_3');
 
     const { rows } = await db.query(
@@ -142,16 +153,28 @@ async function buildConfiguredCapexWorkflow(db, { valueBand, quoteCount, hsseRis
       [valueBand, conditions]
     );
 
-    if (!rows.length) return buildCapexWorkflow({ valueBand, quoteCount, hsseRisk, workerWelfareRisk });
+    if (!rows.length) return buildCapexWorkflow({ valueBand, quoteCount });
 
-    return rows.map(r => ({ role: r.approver_role, label: displayWorkflowLabel(r) }));
+    const workflow = rows.map(r => ({ role: r.approver_role, label: displayWorkflowLabel(r) }));
+    if (!workflow.some(step => step.role === 'HSSE Focal')) {
+      const managerIndex = workflow.findIndex(step => step.role === 'Manager');
+      workflow.splice(managerIndex + 1, 0, { role: 'HSSE Focal', label: 'HSSE Focal Screening' });
+    }
+    return workflow;
   } catch {
-    return buildCapexWorkflow({ valueBand, quoteCount, hsseRisk, workerWelfareRisk });
+    return buildCapexWorkflow({ valueBand, quoteCount });
   }
 }
 
 function nextOpenStep(steps) {
   return steps.find(s => s.status === 'Pending') || null;
+}
+
+function pendingDays(startedAt) {
+  if (!startedAt) return null;
+  const started = new Date(startedAt).getTime();
+  if (!Number.isFinite(started)) return null;
+  return Math.max(0, Math.floor((Date.now() - started) / 86400000));
 }
 
 async function addAuditLog(client, requestId, eventType, message, actor) {
@@ -172,6 +195,92 @@ function userRole(req) {
 
 function hasPoUploadRequirements(data) {
   return !!(data.poNumber && Number(data.poValue) > 0 && data.poAttachmentName);
+}
+
+// ── Repository planning fields (migration 035) ───────────────────────────────
+// Project dates and asset category, captured up front so the repository can
+// report planned-vs-actual rather than actuals alone.
+
+// pg parses a DATE column into a JS Date at *local* midnight, which
+// JSON.stringify then renders in UTC — east of Greenwich that shifts the day
+// backwards ('2026-09-01' leaves as '2026-08-31T18:30:00.000Z'). DATE columns
+// are calendar days with no time component, so render them back as the day the
+// database holds, taken from local parts to undo the same offset pg applied.
+// Every mapper below must run its DATE columns through this; TIMESTAMPTZ
+// columns are real instants and must keep their full ISO timestamp.
+function toDateOnly(value) {
+  if (!value) return null;
+  if (typeof value === 'string') return value.slice(0, 10);
+  const pad = (n) => String(n).padStart(2, '0');
+  return `${value.getFullYear()}-${pad(value.getMonth() + 1)}-${pad(value.getDate())}`;
+}
+
+// Accepts 'YYYY-MM-DD' only. Returns undefined for "not supplied", null for
+// "explicitly cleared", the string when valid, and false when unparseable — the
+// caller distinguishes all four.
+function toIsoDate(value) {
+  if (value === undefined) return undefined;
+  if (value === null || value === '') return null;
+  if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const parsed = new Date(`${value}T00:00:00Z`);
+  if (Number.isNaN(parsed.getTime())) return false;
+  // Rejects 2026-02-30, which Date would roll forward into March.
+  return parsed.toISOString().slice(0, 10) === value ? value : false;
+}
+
+// Validates the three project dates and the asset category together. Returns an
+// error string for the caller to 400 on, or null when everything is usable.
+// Mirrors the capex_requests_target_after_start CHECK constraint so the client
+// gets a readable message instead of a database error.
+async function validateRepositoryFields(db, fields, existing = {}) {
+  const labels = {
+    startDate: 'startDate',
+    targetCompletionDate: 'targetCompletionDate',
+    expectedCapitalizationDate: 'expectedCapitalizationDate',
+  };
+  for (const key of Object.keys(labels)) {
+    if (fields[key] === false) return `${labels[key]} must be a valid date in YYYY-MM-DD format`;
+  }
+
+  const start = fields.startDate === undefined ? existing.start_date : fields.startDate;
+  const target = fields.targetCompletionDate === undefined
+    ? existing.target_completion_date
+    : fields.targetCompletionDate;
+  const asDay = (v) => (v instanceof Date ? v.toISOString().slice(0, 10) : v);
+  if (start && target && asDay(target) < asDay(start)) {
+    return 'targetCompletionDate cannot be earlier than startDate';
+  }
+
+  if (fields.assetCategoryId !== undefined && fields.assetCategoryId !== null) {
+    if (!Number.isInteger(fields.assetCategoryId)) {
+      return 'assetCategoryId must be an asset category id';
+    }
+    const { rows: [category] } = await db.query(
+      `SELECT id, is_active FROM capex_reference_asset_categories WHERE id = $1`,
+      [fields.assetCategoryId]
+    );
+    if (!category) return 'assetCategoryId does not match a known asset category';
+    // A deactivated category stays readable on the requests that already use it,
+    // but must not be attachable to new or edited ones.
+    if (!category.is_active) return 'That asset category is no longer active';
+  }
+
+  return null;
+}
+
+// Normalises the raw request body into the shape validateRepositoryFields and
+// the SQL parameters expect.
+function readRepositoryFields(body) {
+  const rawId = body.assetCategoryId;
+  return {
+    projectOwnerTitle: body.projectOwnerTitle,
+    startDate: toIsoDate(body.startDate),
+    targetCompletionDate: toIsoDate(body.targetCompletionDate),
+    expectedCapitalizationDate: toIsoDate(body.expectedCapitalizationDate),
+    assetCategoryId: rawId === undefined ? undefined
+      : rawId === null || rawId === '' ? null
+      : Number(rawId),
+  };
 }
 
 function csvCell(value) {
@@ -282,8 +391,20 @@ async function syncCapexApprovalDecisionGate(client, request, reviewer) {
   );
 }
 
-async function ensureCapexRequest(client, requestId) {
-  const { rows: [request] } = await client.query(`SELECT * FROM capex_requests WHERE id = $1 FOR UPDATE`, [requestId]);
+// Loads and locks a request for a mutating handler. This is the choke point for
+// every /requests/:id/* write, so the business-scope check lives here rather
+// than being repeated in each of the seventeen callers. A request outside the
+// caller's scope reads as absent, and the caller's existing 404 applies.
+async function ensureCapexRequest(client, requestId, req) {
+  const scope = req ? await getScopeContext(req, client) : null;
+  const filter = scope
+    ? scopeFilterForTable(scope, 'capex_requests', { alias: 'r', startIndex: 2 })
+    : { sql: 'TRUE', params: [] };
+
+  const { rows: [request] } = await client.query(
+    `SELECT r.* FROM capex_requests r WHERE r.id = $1 AND ${filter.sql} FOR UPDATE`,
+    [requestId, ...filter.params]
+  );
   return request || null;
 }
 
@@ -328,12 +449,18 @@ function decorateDecisionGateForUser(gate, request, user) {
 // ── GET /api/capex/summary ────────────────────────────────────────────────────
 exports.getSummary = async (req, res, next) => {
   try {
+    // Budget/planning views are keyed by a free-text department name, so they
+    // scope through the alias bridge rather than a request id.
+    const scope = await getScopeContext(req);
+    const filter = departmentScopeFilter(scope, { column: 'name' });
     const { rows } = await pool.query(
       `SELECT id, name, total_budget, committed, actual,
               (total_budget - committed - actual) AS remaining,
               ROUND((actual / NULLIF(total_budget,0)) * 100) AS percent_used
        FROM capex_departments
-       ORDER BY name`
+       WHERE ${filter.sql}
+       ORDER BY name`,
+      filter.params
     );
     res.json(rows.map(r => ({
       id:          r.id,
@@ -350,11 +477,18 @@ exports.getSummary = async (req, res, next) => {
 // ── GET /api/capex/departments ────────────────────────────────────────────────
 exports.getDepartmentsList = async (req, res, next) => {
   try {
+    // Budget/planning views are keyed by a free-text department name, so they
+    // scope through the alias bridge rather than a request id.
+    const scope = await getScopeContext(req);
+    const filter = departmentScopeFilter(scope, { column: 'name' });
     const { rows: depts } = await pool.query(
       `SELECT id, name, total_budget, committed, actual,
               (total_budget - committed - actual) AS remaining,
               ROUND((actual / NULLIF(total_budget,0)) * 100) AS percent_used
-       FROM capex_departments ORDER BY name`
+       FROM capex_departments
+       WHERE ${filter.sql}
+       ORDER BY name`,
+      filter.params
     );
     const result = await Promise.all(depts.map(async (dept) => {
       const { rows: monthly } = await pool.query(
@@ -384,12 +518,16 @@ exports.getDepartmentsList = async (req, res, next) => {
 exports.getDepartment = async (req, res, next) => {
   try {
     const name = decodeURIComponent(req.params.name);
+    // Out of scope reads as "not found", identical to a bad name, so the
+    // department list above cannot be bypassed by guessing.
+    const scope = await getScopeContext(req);
+    const filter = departmentScopeFilter(scope, { column: 'name', startIndex: 2 });
     const { rows: [dept] } = await pool.query(
       `SELECT id, name, total_budget, committed, actual,
               (total_budget - committed - actual) AS remaining,
               ROUND((actual / NULLIF(total_budget,0)) * 100) AS percent_used
-       FROM capex_departments WHERE LOWER(name) = LOWER($1)`,
-      [name]
+       FROM capex_departments WHERE LOWER(name) = LOWER($1) AND ${filter.sql}`,
+      [name, ...filter.params]
     );
     if (!dept) return res.status(404).json({ error: 'Department not found' });
 
@@ -435,10 +573,14 @@ exports.getSyncStatus = async (req, res, next) => {
 // GSAP stub — reads from gsap_approved_budgets (manually seeded, GSAP will overwrite)
 exports.getGsapData = async (req, res, next) => {
   try {
+    const scope = await getScopeContext(req);
+    const filter = departmentScopeFilter(scope, { column: 'department' });
     const [statusResult, budgetsResult] = await Promise.all([
       pool.query('SELECT * FROM gsap_sync_status WHERE id = 1'),
       pool.query(`SELECT wbs_code, description, department, approved_amount, posted_amount, source, updated_at
-                  FROM gsap_approved_budgets ORDER BY department, wbs_code`),
+                  FROM gsap_approved_budgets
+                  WHERE ${filter.sql}
+                  ORDER BY department, wbs_code`, filter.params),
     ]);
     const sync = statusResult.rows[0];
     res.json({
@@ -462,10 +604,15 @@ exports.getGsapData = async (req, res, next) => {
 // ── GET /api/capex/initiations ────────────────────────────────────────────────
 exports.getInitiations = async (req, res, next) => {
   try {
+    const scope = await getScopeContext(req);
+    const filter = departmentScopeFilter(scope, { column: 'department' });
     const { rows } = await pool.query(
       `SELECT id, title, description, department, initiator, project_type, estimated_budget,
               priority, status, start_date, end_date, stakeholders, justification, created_at
-       FROM capex_initiations ORDER BY created_at DESC`
+       FROM capex_initiations
+       WHERE ${filter.sql}
+       ORDER BY created_at DESC`,
+      filter.params
     );
     res.json(rows.map(mapInitiation));
   } catch (err) { next(err); }
@@ -504,9 +651,14 @@ exports.createInitiation = async (req, res, next) => {
 // ── GET /api/capex/manual-entries ─────────────────────────────────────────────
 exports.getManualEntries = async (req, res, next) => {
   try {
+    const scope = await getScopeContext(req);
+    const filter = departmentScopeFilter(scope, { column: 'department' });
     const { rows } = await pool.query(
       `SELECT id, entry_type, department, period, amount, description, reference_number, entered_by, entered_at, status
-       FROM capex_manual_entries ORDER BY entered_at DESC, id DESC`
+       FROM capex_manual_entries
+       WHERE ${filter.sql}
+       ORDER BY entered_at DESC, id DESC`,
+      filter.params
     );
     res.json(rows.map(mapManualEntry));
   } catch (err) { next(err); }
@@ -727,19 +879,25 @@ exports.getRequests = async (req, res, next) => {
     const statuses = typeof req.query.status === 'string' && req.query.status.trim()
       ? req.query.status.split(',').map(s => canonicalStatus(s.trim())).filter(Boolean)
       : null;
+    const scope = await getScopeContext(req);
+    const filter = scopeFilterForTable(scope, 'capex_requests', { alias: 'r', startIndex: 2 });
     const { rows } = await pool.query(
       `SELECT r.*,
               COUNT(q.id)::int AS quote_count,
               COALESCE(AVG(q.quote_value),0) AS average_quote,
               s.approver_role AS current_approver_role,
-              s.label AS current_step_label
+              s.label AS current_step_label,
+              s.started_at AS current_step_started_at,
+              ac.name AS asset_category_name
        FROM capex_requests r
        LEFT JOIN capex_supplier_quotations q ON q.request_id = r.id
        LEFT JOIN capex_approval_steps s ON s.id = r.current_step_id
+       LEFT JOIN capex_reference_asset_categories ac ON ac.id = r.asset_category_id
        WHERE ($1::text[] IS NULL OR r.status = ANY($1))
-       GROUP BY r.id, s.approver_role, s.label
+         AND ${filter.sql}
+       GROUP BY r.id, s.approver_role, s.label, s.started_at, ac.name
        ORDER BY r.created_at DESC`,
-      [statuses]
+      [statuses, ...filter.params]
     );
     res.json(rows.map(mapCapexRequestSummary));
   } catch (err) { next(err); }
@@ -747,7 +905,19 @@ exports.getRequests = async (req, res, next) => {
 
 exports.getRequestById = async (req, res, next) => {
   try {
-    const { rows: [request] } = await pool.query(`SELECT * FROM capex_requests WHERE id = $1`, [req.params.id]);
+    // One gate on the parent. A request outside the caller's scope reads as
+    // "not found" — identical to a bad id, so the list scoping above cannot be
+    // defeated by enumerating request numbers. The twenty child queries below
+    // are all keyed on this request id and so need no predicate of their own.
+    const scope = await getScopeContext(req);
+    const filter = scopeFilterForTable(scope, 'capex_requests', { alias: 'r', startIndex: 2 });
+    const { rows: [request] } = await pool.query(
+      `SELECT r.*, ac.name AS asset_category_name
+         FROM capex_requests r
+         LEFT JOIN capex_reference_asset_categories ac ON ac.id = r.asset_category_id
+        WHERE r.id = $1 AND ${filter.sql}`,
+      [req.params.id, ...filter.params]
+    );
     if (!request) return res.status(404).json({ error: 'CAPEX request not found' });
     await syncCapexApprovalDecisionGate(pool, request, userName(req));
 
@@ -803,13 +973,40 @@ exports.getRequestById = async (req, res, next) => {
 exports.createRequest = async (req, res, next) => {
   let client;
   try {
+    // Raising a CAPEX request is the Project Owner's job. Enforced here as well
+    // as through the permission presets, because permission rows granted before
+    // this rule existed would otherwise still let other roles originate.
+    if (!canRoleCreateRequests(req.user?.role)) {
+      return res.status(403).json({
+        error: `Role '${req.user?.role || 'Unknown'}' cannot raise CAPEX requests — this is the Project Owner's responsibility`,
+      });
+    }
+
+    let requestBody = req.body;
+    if (typeof req.body?.payload === 'string') {
+      try {
+        requestBody = JSON.parse(req.body.payload);
+      } catch {
+        return res.status(400).json({ error: 'payload must contain valid JSON' });
+      }
+    }
     const {
-      title, department, businessFunction, budgetHolder, financialYear,
+      title, department, businessFunction, organizationUnitId, budgetHolder, financialYear,
       currentCostBudget, estimatedValue, acvPoValue, currency, urgent,
-      scopeDetails, frequency, volumePerYear, hsseRisk, workerWelfareRisk,
+      scopeDetails, frequency, volumePerYear,
       paymentTermsAgreed, paymentTerms, fewerThan3Justification, savings, roi,
       quotations = [],
-    } = req.body;
+    } = requestBody;
+
+    // Planning fields are optional: the client treats them as repository data
+    // to be filled as the project firms up, not as a submission gate.
+    const repository = readRepositoryFields(requestBody);
+
+    const projectFiles = [
+      ...(req.files?.projectFiles || []),
+      ...(req.files?.strategyFile || []),
+    ];
+    const quotationFiles = req.files?.quotationFiles || [];
 
     if (!title || !department || !estimatedValue || !scopeDetails) {
       return res.status(400).json({ error: 'title, department, estimatedValue, and scopeDetails are required' });
@@ -820,8 +1017,18 @@ exports.createRequest = async (req, res, next) => {
     if (quotations.length < 3 && !fewerThan3Justification) {
       return res.status(400).json({ error: 'Justification is required when fewer than 3 quotations are provided' });
     }
-    if (!quotations.some(q => q.isSelected)) {
-      return res.status(400).json({ error: 'One selected supplier quotation is required' });
+    if (quotations.filter(q => q.isSelected).length !== 1) {
+      return res.status(400).json({ error: 'Exactly one selected supplier quotation is required' });
+    }
+    if (!projectFiles.length) {
+      return res.status(400).json({ error: 'At least one project document or presentation is required' });
+    }
+    if (quotationFiles.length !== quotations.length) {
+      return res.status(400).json({ error: 'One attachment is required for every supplier quotation' });
+    }
+    const repositoryError = await validateRepositoryFields(pool, repository);
+    if (repositoryError) {
+      return res.status(400).json({ error: repositoryError });
     }
 
     const year = new Date().getFullYear();
@@ -842,47 +1049,129 @@ exports.createRequest = async (req, res, next) => {
     const seq = String(Number(maxseq) + 1).padStart(3, '0');
     const id = `CAPEX-${year}-${seq}`;
 
+    // The business this request belongs to. Newer clients send it explicitly;
+    // older ones only send the free-text department, which the alias bridge maps.
+    const organizationUnit = await resolveOrganizationUnitId(client, {
+      organizationUnitId,
+      department: businessFunction || department,
+    });
+
     const { rows: [request] } = await client.query(
       `INSERT INTO capex_requests
        (id, title, requester_name, requester_id, department, business_function, budget_holder,
         financial_year, current_cost_budget, estimated_value, acv_po_value, currency, value_band,
         urgent, scope_details, frequency, volume_per_year, hsse_risk, worker_welfare_risk,
-        payment_terms_agreed, payment_terms, fewer_than_3_justification, savings, roi, status, submitted_at)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,'Submitted',NOW())
+        payment_terms_agreed, payment_terms, fewer_than_3_justification, savings, roi,
+        organization_unit_id, project_owner_title, start_date, target_completion_date,
+        expected_capitalization_date, asset_category_id, status, submitted_at)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,
+               $26,$27,$28,$29,$30,'Submitted',NOW())
        RETURNING *`,
       [
         id, title, requesterName, toUuid(req.user?.id), department, businessFunction || department, budgetHolder || '',
         financialYear || year, Number(currentCostBudget || 0), Number(estimatedValue), acvPoValue ? Number(acvPoValue) : null,
         currency || 'OMR', band, !!urgent, scopeDetails, frequency || '', volumePerYear || '',
-        hsseRisk || 'Low', workerWelfareRisk || 'Low', !!paymentTermsAgreed, paymentTerms || '',
+        'Not assessed', 'Not assessed', !!paymentTermsAgreed, paymentTerms || '',
         fewerThan3Justification || '', savings === undefined || savings === '' ? null : Number(savings), roi || '',
+        organizationUnit,
+        repository.projectOwnerTitle || null,
+        repository.startDate || null,
+        repository.targetCompletionDate || null,
+        repository.expectedCapitalizationDate || null,
+        repository.assetCategoryId ?? null,
       ]
     );
 
-    for (const q of quotations) {
+    const retentionUntil = new Date();
+    retentionUntil.setFullYear(retentionUntil.getFullYear() + 7);
+    const retentionDate = retentionUntil.toISOString().slice(0, 10);
+    for (const projectFile of projectFiles) {
       await client.query(
+        `INSERT INTO capex_attachments
+         (request_id, linked_type, linked_id, name, type, size, uploaded_by,
+          mime_type, size_bytes, retention_until, file_data)
+         VALUES ($1,'Request',NULL,$2,'Project Strategy / Scope',$3,$4,$5,$6,$7,$8)`,
+        [
+          id,
+          projectFile.originalname,
+          `${Math.ceil(projectFile.size / 1024)} KB`,
+          requesterName,
+          projectFile.mimetype,
+          projectFile.size,
+          retentionDate,
+          projectFile.buffer,
+        ]
+      );
+    }
+
+    for (const [quoteIndex, q] of quotations.entries()) {
+      const quoteFile = quotationFiles[quoteIndex];
+      const { rows: [quotation] } = await client.query(
         `INSERT INTO capex_supplier_quotations
          (request_id, supplier_name, quote_value, currency, payment_terms, is_selected, attachment_name)
-         VALUES ($1,$2,$3,$4,$5,$6,$7)`,
-        [id, q.supplierName, Number(q.quoteValue), q.currency || 'OMR', q.paymentTerms || '', !!q.isSelected, q.attachmentName || '']
+         VALUES ($1,$2,$3,$4,$5,$6,$7)
+         RETURNING id`,
+        [id, q.supplierName, Number(q.quoteValue), q.currency || 'OMR', q.paymentTerms || '', !!q.isSelected, quoteFile.originalname]
+      );
+      await client.query(
+        `INSERT INTO capex_attachments
+         (request_id, linked_type, linked_id, name, type, size, uploaded_by,
+          mime_type, size_bytes, retention_until, file_data)
+         VALUES ($1,'Supplier Quotation',$2,$3,'Supplier Quotation',$4,$5,$6,$7,$8,$9)`,
+        [
+          id,
+          String(quotation.id),
+          quoteFile.originalname,
+          `${Math.ceil(quoteFile.size / 1024)} KB`,
+          requesterName,
+          quoteFile.mimetype,
+          quoteFile.size,
+          retentionDate,
+          quoteFile.buffer,
+        ]
       );
     }
 
     const workflow = await buildConfiguredCapexWorkflow(client, {
       valueBand: band,
       quoteCount: quotations.length,
-      hsseRisk: hsseRisk || 'Low',
-      workerWelfareRisk: workerWelfareRisk || 'Low',
     });
 
     let firstStepId = null;
+    let firstStepStartedAt = null;
     for (const [index, step] of workflow.entries()) {
+      // Route each step to the person holding that role in this request's
+      // business. When the business has not named one — or has named several —
+      // the step stays unassigned (exactly as before this feature) and raises a
+      // governance alert, rather than blocking the submission.
+      const assignee = await resolveStepAssigneeSoft(client, {
+        roleName: step.role,
+        organizationUnitId: organizationUnit,
+      });
+
       const { rows: [insertedStep] } = await client.query(
-        `INSERT INTO capex_approval_steps (request_id, step_order, approver_role, label, status)
-         VALUES ($1,$2,$3,$4,'Pending') RETURNING *`,
-        [id, index + 1, step.role, step.label]
+        `INSERT INTO capex_approval_steps (request_id, step_order, approver_role, label, status, started_at, assigned_to)
+         VALUES ($1,$2,$3,$4,'Pending',CASE WHEN $5 THEN NOW() ELSE NULL END,$6) RETURNING *`,
+        [id, index + 1, step.role, step.label, index === 0, assignee.assignedTo]
       );
-      if (index === 0) firstStepId = insertedStep.id;
+
+      if (assignee.status !== 'RESOLVED' && organizationUnit) {
+        const reason = assignee.status === 'AMBIGUOUS'
+          ? `${assignee.candidateCount} people hold '${step.role}' in this business`
+          : `nobody holds '${step.role}' in this business`;
+        await addAuditLog(client, id, 'STEP_ASSIGNEE_UNRESOLVED',
+          `Step '${step.label}' could not be routed to a named approver: ${reason}.`, requesterName);
+        await client.query(
+          `INSERT INTO capex_governance_alerts (request_id, alert_type, severity, message, status)
+           VALUES ($1,'Approver Not Assigned','Amber',$2,'Open')`,
+          [id, `Step '${step.label}' has no named approver — ${reason}.`]
+        );
+      }
+
+      if (index === 0) {
+        firstStepId = insertedStep.id;
+        firstStepStartedAt = insertedStep.started_at;
+      }
     }
 
     await client.query(`INSERT INTO capex_procurement_tracking (request_id) VALUES ($1)`, [id]);
@@ -904,6 +1193,7 @@ exports.createRequest = async (req, res, next) => {
       average_quote: 0,
       current_approver_role: workflow[0]?.role,
       current_step_label: workflow[0]?.label,
+      current_step_started_at: firstStepStartedAt,
     }));
   } catch (err) {
     if (client) await client.query('ROLLBACK');
@@ -916,7 +1206,7 @@ exports.createRequest = async (req, res, next) => {
 exports.decideRequest = async (req, res, next) => {
   let client;
   try {
-    const { decision, comment } = req.body;
+    const { decision, comment, hsseRisk, workerWelfareRisk } = req.body;
     const valid = ['APPROVED', 'REJECTED', 'RETURNED'];
     if (!valid.includes(decision)) {
       return res.status(400).json({ error: `decision must be one of: ${valid.join(', ')}` });
@@ -957,15 +1247,52 @@ exports.decideRequest = async (req, res, next) => {
        LIMIT 1`,
       [roleLookupKeys, roleLookupKeys[0]]
     );
-    const authority = decisionAuthority(req.user, step, cfg[0]?.allowed_user_roles);
-    if (authority === 'denied' || authority === 'unconfigured') {
+    const scope = await getScopeContext(req, client);
+    let authority = decisionAuthority(req.user, step, cfg[0]?.allowed_user_roles, {
+      tier: scope.tier,
+      isAdmin: scope.isAdmin,
+      organizationUnitIds: scope.organizationUnitIds,
+      requestOrganizationUnitId: request.organization_unit_id,
+      requesterId: request.requester_id,
+    });
+
+    // Before enforcement is switched on, an out-of-business decision is allowed
+    // but recorded — the audit trail is what tells us who would lose access when
+    // the switch is flipped.
+    if (authority === 'out-of-scope' && scope.enforcement !== 'on') {
+      await addAuditLog(client, request.id, 'SCOPE_SHADOW_DENY',
+        `Scope enforcement is '${scope.enforcement}': ${req.user?.email || req.user?.role} decided step '${step.label}' outside their business.`,
+        userName(req));
+      authority = 'role-allowed';
+    }
+    if (authority === 'role-allowed' && !request.organization_unit_id && scope.tier !== 'PORTFOLIO') {
+      await addAuditLog(client, request.id, 'SCOPE_UNRESOLVED_DECISION',
+        `Decided step '${step.label}' on a request with no Business / Function — scope could not be checked.`,
+        userName(req));
+    }
+
+    if (authority === 'denied' || authority === 'unconfigured' || authority === 'out-of-scope') {
       await client.query('ROLLBACK');
       const required = (cfg[0]?.allowed_user_roles || []).filter(Boolean);
-      return res.status(403).json({
-        error: authority === 'unconfigured'
-          ? `Approval step '${step.label}' has no authorised user roles configured`
-          : `Role '${req.user?.role || 'Unknown'}' is not authorised to decide step '${step.label}'` +
-            (required.length ? ` (requires: ${required.join(', ')})` : (step.assigned_to ? ` (assigned to: ${step.assigned_to})` : '')),
+      let error;
+      if (authority === 'unconfigured') {
+        error = `Approval step '${step.label}' has no authorised user roles configured`;
+      } else if (authority === 'out-of-scope') {
+        error = `Role '${req.user?.role || 'Unknown'}' is authorised for step '${step.label}', but ${request.id} belongs to a business outside your assignment`;
+      } else {
+        error = `Role '${req.user?.role || 'Unknown'}' is not authorised to decide step '${step.label}'`
+          + (required.length ? ` (requires: ${required.join(', ')})` : (step.assigned_to ? ` (assigned to: ${step.assigned_to})` : ''));
+      }
+      return res.status(403).json({ error });
+    }
+
+    const isHsseScreening = step.approver_role === 'HSSE Focal';
+    const validRiskRatings = ['Low', 'Medium', 'High'];
+    if (decision === 'APPROVED' && isHsseScreening
+      && (!validRiskRatings.includes(hsseRisk) || !validRiskRatings.includes(workerWelfareRisk))) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({
+        error: 'HSSE Risk and Worker Welfare Risk must be assessed as Low, Medium, or High before approving HSSE screening',
       });
     }
 
@@ -974,11 +1301,14 @@ exports.decideRequest = async (req, res, next) => {
       await addAuditLog(client, request.id, 'APPROVAL_OVERRIDE',
         `Admin override: decided step '${step.label}' in place of ${step.approver_role}.`, approverName);
     }
+    const recordedComment = isHsseScreening && decision === 'APPROVED'
+      ? `HSSE Risk: ${hsseRisk}; Worker Welfare Risk: ${workerWelfareRisk}${comment ? `. ${comment}` : ''}`
+      : (comment || '');
     await client.query(
       `INSERT INTO capex_approval_actions
        (request_id, step_id, approver_name, approver_role, decision, comment)
        VALUES ($1,$2,$3,$4,$5,$6)`,
-      [request.id, step?.id || null, approverName, req.user?.role || step?.approver_role || 'Unknown', decision, comment || '']
+      [request.id, step?.id || null, approverName, req.user?.role || step?.approver_role || 'Unknown', decision, recordedComment]
     );
 
     if (decision === 'REJECTED') {
@@ -1002,12 +1332,37 @@ exports.decideRequest = async (req, res, next) => {
         approverName
       );
     } else {
+      if (isHsseScreening) {
+        await client.query(
+          `UPDATE capex_requests
+           SET hsse_risk = $1, worker_welfare_risk = $2, updated_at = NOW()
+           WHERE id = $3`,
+          [hsseRisk, workerWelfareRisk, request.id]
+        );
+        await addAuditLog(
+          client,
+          request.id,
+          'HSSE_ASSESSED',
+          `HSSE screening completed. HSSE Risk: ${hsseRisk}; Worker Welfare Risk: ${workerWelfareRisk}.`,
+          approverName
+        );
+      }
       await client.query(`UPDATE capex_approval_steps SET status = 'Approved', decided_at = NOW() WHERE id = $1`, [step.id]);
       const { rows: steps } = await client.query(
         `SELECT * FROM capex_approval_steps WHERE request_id = $1 ORDER BY step_order`,
         [request.id]
       );
       const open = nextOpenStep(steps);
+      if (open) {
+        const { rows: [startedStep] } = await client.query(
+          `UPDATE capex_approval_steps
+           SET started_at = COALESCE(started_at, NOW())
+           WHERE id = $1
+           RETURNING *`,
+          [open.id]
+        );
+        Object.assign(open, startedStep);
+      }
       await client.query(
         `UPDATE capex_requests SET status = $1, current_step_id = $2, updated_at = NOW() WHERE id = $3`,
         [requestStatusForStep(open), open?.id || null, request.id]
@@ -1034,11 +1389,7 @@ exports.decideRequest = async (req, res, next) => {
 // ── Step delegation & escalation (PRD-FR-016) ────────────────────────────────
 exports.getDelegateCandidates = async (req, res, next) => {
   try {
-    const { rows: [request] } = await pool.query(
-      `SELECT id, current_step_id FROM capex_requests WHERE id = $1`,
-      [req.params.id]
-    );
-    if (!request) return res.status(404).json({ error: 'CAPEX request not found' });
+    const request = await requireRequestInScope(pool, req, 'capex_requests', req.params.id);
     if (String(request.current_step_id) !== String(req.params.stepId)) {
       return res.status(409).json({ error: 'Only the current pending step can be delegated' });
     }
@@ -1063,14 +1414,32 @@ exports.getDelegateCandidates = async (req, res, next) => {
     const allowedRoles = (cfg[0]?.allowed_user_roles || []).filter(Boolean);
     const candidateRoles = allowedRoles.length ? allowedRoles : roleLookupKeys;
 
+    // Business narrowing follows the same enforcement switch as every other
+    // scoping rule, so this stays inert until the flip.
+    const candidateScope = await getScopeContext(req);
+    const delegateOrgFilter = candidateScope.enforcement === 'on'
+      ? (request.organization_unit_id || null)
+      : null;
+
+    // Candidates must also belong to the request's business (or hold a
+    // portfolio scope) — otherwise delegation would be a way around scoping.
     const { rows } = await pool.query(
       `SELECT id, full_name, email, role, department
-       FROM som_users
+       FROM som_users u
        WHERE is_active = true
          AND role = ANY($1)
          AND id::text <> $2
+         AND ($3::uuid IS NULL OR EXISTS (
+           SELECT 1 FROM capex_v2.user_scope_assignments a
+            WHERE a.user_id = u.id
+              AND a.is_active = TRUE
+              AND a.effective_from <= CURRENT_DATE
+              AND (a.effective_to IS NULL OR a.effective_to >= CURRENT_DATE)
+              AND (a.scope_type = 'PORTFOLIO'
+                   OR (a.scope_type = 'BUSINESS_UNIT' AND a.organization_unit_id = $3))
+         ))
        ORDER BY full_name, email`,
-      [candidateRoles, String(req.user.id)]
+      [candidateRoles, String(req.user.id), delegateOrgFilter]
     );
 
     res.json(rows.map(row => ({
@@ -1094,7 +1463,7 @@ exports.delegateStep = async (req, res, next) => {
     }
     client = await pool.connect();
     await client.query('BEGIN');
-    const request = await ensureCapexRequest(client, req.params.id);
+    const request = await ensureCapexRequest(client, req.params.id, req);
     if (!request) {
       await client.query('ROLLBACK');
       return res.status(404).json({ error: 'CAPEX request not found' });
@@ -1126,14 +1495,29 @@ exports.delegateStep = async (req, res, next) => {
     const allowedRoles = (cfg[0]?.allowed_user_roles || []).filter(Boolean);
     const candidateRoles = allowedRoles.length ? allowedRoles : roleLookupKeys;
     const delegateValue = String(delegateTo).trim().toLowerCase();
+    const delegateScope = await getScopeContext(req, client);
+    const delegateOrgFilter = delegateScope.enforcement === 'on'
+      ? (request.organization_unit_id || null)
+      : null;
+    // Mirrors getDelegateCandidates: the delegate must hold the step's role AND
+    // belong to the request's business (or hold a portfolio scope).
     const { rows: [delegateUser] } = await client.query(
       `SELECT full_name, email
-       FROM som_users
+       FROM som_users u
        WHERE is_active = true
          AND role = ANY($1)
          AND (LOWER(email) = $2 OR LOWER(full_name) = $2)
+         AND ($3::uuid IS NULL OR EXISTS (
+           SELECT 1 FROM capex_v2.user_scope_assignments a
+            WHERE a.user_id = u.id
+              AND a.is_active = TRUE
+              AND a.effective_from <= CURRENT_DATE
+              AND (a.effective_to IS NULL OR a.effective_to >= CURRENT_DATE)
+              AND (a.scope_type = 'PORTFOLIO'
+                   OR (a.scope_type = 'BUSINESS_UNIT' AND a.organization_unit_id = $3))
+         ))
        LIMIT 1`,
-      [candidateRoles, delegateValue]
+      [candidateRoles, delegateValue, delegateOrgFilter]
     );
     if (!delegateUser) {
       await client.query('ROLLBACK');
@@ -1167,7 +1551,7 @@ exports.escalateStep = async (req, res, next) => {
     }
     client = await pool.connect();
     await client.query('BEGIN');
-    const request = await ensureCapexRequest(client, req.params.id);
+    const request = await ensureCapexRequest(client, req.params.id, req);
     if (!request) {
       await client.query('ROLLBACK');
       return res.status(404).json({ error: 'CAPEX request not found' });
@@ -1212,9 +1596,7 @@ exports.updateRequest = async (req, res, next) => {
     client = await pool.connect();
     await client.query('BEGIN');
 
-    const { rows: [request] } = await client.query(
-      `SELECT * FROM capex_requests WHERE id = $1 FOR UPDATE`, [req.params.id]
-    );
+    const request = await ensureCapexRequest(client, req.params.id, req);
     if (!request) {
       await client.query('ROLLBACK');
       return res.status(404).json({ error: 'CAPEX request not found' });
@@ -1246,6 +1628,13 @@ exports.updateRequest = async (req, res, next) => {
       }
     }
 
+    const repository = readRepositoryFields(b);
+    const repositoryError = await validateRepositoryFields(client, repository, request);
+    if (repositoryError) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ error: repositoryError });
+    }
+
     const num = (v) => (v === undefined || v === '' ? null : Number(v));
     const { rows: [updated] } = await client.query(
       `UPDATE capex_requests SET
@@ -1260,25 +1649,37 @@ exports.updateRequest = async (req, res, next) => {
          scope_details = COALESCE($9, scope_details),
          frequency = COALESCE($10, frequency),
          volume_per_year = COALESCE($11, volume_per_year),
-         hsse_risk = COALESCE($12, hsse_risk),
-         worker_welfare_risk = COALESCE($13, worker_welfare_risk),
-         payment_terms_agreed = COALESCE($14, payment_terms_agreed),
-         payment_terms = COALESCE($15, payment_terms),
-         fewer_than_3_justification = COALESCE($16, fewer_than_3_justification),
-         savings = COALESCE($17, savings),
-         roi = COALESCE($18, roi),
+         payment_terms_agreed = COALESCE($12, payment_terms_agreed),
+         payment_terms = COALESCE($13, payment_terms),
+         fewer_than_3_justification = COALESCE($14, fewer_than_3_justification),
+         savings = COALESCE($15, savings),
+         roi = COALESCE($16, roi),
+         -- The repository planning fields use an explicit "was it supplied?"
+         -- flag rather than COALESCE, because clearing a date the owner entered
+         -- by mistake has to be possible — under COALESCE a null would be
+         -- indistinguishable from "field omitted" and silently ignored.
+         project_owner_title = CASE WHEN $17::boolean THEN $18::varchar ELSE project_owner_title END,
+         start_date = CASE WHEN $19::boolean THEN $20::date ELSE start_date END,
+         target_completion_date = CASE WHEN $21::boolean THEN $22::date ELSE target_completion_date END,
+         expected_capitalization_date = CASE WHEN $23::boolean THEN $24::date ELSE expected_capitalization_date END,
+         asset_category_id = CASE WHEN $25::boolean THEN $26::integer ELSE asset_category_id END,
          updated_at = NOW()
-       WHERE id = $19
+       WHERE id = $27
        RETURNING *`,
       [
         b.title ?? null, b.department ?? null, b.businessFunction ?? null, b.budgetHolder ?? null,
         num(b.currentCostBudget), num(b.estimatedValue), num(b.acvPoValue),
         b.urgent === undefined ? null : !!b.urgent,
         b.scopeDetails ?? null, b.frequency ?? null, b.volumePerYear ?? null,
-        b.hsseRisk ?? null, b.workerWelfareRisk ?? null,
         b.paymentTermsAgreed === undefined ? null : !!b.paymentTermsAgreed,
         b.paymentTerms ?? null, b.fewerThan3Justification ?? null,
-        num(b.savings), b.roi ?? null, req.params.id,
+        num(b.savings), b.roi ?? null,
+        repository.projectOwnerTitle !== undefined, repository.projectOwnerTitle ?? null,
+        repository.startDate !== undefined, repository.startDate ?? null,
+        repository.targetCompletionDate !== undefined, repository.targetCompletionDate ?? null,
+        repository.expectedCapitalizationDate !== undefined, repository.expectedCapitalizationDate ?? null,
+        repository.assetCategoryId !== undefined, repository.assetCategoryId ?? null,
+        req.params.id,
       ]
     );
 
@@ -1312,9 +1713,7 @@ exports.resubmitRequest = async (req, res, next) => {
     client = await pool.connect();
     await client.query('BEGIN');
 
-    const { rows: [request] } = await client.query(
-      `SELECT * FROM capex_requests WHERE id = $1 FOR UPDATE`, [req.params.id]
-    );
+    const request = await ensureCapexRequest(client, req.params.id, req);
     if (!request) {
       await client.query('ROLLBACK');
       return res.status(404).json({ error: 'CAPEX request not found' });
@@ -1351,16 +1750,14 @@ exports.resubmitRequest = async (req, res, next) => {
     const workflow = await buildConfiguredCapexWorkflow(client, {
       valueBand: band,
       quoteCount: quote_count,
-      hsseRisk: request.hsse_risk,
-      workerWelfareRisk: request.worker_welfare_risk,
     });
 
     let firstStepId = null;
     for (const [index, step] of workflow.entries()) {
       const { rows: [insertedStep] } = await client.query(
-        `INSERT INTO capex_approval_steps (request_id, step_order, approver_role, label, status)
-         VALUES ($1,$2,$3,$4,'Pending') RETURNING *`,
-        [req.params.id, Number(max_order) + index + 1, step.role, step.label]
+        `INSERT INTO capex_approval_steps (request_id, step_order, approver_role, label, status, started_at)
+         VALUES ($1,$2,$3,$4,'Pending',CASE WHEN $5 THEN NOW() ELSE NULL END) RETURNING *`,
+        [req.params.id, Number(max_order) + index + 1, step.role, step.label, index === 0]
       );
       if (index === 0) firstStepId = insertedStep.id;
     }
@@ -1410,7 +1807,7 @@ exports.updateProcurement = async (req, res, next) => {
     client = await pool.connect();
     await client.query('BEGIN');
 
-    const { rows: [request] } = await client.query(`SELECT * FROM capex_requests WHERE id = $1 FOR UPDATE`, [requestId]);
+    const request = await ensureCapexRequest(client, requestId, req);
     if (!request) {
       await client.query('ROLLBACK');
       return res.status(404).json({ error: 'CAPEX request not found' });
@@ -1501,15 +1898,18 @@ exports.updateProcurement = async (req, res, next) => {
 exports.createMilestone = async (req, res, next) => {
   let client;
   try {
-    const { stageName, milestoneName, plannedDate, actualDate, paymentPercentage, paymentAmount, completionEvidence, status } = req.body;
+    const { stageName, milestoneName, plannedStartDate, plannedDate, actualDate, paymentPercentage, paymentAmount, completionEvidence, comments, status } = req.body;
     if (!stageName || !milestoneName) {
       return res.status(400).json({ error: 'stageName and milestoneName are required' });
+    }
+    if (plannedStartDate && plannedDate && plannedStartDate > plannedDate) {
+      return res.status(400).json({ error: 'Planned start date cannot be after the planned completion date' });
     }
 
     client = await pool.connect();
     await client.query('BEGIN');
 
-    const { rows: [request] } = await client.query(`SELECT * FROM capex_requests WHERE id = $1 FOR UPDATE`, [req.params.id]);
+    const request = await ensureCapexRequest(client, req.params.id, req);
     if (!request) {
       await client.query('ROLLBACK');
       return res.status(404).json({ error: 'CAPEX request not found' });
@@ -1523,15 +1923,15 @@ exports.createMilestone = async (req, res, next) => {
 
     const { rows: [row] } = await client.query(
       `INSERT INTO capex_project_milestones
-       (request_id, stage_name, milestone_name, planned_date, actual_date, payment_percentage,
-        payment_amount, completion_evidence, status)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
+       (request_id, stage_name, milestone_name, planned_start_date, planned_date, actual_date,
+        payment_percentage, payment_amount, completion_evidence, comments, status)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
        RETURNING *`,
       [
-        req.params.id, stageName, milestoneName, plannedDate || null, actualDate || null,
+        req.params.id, stageName, milestoneName, plannedStartDate || null, plannedDate || null, actualDate || null,
         paymentPercentage === '' || paymentPercentage === undefined ? null : Number(paymentPercentage),
         paymentAmount === '' || paymentAmount === undefined ? null : Number(paymentAmount),
-        completionEvidence || '', status || (actualDate ? 'Completed' : 'Open'),
+        completionEvidence || '', comments || null, status || (actualDate ? 'Completed' : 'Open'),
       ]
     );
 
@@ -1551,13 +1951,11 @@ exports.createMilestone = async (req, res, next) => {
 exports.updateMilestone = async (req, res, next) => {
   let client;
   try {
-    const { actualDate, paymentPercentage, paymentAmount, completionEvidence, status } = req.body;
+    const { plannedStartDate, plannedDate, actualDate, paymentPercentage, paymentAmount, completionEvidence, comments, status } = req.body;
     client = await pool.connect();
     await client.query('BEGIN');
 
-    const { rows: [request] } = await client.query(
-      `SELECT status FROM capex_requests WHERE id = $1 FOR UPDATE`, [req.params.id]
-    );
+    const request = await ensureCapexRequest(client, req.params.id, req);
     if (!request) {
       await client.query('ROLLBACK');
       return res.status(404).json({ error: 'CAPEX request not found' });
@@ -1571,18 +1969,24 @@ exports.updateMilestone = async (req, res, next) => {
 
     const { rows: [row] } = await client.query(
       `UPDATE capex_project_milestones SET
-         actual_date = COALESCE($1, actual_date),
-         payment_percentage = COALESCE($2, payment_percentage),
-         payment_amount = COALESCE($3, payment_amount),
-         completion_evidence = COALESCE($4, completion_evidence),
-         status = COALESCE($5, status)
-       WHERE request_id = $6 AND id = $7
+         planned_start_date = COALESCE($1, planned_start_date),
+         planned_date = COALESCE($2, planned_date),
+         actual_date = COALESCE($3, actual_date),
+         payment_percentage = COALESCE($4, payment_percentage),
+         payment_amount = COALESCE($5, payment_amount),
+         completion_evidence = COALESCE($6, completion_evidence),
+         comments = COALESCE($7, comments),
+         status = COALESCE($8, status)
+       WHERE request_id = $9 AND id = $10
        RETURNING *`,
       [
+        plannedStartDate || null,
+        plannedDate || null,
         actualDate || null,
         paymentPercentage === '' || paymentPercentage === undefined ? null : Number(paymentPercentage),
         paymentAmount === '' || paymentAmount === undefined ? null : Number(paymentAmount),
         completionEvidence || null,
+        comments || null,
         status || null,
         req.params.id,
         req.params.milestoneId,
@@ -1591,6 +1995,11 @@ exports.updateMilestone = async (req, res, next) => {
     if (!row) {
       await client.query('ROLLBACK');
       return res.status(404).json({ error: 'Milestone not found' });
+    }
+    // Validated on the merged row: either side of the period can arrive alone.
+    if (row.planned_start_date && row.planned_date && row.planned_start_date > row.planned_date) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ error: 'Planned start date cannot be after the planned completion date' });
     }
 
     await addAuditLog(client, req.params.id, 'MILESTONE_UPDATED', `Milestone updated: ${row.milestone_name}.`, userName(req));
@@ -1615,7 +2024,7 @@ exports.saveFinancialClosure = async (req, res, next) => {
     client = await pool.connect();
     await client.query('BEGIN');
 
-    const { rows: [request] } = await client.query(`SELECT * FROM capex_requests WHERE id = $1 FOR UPDATE`, [req.params.id]);
+    const request = await ensureCapexRequest(client, req.params.id, req);
     if (!request) {
       await client.query('ROLLBACK');
       return res.status(404).json({ error: 'CAPEX request not found' });
@@ -1718,7 +2127,7 @@ exports.updateAucTracking = async (req, res, next) => {
 
     client = await pool.connect();
     await client.query('BEGIN');
-    const request = await ensureCapexRequest(client, req.params.id);
+    const request = await ensureCapexRequest(client, req.params.id, req);
     if (!request) {
       await client.query('ROLLBACK');
       return res.status(404).json({ error: 'CAPEX request not found' });
@@ -1777,7 +2186,7 @@ exports.updateCapitalizationTracking = async (req, res, next) => {
 
     client = await pool.connect();
     await client.query('BEGIN');
-    const request = await ensureCapexRequest(client, req.params.id);
+    const request = await ensureCapexRequest(client, req.params.id, req);
     if (!request) {
       await client.query('ROLLBACK');
       return res.status(404).json({ error: 'CAPEX request not found' });
@@ -1837,7 +2246,7 @@ exports.updatePoClosureTracking = async (req, res, next) => {
 
     client = await pool.connect();
     await client.query('BEGIN');
-    const request = await ensureCapexRequest(client, req.params.id);
+    const request = await ensureCapexRequest(client, req.params.id, req);
     if (!request) {
       await client.query('ROLLBACK');
       return res.status(404).json({ error: 'CAPEX request not found' });
@@ -1891,7 +2300,7 @@ exports.updateClosureChecklistItem = async (req, res, next) => {
     const { status, responsibleOwner, dueDate, evidenceAttachment, comments } = req.body;
     client = await pool.connect();
     await client.query('BEGIN');
-    const request = await ensureCapexRequest(client, req.params.id);
+    const request = await ensureCapexRequest(client, req.params.id, req);
     if (!request) {
       await client.query('ROLLBACK');
       return res.status(404).json({ error: 'CAPEX request not found' });
@@ -1941,7 +2350,7 @@ exports.saveBenefitReview = async (req, res, next) => {
 
     client = await pool.connect();
     await client.query('BEGIN');
-    const request = await ensureCapexRequest(client, req.params.id);
+    const request = await ensureCapexRequest(client, req.params.id, req);
     if (!request) {
       await client.query('ROLLBACK');
       return res.status(404).json({ error: 'CAPEX request not found' });
@@ -1994,7 +2403,7 @@ exports.createRisk = async (req, res, next) => {
 
     client = await pool.connect();
     await client.query('BEGIN');
-    const request = await ensureCapexRequest(client, req.params.id);
+    const request = await ensureCapexRequest(client, req.params.id, req);
     if (!request) {
       await client.query('ROLLBACK');
       return res.status(404).json({ error: 'CAPEX request not found' });
@@ -2030,7 +2439,7 @@ exports.updateRisk = async (req, res, next) => {
     const { category, title, severity, probability, impact, mitigationPlan, owner, dueDate, status } = req.body;
     client = await pool.connect();
     await client.query('BEGIN');
-    const request = await ensureCapexRequest(client, req.params.id);
+    const request = await ensureCapexRequest(client, req.params.id, req);
     if (!request) {
       await client.query('ROLLBACK');
       return res.status(404).json({ error: 'CAPEX request not found' });
@@ -2069,12 +2478,146 @@ exports.updateRisk = async (req, res, next) => {
   }
 };
 
+// ── GET /api/capex/business-functions ────────────────────────────────────────
+// The Business / Function master, for request forms and list filters. The same
+// list the admin user form uses, but reachable by anyone who can raise a
+// request. Business-scoped users only see the businesses they belong to, so the
+// form cannot offer them a business they may not file into.
+exports.getBusinessFunctions = async (req, res, next) => {
+  try {
+    const scope = await getScopeContext(req);
+    const scoped = scope.enforcement === 'on' && scope.tier !== 'PORTFOLIO';
+
+    const { rows } = await pool.query(
+      `SELECT id, code, name, unit_type
+         FROM capex_v2.organization_units
+        WHERE is_active = TRUE
+          AND effective_from <= CURRENT_DATE
+          AND (effective_to IS NULL OR effective_to >= CURRENT_DATE)
+          AND ($1::boolean OR id = ANY($2::uuid[]))
+        ORDER BY name`,
+      [!scoped, scope.organizationUnitIds]
+    );
+
+    res.json(rows.map(r => ({ id: r.id, code: r.code, name: r.name, unitType: r.unit_type })));
+  } catch (err) {
+    next(err);
+  }
+};
+
+// ── Asset categories ─────────────────────────────────────────────────────────
+// Admin-maintained list of values (migration 035). Requesters read it to fill
+// the form; only Admins change it. There is no hard delete: categories are
+// referenced by requests and capitalization records, so retiring one means
+// deactivating it — it stays readable on historical records but cannot be
+// chosen again.
+
+exports.getAssetCategories = async (req, res, next) => {
+  try {
+    // Admins editing the list need to see retired entries; everyone else only
+    // gets what is still selectable.
+    const includeInactive = req.query.includeInactive === 'true' && req.user?.role === 'Admin';
+    const { rows } = await pool.query(
+      `SELECT id, name, description, sort_order, is_active, updated_by, updated_at
+         FROM capex_reference_asset_categories
+        WHERE ($1::boolean OR is_active = true)
+        ORDER BY sort_order, name`,
+      [includeInactive]
+    );
+    res.json(rows.map(mapCapexAssetCategory));
+  } catch (err) { next(err); }
+};
+
+exports.createAssetCategory = async (req, res, next) => {
+  if (req.user?.role !== 'Admin') return res.status(403).json({ error: 'Admin only' });
+  try {
+    const name = typeof req.body.name === 'string' ? req.body.name.trim() : '';
+    if (!name) return res.status(400).json({ error: 'name is required' });
+    if (name.length > 120) return res.status(400).json({ error: 'name must be 120 characters or fewer' });
+
+    const { rows: [existing] } = await pool.query(
+      `SELECT id, is_active FROM capex_reference_asset_categories WHERE lower(name) = lower($1)`,
+      [name]
+    );
+    if (existing) {
+      return res.status(409).json({
+        error: existing.is_active
+          ? 'An asset category with that name already exists'
+          : 'A retired asset category has that name — reactivate it instead of creating a duplicate',
+      });
+    }
+
+    const { rows: [row] } = await pool.query(
+      `INSERT INTO capex_reference_asset_categories (name, description, sort_order, is_active, updated_by)
+       VALUES ($1,$2,$3,$4,$5)
+       RETURNING *`,
+      [
+        name,
+        typeof req.body.description === 'string' ? req.body.description.trim() : null,
+        Number.isInteger(Number(req.body.sortOrder)) ? Number(req.body.sortOrder) : 100,
+        req.body.isActive !== false,
+        userName(req),
+      ]
+    );
+    res.status(201).json(mapCapexAssetCategory(row));
+  } catch (err) { next(err); }
+};
+
+exports.updateAssetCategory = async (req, res, next) => {
+  if (req.user?.role !== 'Admin') return res.status(403).json({ error: 'Admin only' });
+  try {
+    const categoryId = Number(req.params.categoryId);
+    if (!Number.isInteger(categoryId)) {
+      return res.status(404).json({ error: 'Asset category not found' });
+    }
+    const { name, description, sortOrder, isActive } = req.body;
+    if (name !== undefined) {
+      if (typeof name !== 'string' || !name.trim()) {
+        return res.status(400).json({ error: 'name cannot be blank' });
+      }
+      if (name.trim().length > 120) {
+        return res.status(400).json({ error: 'name must be 120 characters or fewer' });
+      }
+      const { rows: [clash] } = await pool.query(
+        `SELECT id FROM capex_reference_asset_categories
+          WHERE lower(name) = lower($1) AND id <> $2`,
+        [name.trim(), categoryId]
+      );
+      if (clash) return res.status(409).json({ error: 'Another asset category already has that name' });
+    }
+
+    const { rows: [row] } = await pool.query(
+      `UPDATE capex_reference_asset_categories SET
+         name        = COALESCE($1, name),
+         description = CASE WHEN $2::boolean THEN $3::text ELSE description END,
+         sort_order  = COALESCE($4, sort_order),
+         is_active   = COALESCE($5, is_active),
+         updated_by  = $6,
+         updated_at  = NOW()
+       WHERE id = $7
+       RETURNING *`,
+      [
+        name === undefined ? null : name.trim(),
+        description !== undefined,
+        typeof description === 'string' ? description.trim() : null,
+        Number.isInteger(Number(sortOrder)) ? Number(sortOrder) : null,
+        isActive === undefined ? null : !!isActive,
+        userName(req),
+        categoryId,
+      ]
+    );
+    if (!row) return res.status(404).json({ error: 'Asset category not found' });
+    res.json(mapCapexAssetCategory(row));
+  } catch (err) { next(err); }
+};
+
 exports.getProcessReferenceData = async (req, res, next) => {
   try {
-    const [businessUnits, projectTypes, escalationPolicies] = await Promise.all([
+    const [businessUnits, projectTypes, escalationPolicies, assetCategories] = await Promise.all([
       pool.query(`SELECT id, name, is_active FROM capex_reference_business_units ORDER BY name`),
       pool.query(`SELECT id, type_name, example, is_active FROM capex_reference_project_types ORDER BY type_name`),
       pool.query(`SELECT * FROM capex_escalation_policy WHERE is_active = true ORDER BY id`),
+      pool.query(`SELECT * FROM capex_reference_asset_categories ORDER BY sort_order, name`),
     ]);
     const thresholds = await getValueThresholds();
     const [lowRoute, mediumRoute, highRoute] = await Promise.all([
@@ -2086,6 +2629,7 @@ exports.getProcessReferenceData = async (req, res, next) => {
       businessUnits: businessUnits.rows.map(r => ({ id: r.id, name: r.name, isActive: r.is_active })),
       projectTypes: projectTypes.rows.map(r => ({ id: r.id, typeName: r.type_name, example: r.example, isActive: r.is_active })),
       escalationPolicies: escalationPolicies.rows.map(mapCapexEscalationPolicy),
+      assetCategories: assetCategories.rows.map(mapCapexAssetCategory),
       decisionGates: DEFAULT_DECISION_GATES.map(([gateKey, gateName]) => ({ gateKey, gateName })),
       approvalRoutes: [
         { valueBand: 'LOW', range: `<= OMR ${thresholds.lowMax.toLocaleString()}`, route: lowRoute || approvalRouteForBand('LOW') },
@@ -2115,7 +2659,7 @@ exports.createBudgetVariation = async (req, res, next) => {
 
     client = await pool.connect();
     await client.query('BEGIN');
-    const request = await ensureCapexRequest(client, req.params.id);
+    const request = await ensureCapexRequest(client, req.params.id, req);
     if (!request) {
       await client.query('ROLLBACK');
       return res.status(404).json({ error: 'CAPEX request not found' });
@@ -2156,7 +2700,7 @@ exports.decideBudgetVariation = async (req, res, next) => {
     }
     client = await pool.connect();
     await client.query('BEGIN');
-    const request = await ensureCapexRequest(client, req.params.id);
+    const request = await ensureCapexRequest(client, req.params.id, req);
     if (!request) {
       await client.query('ROLLBACK');
       return res.status(404).json({ error: 'CAPEX request not found' });
@@ -2215,7 +2759,7 @@ exports.saveProcurementPerformance = async (req, res, next) => {
 
     client = await pool.connect();
     await client.query('BEGIN');
-    const request = await ensureCapexRequest(client, req.params.id);
+    const request = await ensureCapexRequest(client, req.params.id, req);
     if (!request) {
       await client.query('ROLLBACK');
       return res.status(404).json({ error: 'CAPEX request not found' });
@@ -2265,7 +2809,7 @@ exports.updateDecisionGate = async (req, res, next) => {
     const { status, comments, evidence } = req.body;
     client = await pool.connect();
     await client.query('BEGIN');
-    const request = await ensureCapexRequest(client, req.params.id);
+    const request = await ensureCapexRequest(client, req.params.id, req);
     if (!request) {
       await client.query('ROLLBACK');
       return res.status(404).json({ error: 'CAPEX request not found' });
@@ -2310,8 +2854,11 @@ exports.updateDecisionGate = async (req, res, next) => {
 
 exports.getMoaRecords = async (req, res, next) => {
   try {
+    const scope = await getScopeContext(req);
+    const filter = scopeFilterForTable(scope, 'capex_requests', { alias: 'r' });
     const { rows } = await pool.query(
-      `SELECT m.*,
+      `WITH scoped AS (SELECT r.id FROM capex_requests r WHERE ${filter.sql})
+       SELECT m.*,
               COALESCE(json_agg(json_build_object(
                 'id', r.id,
                 'revisionNumber', r.revision_number,
@@ -2322,8 +2869,10 @@ exports.getMoaRecords = async (req, res, next) => {
               ) ORDER BY r.revision_number) FILTER (WHERE r.id IS NOT NULL), '[]') AS revisions
        FROM capex_moa_records m
        LEFT JOIN capex_moa_revisions r ON r.moa_id = m.id
+       WHERE m.request_id IN (SELECT id FROM scoped)
        GROUP BY m.id
-       ORDER BY m.created_at DESC, m.id DESC`
+       ORDER BY m.created_at DESC, m.id DESC`,
+      filter.params
     );
     res.json(rows.map(mapCapexMoaRecord));
   } catch (err) { next(err); }
@@ -2343,7 +2892,7 @@ exports.saveMoaRecord = async (req, res, next) => {
 
     client = await pool.connect();
     await client.query('BEGIN');
-    const request = await ensureCapexRequest(client, req.params.id);
+    const request = await ensureCapexRequest(client, req.params.id, req);
     if (!request) {
       await client.query('ROLLBACK');
       return res.status(404).json({ error: 'CAPEX request not found' });
@@ -2407,7 +2956,7 @@ exports.addMoaRevision = async (req, res, next) => {
 
     client = await pool.connect();
     await client.query('BEGIN');
-    const request = await ensureCapexRequest(client, req.params.id);
+    const request = await ensureCapexRequest(client, req.params.id, req);
     if (!request) {
       await client.query('ROLLBACK');
       return res.status(404).json({ error: 'CAPEX request not found' });
@@ -2457,7 +3006,7 @@ exports.createDocumentVersion = async (req, res, next) => {
 
     client = await pool.connect();
     await client.query('BEGIN');
-    const request = await ensureCapexRequest(client, req.params.id);
+    const request = await ensureCapexRequest(client, req.params.id, req);
     if (!request) {
       await client.query('ROLLBACK');
       return res.status(404).json({ error: 'CAPEX request not found' });
@@ -2499,7 +3048,7 @@ exports.createElectronicSignature = async (req, res, next) => {
 
     client = await pool.connect();
     await client.query('BEGIN');
-    const request = await ensureCapexRequest(client, req.params.id);
+    const request = await ensureCapexRequest(client, req.params.id, req);
     if (!request) {
       await client.query('ROLLBACK');
       return res.status(404).json({ error: 'CAPEX request not found' });
@@ -2565,6 +3114,8 @@ exports.getReportExport = async (req, res, next) => {
   try {
     const format = String(req.query.format || 'json').toLowerCase();
     const reportType = req.query.reportType || 'governance';
+    const exportScope = await getScopeContext(req);
+    const exportFilter = scopeFilterForTable(exportScope, 'capex_requests', { alias: 'r' });
     const { rows } = await pool.query(
       `SELECT r.id, r.title, r.department, r.business_function, r.status,
               r.estimated_value, p.po_value, fc.actual_spend, a.auc_value,
@@ -2579,8 +3130,10 @@ exports.getReportExport = async (req, res, next) => {
        LEFT JOIN capex_po_closure_tracking po ON po.request_id = r.id
        LEFT JOIN capex_risks risk ON risk.request_id = r.id AND risk.status <> 'Closed'
        LEFT JOIN capex_moa_records moa ON moa.request_id = r.id
+       WHERE ${exportFilter.sql}
        GROUP BY r.id, p.po_value, fc.actual_spend, a.auc_value, c.capitalized_value, po.open_commitment_value
-       ORDER BY r.created_at DESC`
+       ORDER BY r.created_at DESC`,
+      exportFilter.params
     );
 
     const exportRows = rows.map(r => ({
@@ -2631,11 +3184,22 @@ exports.getDashboardDrilldown = async (req, res, next) => {
     const type = String(req.query.type || 'portfolio');
     const department = req.query.department || null;
     const params = [];
-    let where = '';
+    const conditions = [];
     if (department) {
       params.push(department);
-      where = `WHERE LOWER(r.department) = LOWER($${params.length})`;
+      conditions.push(`LOWER(r.department) = LOWER($${params.length})`);
     }
+    // Every drilldown variant joins capex_requests as `r`, so scoping the one
+    // shared WHERE builder covers all of them. Note the caller-supplied
+    // ?department= is a filter, not a restriction — this is the restriction.
+    const scope = await getScopeContext(req);
+    const filter = scopeFilterForTable(scope, 'capex_requests', {
+      alias: 'r',
+      startIndex: params.length + 1,
+    });
+    conditions.push(filter.sql);
+    params.push(...filter.params);
+    const where = `WHERE ${conditions.join(' AND ')}`;
 
     const queries = {
       businessUnit:
@@ -2657,8 +3221,12 @@ exports.getDashboardDrilldown = async (req, res, next) => {
          ${where}
          GROUP BY r.department
          ORDER BY r.department`,
+      // DATE columns below are cast to text so mapDrilldownRow — which cannot
+      // know a column's type — passes through 'YYYY-MM-DD' rather than a Date
+      // that JSON.stringify would shift into the previous day east of Greenwich.
       aucAging:
-        `SELECT r.id, r.title, r.department, a.auc_value, a.auc_start_date, a.status,
+        `SELECT r.id, r.title, r.department, a.auc_value,
+                a.auc_start_date::text AS auc_start_date, a.status,
                 CASE
                   WHEN a.auc_start_date <= CURRENT_DATE - INTERVAL '180 days' THEN '>180'
                   WHEN a.auc_start_date <= CURRENT_DATE - INTERVAL '90 days' THEN '90-180'
@@ -2670,7 +3238,7 @@ exports.getDashboardDrilldown = async (req, res, next) => {
          ORDER BY a.auc_start_date NULLS LAST`,
       moaCompliance:
         `SELECT r.id, r.title, r.department, m.moa_number, m.approval_status,
-                m.matrix_validated, m.expiry_date, m.renewal_required,
+                m.matrix_validated, m.expiry_date::text AS expiry_date, m.renewal_required,
                 m.matrix_violation_reason
          FROM capex_moa_records m
          JOIN capex_requests r ON r.id = m.request_id
@@ -2678,7 +3246,8 @@ exports.getDashboardDrilldown = async (req, res, next) => {
          ORDER BY m.expiry_date NULLS LAST, m.id DESC`,
       risks:
         `SELECT r.id AS request_id, r.title AS project_title, r.department,
-                risk.id, risk.category, risk.title, risk.severity, risk.status, risk.owner, risk.due_date
+                risk.id, risk.category, risk.title, risk.severity, risk.status, risk.owner,
+                risk.due_date::text AS due_date
          FROM capex_risks risk
          JOIN capex_requests r ON r.id = risk.request_id
          ${where}
@@ -2692,8 +3261,10 @@ exports.getDashboardDrilldown = async (req, res, next) => {
          ${where}
          ORDER BY v.requested_at DESC`,
       procurementPerformance:
-        `SELECT r.id AS request_id, r.title, r.department, pp.rfq_issued_at,
-                pp.tender_started_at, pp.tender_completed_at, pp.vendor_response_count,
+        `SELECT r.id AS request_id, r.title, r.department,
+                pp.rfq_issued_at::text AS rfq_issued_at,
+                pp.tender_started_at::text AS tender_started_at,
+                pp.tender_completed_at::text AS tender_completed_at, pp.vendor_response_count,
                 pp.invited_vendor_count, pp.procurement_savings, pp.po_processing_days, pp.cp_owner
          FROM capex_procurement_performance pp
          JOIN capex_requests r ON r.id = pp.request_id
@@ -2716,13 +3287,22 @@ exports.getDashboardDrilldown = async (req, res, next) => {
 
 exports.getGovernanceDashboard = async (req, res, next) => {
   try {
+    // Every aggregate below is restricted to the requests the caller may see.
+    // `scoped` is the set of visible request ids; the request-rooted queries
+    // intersect on r.id and the child-table queries on request_id.
+    const scope = await getScopeContext(req);
+    const filterAt1 = scopeFilterForTable(scope, 'capex_requests', { alias: 'r' });
+    const filterAt2 = scopeFilterForTable(scope, 'capex_requests', { alias: 'r', startIndex: 2 });
+    const withScoped = (filter) => `WITH scoped AS (SELECT r.id FROM capex_requests r WHERE ${filter.sql})`;
+    const scoped = (sql) => `${withScoped(filterAt1)} ${sql}`;
+
     const [
       portfolio, delivery, auc, capitalization, poClosure,
       checklist, benefits, risks, moaCompliance, documentControls,
       scheduledReports, variations, procurementPerformance, decisionGates, alerts, storedAlerts,
     ] = await Promise.all([
       pool.query(
-        `SELECT
+        `${withScoped(filterAt2)} SELECT
           COUNT(*)::int AS total_projects,
           COUNT(*) FILTER (WHERE status NOT IN ('Closed','Rejected','Cancelled'))::int AS active_projects,
           COUNT(*) FILTER (
@@ -2742,81 +3322,102 @@ exports.getGovernanceDashboard = async (req, res, next) => {
          FROM capex_requests r
          LEFT JOIN capex_procurement_tracking p ON p.request_id = r.id
          LEFT JOIN capex_po_closure_tracking pc ON pc.request_id = r.id
-         LEFT JOIN capex_financial_closure fc ON fc.request_id = r.id`,
-        [APPROVED_OR_LATER_STATUSES]
+         LEFT JOIN capex_financial_closure fc ON fc.request_id = r.id
+         WHERE r.id IN (SELECT id FROM scoped)`,
+        [APPROVED_OR_LATER_STATUSES, ...filterAt2.params]
       ),
       pool.query(
-        `SELECT
+        scoped(`SELECT
           COUNT(*)::int AS milestones,
           COUNT(*) FILTER (WHERE status = 'Completed')::int AS completed_milestones,
           COUNT(*) FILTER (WHERE planned_date < CURRENT_DATE AND status <> 'Completed')::int AS delayed_milestones
-         FROM capex_project_milestones`
+         FROM capex_project_milestones
+         WHERE request_id IN (SELECT id FROM scoped)`),
+        filterAt1.params
       ),
       pool.query(
-        `SELECT
+        scoped(`SELECT
           COUNT(*)::int AS open_auc_projects,
           COALESCE(SUM(auc_value),0) AS total_auc_value,
           COUNT(*) FILTER (WHERE auc_start_date <= CURRENT_DATE - INTERVAL '90 days')::int AS aged_over_90,
           COUNT(*) FILTER (WHERE auc_start_date <= CURRENT_DATE - INTERVAL '180 days')::int AS aged_over_180,
           COUNT(*) FILTER (WHERE capitalization_ready = true)::int AS capitalization_ready
          FROM capex_auc_tracking
-         WHERE status <> 'Capitalized'`
+         WHERE status <> 'Capitalized'
+           AND request_id IN (SELECT id FROM scoped)`),
+        filterAt1.params
       ),
       pool.query(
-        `SELECT
+        scoped(`SELECT
           COUNT(*) FILTER (WHERE status IN ('Ready','Pending Approval','In Progress'))::int AS pending_capitalizations,
           COALESCE(SUM(capitalized_value),0) AS capitalized_value,
           COUNT(*) FILTER (WHERE fixed_asset_registered_at IS NOT NULL)::int AS capitalized_projects,
           COUNT(*) FILTER (WHERE capitalization_request_date <= CURRENT_DATE - INTERVAL '60 days' AND fixed_asset_registered_at IS NULL)::int AS overdue_capitalizations
-         FROM capex_capitalization_tracking`
+         FROM capex_capitalization_tracking
+         WHERE request_id IN (SELECT id FROM scoped)`),
+        filterAt1.params
       ),
       pool.query(
-        `SELECT
+        scoped(`SELECT
           COUNT(*) FILTER (WHERE closure_status <> 'Closed')::int AS open_pos,
           COALESCE(SUM(open_commitment_value),0) AS open_commitment_value,
           COALESCE(SUM(unutilized_commitment),0) AS unutilized_commitment,
           COUNT(*) FILTER (WHERE closure_due_date < CURRENT_DATE AND closure_status <> 'Closed')::int AS overdue_closures
-         FROM capex_po_closure_tracking`
+         FROM capex_po_closure_tracking
+         WHERE request_id IN (SELECT id FROM scoped)`),
+        filterAt1.params
       ),
       pool.query(
-        `SELECT
+        scoped(`SELECT
           COUNT(*)::int AS checklist_items,
           COUNT(*) FILTER (WHERE status = 'Completed')::int AS completed_items,
           COUNT(DISTINCT request_id) FILTER (WHERE status <> 'Completed')::int AS projects_pending_closure
-         FROM capex_closure_checklist_items`
+         FROM capex_closure_checklist_items
+         WHERE request_id IN (SELECT id FROM scoped)`),
+        filterAt1.params
       ),
       pool.query(
-        `SELECT
+        scoped(`SELECT
           COUNT(*)::int AS reviews,
           COALESCE(AVG(actual_roi),0) AS average_actual_roi,
           COALESCE(SUM(actual_savings),0) AS actual_savings,
           COUNT(*) FILTER (WHERE status <> 'Completed')::int AS pending_reviews
-         FROM capex_benefit_reviews`
+         FROM capex_benefit_reviews
+         WHERE request_id IN (SELECT id FROM scoped)`),
+        filterAt1.params
       ),
       pool.query(
-        `SELECT
+        scoped(`SELECT
           COUNT(*) FILTER (WHERE status <> 'Closed')::int AS open_risks,
           COUNT(*) FILTER (WHERE severity = 'Red' AND status <> 'Closed')::int AS red_risks,
           COUNT(*) FILTER (WHERE severity = 'Amber' AND status <> 'Closed')::int AS amber_risks
-         FROM capex_risks`
+         FROM capex_risks
+         WHERE request_id IN (SELECT id FROM scoped)`),
+        filterAt1.params
       ),
       pool.query(
-        `SELECT
+        scoped(`SELECT
           COUNT(*)::int AS total_moa,
           COUNT(*) FILTER (WHERE approval_status IN ('Approved','Active'))::int AS approved_moa,
           COUNT(*) FILTER (WHERE matrix_validated = false)::int AS matrix_violations,
           COUNT(*) FILTER (WHERE expiry_date <= CURRENT_DATE + INTERVAL '60 days')::int AS expiring_soon,
           COUNT(*) FILTER (WHERE renewal_required = true)::int AS renewals_required
-         FROM capex_moa_records`
+         FROM capex_moa_records
+         WHERE request_id IN (SELECT id FROM scoped)`),
+        filterAt1.params
       ),
       pool.query(
-        `SELECT
+        scoped(`SELECT
           COUNT(DISTINCT request_id)::int AS projects_with_versions,
           COUNT(*)::int AS document_versions,
           COUNT(*) FILTER (WHERE retention_until IS NOT NULL AND retention_until < CURRENT_DATE)::int AS expired_retention_items,
-          (SELECT COUNT(*) FROM capex_electronic_signatures)::int AS electronic_signatures
-         FROM capex_document_versions`
+          (SELECT COUNT(*) FROM capex_electronic_signatures
+            WHERE request_id IN (SELECT id FROM scoped))::int AS electronic_signatures
+         FROM capex_document_versions
+         WHERE request_id IN (SELECT id FROM scoped)`),
+        filterAt1.params
       ),
+      // Report schedules are configuration, not request data: portfolio-wide by design.
       pool.query(
         `SELECT
           COUNT(*) FILTER (WHERE is_active = true)::int AS active_schedules,
@@ -2824,73 +3425,90 @@ exports.getGovernanceDashboard = async (req, res, next) => {
          FROM capex_report_schedules`
       ),
       pool.query(
-        `SELECT
+        scoped(`SELECT
           COUNT(*)::int AS total_variations,
           COUNT(*) FILTER (WHERE moa_approval_required = true)::int AS moa_required,
           COUNT(*) FILTER (WHERE approval_status = 'Approved')::int AS approved_variations,
           COALESCE(SUM(variation_amount),0) AS net_variation_amount
-         FROM capex_budget_variations`
+         FROM capex_budget_variations
+         WHERE request_id IN (SELECT id FROM scoped)`),
+        filterAt1.params
       ),
       pool.query(
-        `SELECT
+        scoped(`SELECT
           COUNT(*)::int AS tracked_projects,
           COALESCE(AVG(NULLIF(po_processing_days,0)),0) AS avg_po_processing_days,
           COALESCE(AVG(CASE WHEN invited_vendor_count > 0 THEN vendor_response_count::numeric / invited_vendor_count * 100 ELSE NULL END),0) AS avg_vendor_response_rate,
           COALESCE(SUM(procurement_savings),0) AS procurement_savings
-         FROM capex_procurement_performance`
+         FROM capex_procurement_performance
+         WHERE request_id IN (SELECT id FROM scoped)`),
+        filterAt1.params
       ),
       pool.query(
-        `SELECT
+        scoped(`SELECT
           COUNT(*)::int AS total_gates,
           COUNT(*) FILTER (WHERE status = 'Passed')::int AS passed_gates,
           COUNT(*) FILTER (WHERE status = 'Failed')::int AS failed_gates,
           COUNT(*) FILTER (WHERE status = 'Pending')::int AS pending_gates
-         FROM capex_decision_gate_reviews`
+         FROM capex_decision_gate_reviews
+         WHERE request_id IN (SELECT id FROM scoped)`),
+        filterAt1.params
       ),
       pool.query(
-        `SELECT * FROM (
+        scoped(`SELECT * FROM (
           SELECT r.id AS request_id, 'Budget Variance' AS alert_type, 'Red' AS severity,
                  'Budget variance exceeds 10%.' AS message
           FROM capex_requests r
           LEFT JOIN capex_financial_closure fc ON fc.request_id = r.id
           WHERE fc.actual_spend IS NOT NULL AND fc.actual_spend > r.estimated_value * 1.10
+            AND r.id IN (SELECT id FROM scoped)
           UNION ALL
           SELECT request_id, 'AUC Aging', 'Red', 'AUC age exceeds 180 days.'
           FROM capex_auc_tracking
           WHERE status <> 'Capitalized' AND auc_start_date <= CURRENT_DATE - INTERVAL '180 days'
+            AND request_id IN (SELECT id FROM scoped)
           UNION ALL
           SELECT request_id, 'Capitalization Overdue', 'Amber', 'Capitalization pending for more than 60 days.'
           FROM capex_capitalization_tracking
           WHERE fixed_asset_registered_at IS NULL AND capitalization_request_date <= CURRENT_DATE - INTERVAL '60 days'
+            AND request_id IN (SELECT id FROM scoped)
           UNION ALL
           SELECT request_id, 'PO Closure Overdue', 'Amber', 'PO closure is overdue.'
           FROM capex_po_closure_tracking
           WHERE closure_status <> 'Closed' AND closure_due_date < CURRENT_DATE
+            AND request_id IN (SELECT id FROM scoped)
           UNION ALL
           SELECT request_id, 'Project Delay', 'Amber', 'Project milestone is delayed by more than 30 days.'
           FROM capex_project_milestones
           WHERE status <> 'Completed' AND planned_date < CURRENT_DATE - INTERVAL '30 days'
+            AND request_id IN (SELECT id FROM scoped)
           UNION ALL
           SELECT request_id, 'Budget Variation Reapproval', 'Red', 'Budget variation exceeds 10% and requires MOA approval.'
           FROM capex_budget_variations
           WHERE moa_approval_required = true AND approval_status <> 'Approved'
+            AND request_id IN (SELECT id FROM scoped)
           UNION ALL
           SELECT request_id, 'MOA Matrix Violation', 'Red', 'MOA authority matrix validation failed.'
           FROM capex_moa_records
           WHERE matrix_validated = false
+            AND request_id IN (SELECT id FROM scoped)
           UNION ALL
           SELECT request_id, 'MOA Expiry', 'Amber', 'MOA expiry or renewal is due within 60 days.'
           FROM capex_moa_records
-          WHERE expiry_date <= CURRENT_DATE + INTERVAL '60 days' OR renewal_required = true
+          WHERE (expiry_date <= CURRENT_DATE + INTERVAL '60 days' OR renewal_required = true)
+            AND request_id IN (SELECT id FROM scoped)
         ) generated
-        ORDER BY severity DESC, request_id`
+        ORDER BY severity DESC, request_id`),
+        filterAt1.params
       ),
       pool.query(
-        `SELECT request_id, alert_type, severity, message
+        scoped(`SELECT request_id, alert_type, severity, message
          FROM capex_governance_alerts
          WHERE status = 'Open'
+           AND request_id IN (SELECT id FROM scoped)
          ORDER BY triggered_at DESC, id DESC
-         LIMIT 200`
+         LIMIT 200`),
+        filterAt1.params
       ),
     ]);
 
@@ -3032,6 +3650,8 @@ exports.getAuditLogs = async (req, res, next) => {
 
 exports.getReport = async (req, res, next) => {
   try {
+    const scope = await getScopeContext(req);
+    const filter = scopeFilterForTable(scope, 'capex_requests', { alias: 'r' });
     const { rows } = await pool.query(
       `SELECT r.id, r.title, r.requester_name, r.department, r.business_function,
               r.budget_holder, r.financial_year, COALESCE(r.acv_po_value, r.estimated_value) AS value,
@@ -3044,8 +3664,10 @@ exports.getReport = async (req, res, next) => {
        LEFT JOIN capex_approval_steps s ON s.id = r.current_step_id
        LEFT JOIN capex_procurement_tracking p ON p.request_id = r.id
        LEFT JOIN capex_financial_closure c ON c.request_id = r.id
+       WHERE ${filter.sql}
        GROUP BY r.id, s.approver_role, p.pr_number, p.po_number, p.po_value, c.closed_at
-       ORDER BY r.created_at DESC`
+       ORDER BY r.created_at DESC`,
+      filter.params
     );
 
     if (req.query.format === 'csv') {
@@ -3094,7 +3716,7 @@ exports.getReport = async (req, res, next) => {
 
 exports.getAdminConfig = async (req, res, next) => {
   try {
-    const [thresholdsResult, workflowResult, departmentsResult] = await Promise.all([
+    const [thresholdsResult, workflowResult, departmentsResult, assetCategoriesResult] = await Promise.all([
       pool.query(`SELECT low_max_omr, medium_max_omr, updated_by, updated_at FROM capex_value_thresholds WHERE id = 1`),
       pool.query(
         `SELECT id, value_band, condition_key, step_order, approver_role, label, allowed_user_roles, is_active, updated_by, updated_at
@@ -3102,6 +3724,8 @@ exports.getAdminConfig = async (req, res, next) => {
          ORDER BY value_band, condition_key, step_order`
       ),
       pool.query(`SELECT id, name, total_budget FROM capex_departments ORDER BY name`),
+      // Retired categories included: this is the screen where they are managed.
+      pool.query(`SELECT * FROM capex_reference_asset_categories ORDER BY sort_order, name`),
     ]);
 
     const thresholds = thresholdsResult.rows[0] || {};
@@ -3129,6 +3753,7 @@ exports.getAdminConfig = async (req, res, next) => {
         name: r.name,
         totalBudget: Number(r.total_budget || 0),
       })),
+      assetCategories: assetCategoriesResult.rows.map(mapCapexAssetCategory),
     });
   } catch (err) { next(err); }
 };
@@ -3210,10 +3835,17 @@ exports.uploadAttachment = async (req, res, next) => {
   try {
     const requestId = req.params.id;
     const attachmentType = req.body.type || 'Document';
+    if (['Project Strategy / Scope', 'Supplier Quotation'].includes(attachmentType)) {
+      return res.status(409).json({ error: `${attachmentType} evidence must be uploaded during request creation` });
+    }
     const canCreateDocuments = await userHasPermission(req.user, 'capex.documents', 'can_create');
     const canUploadClosureForm = attachmentType === 'CAPEX Closure Form'
       && await userHasPermission(req.user, 'capex.finance', 'can_edit');
-    if (!canCreateDocuments && !canUploadClosureForm) {
+    // Milestone evidence is owned by the Project Engineer, who holds
+    // capex.execution rather than capex.documents.
+    const canUploadMilestoneEvidence = attachmentType === 'Milestone Evidence'
+      && await userHasPermission(req.user, 'capex.execution', 'can_edit');
+    if (!canCreateDocuments && !canUploadClosureForm && !canUploadMilestoneEvidence) {
       return res.status(403).json({ error: 'Forbidden: capex.documents can_create permission required' });
     }
 
@@ -3224,10 +3856,42 @@ exports.uploadAttachment = async (req, res, next) => {
     const client = await pool.connect();
     try {
       await client.query('BEGIN');
-      const { rows: [request] } = await client.query(`SELECT id FROM capex_requests WHERE id = $1`, [requestId]);
+      const { rows: [request] } = await client.query(`SELECT id, status FROM capex_requests WHERE id = $1`, [requestId]);
       if (!request) {
         await client.query('ROLLBACK');
         return res.status(404).json({ error: 'CAPEX request not found' });
+      }
+      if (attachmentType === 'PO Document') {
+        const canEditProcurementDocuments = await userHasPermission(req.user, 'capex.procurement', 'can_edit');
+        if (!canEditProcurementDocuments || !canEditProcurement(request.status)) {
+          await client.query('ROLLBACK');
+          return res.status(409).json({ error: `PO document upload is not available for status: ${request.status}` });
+        }
+      }
+      if (attachmentType === 'Milestone Evidence') {
+        if (!canUpdateMilestone(request.status)) {
+          await client.query('ROLLBACK');
+          return res.status(409).json({ error: `Milestone evidence cannot be uploaded in status '${request.status}'` });
+        }
+        // linkedId arrives as a multipart string; a non-numeric value would make
+        // Postgres reject the comparison against the SERIAL id.
+        const milestoneId = Number(req.body.linkedId);
+        if (!Number.isInteger(milestoneId) || milestoneId <= 0) {
+          await client.query('ROLLBACK');
+          return res.status(400).json({ error: 'linkedId must be the milestone id' });
+        }
+        const { rows: [milestone] } = await client.query(
+          `SELECT id FROM capex_project_milestones WHERE request_id = $1 AND id = $2`,
+          [requestId, milestoneId]
+        );
+        if (!milestone) {
+          await client.query('ROLLBACK');
+          return res.status(404).json({ error: 'Milestone not found for this request' });
+        }
+      }
+      if (attachmentType === 'CAPEX Closure Form' && !APPROVED_OR_LATER_STATUSES.includes(canonicalStatus(request.status))) {
+        await client.query('ROLLBACK');
+        return res.status(409).json({ error: `CAPEX closure form upload is not available for status: ${request.status}` });
       }
 
       const { rows: [row] } = await client.query(
@@ -3286,11 +3950,11 @@ function mapInitiation(r) {
     estimatedBudget: Number(r.estimated_budget),
     priority:        r.priority,
     status:          r.status,
-    startDate:       r.start_date,
-    endDate:         r.end_date,
+    startDate:       toDateOnly(r.start_date),
+    endDate:         toDateOnly(r.end_date),
     stakeholders:    r.stakeholders,
     justification:   r.justification,
-    createdAt:       r.created_at,
+    createdAt:       toDateOnly(r.created_at),
   };
 }
 
@@ -3304,7 +3968,7 @@ function mapManualEntry(r) {
     description:     r.description,
     referenceNumber: r.reference_number,
     enteredBy:       r.entered_by,
-    enteredAt:       r.entered_at,
+    enteredAt:       toDateOnly(r.entered_at),
     status:          r.status,
   };
 }
@@ -3326,12 +3990,19 @@ function mapCapexRequestSummary(r) {
     hsseRisk: r.hsse_risk,
     workerWelfareRisk: r.worker_welfare_risk,
     status: r.status,
+    startDate: toDateOnly(r.start_date),
+    targetCompletionDate: toDateOnly(r.target_completion_date),
+    expectedCapitalizationDate: toDateOnly(r.expected_capitalization_date),
+    assetCategoryName: r.asset_category_name || null,
     quoteCount: Number(r.quote_count || 0),
     averageQuote: Number(r.average_quote || 0),
     currentApproverRole: r.current_approver_role || null,
     currentStepLabel: r.current_step_label || null,
     createdAt: r.created_at,
     updatedAt: r.updated_at,
+    submittedAt: r.submitted_at,
+    pendingSince: r.current_step_started_at || null,
+    pendingDays: pendingDays(r.current_step_started_at),
   };
 }
 
@@ -3363,6 +4034,13 @@ function mapCapexRequest(r) {
     roi: r.roi,
     status: r.status,
     currentStepId: r.current_step_id,
+    projectOwnerTitle: r.project_owner_title || null,
+    startDate: toDateOnly(r.start_date),
+    targetCompletionDate: toDateOnly(r.target_completion_date),
+    expectedCapitalizationDate: toDateOnly(r.expected_capitalization_date),
+    assetCategoryId: r.asset_category_id === null || r.asset_category_id === undefined
+      ? null : Number(r.asset_category_id),
+    assetCategoryName: r.asset_category_name || null,
     createdAt: r.created_at,
     updatedAt: r.updated_at,
     submittedAt: r.submitted_at,
@@ -3388,9 +4066,11 @@ function mapCapexApprovalStep(r) {
     stepOrder: r.step_order,
     approverRole: r.approver_role,
     label: r.label,
+    startedAt: r.started_at,
+    decidedAt: r.decided_at,
+    pendingDays: r.status === 'Pending' ? pendingDays(r.started_at) : null,
     status: r.status,
     assignedTo: r.assigned_to,
-    decidedAt: r.decided_at,
   };
 }
 
@@ -3410,19 +4090,19 @@ function mapCapexProcurement(r) {
   return {
     ndaRequired: r.nda_required,
     ndaStatus: r.nda_status,
-    ndaCompletionDate: r.nda_completion_date,
+    ndaCompletionDate: toDateOnly(r.nda_completion_date),
     dpaRequired: r.dpa_required,
     dpaStatus: r.dpa_status,
-    dpaCompletionDate: r.dpa_completion_date,
+    dpaCompletionDate: toDateOnly(r.dpa_completion_date),
     vendorRegistrationStatus: r.vendor_registration_status,
     agreementStatus: r.agreement_status,
     gsapProjectReference: r.gsap_project_reference,
-    gsapProjectCreatedAt: r.gsap_project_created_at,
+    gsapProjectCreatedAt: toDateOnly(r.gsap_project_created_at),
     prNumber: r.pr_number,
-    prCreatedAt: r.pr_created_at,
+    prCreatedAt: toDateOnly(r.pr_created_at),
     prStatus: r.pr_status,
     poNumber: r.po_number,
-    poCreatedAt: r.po_created_at,
+    poCreatedAt: toDateOnly(r.po_created_at),
     poValue: r.po_value === null ? null : Number(r.po_value),
     poStatus: r.po_status,
     poAttachmentName: r.po_attachment_name,
@@ -3435,11 +4115,13 @@ function mapCapexMilestone(r) {
     id: r.id,
     stageName: r.stage_name,
     milestoneName: r.milestone_name,
-    plannedDate: r.planned_date,
-    actualDate: r.actual_date,
+    plannedStartDate: toDateOnly(r.planned_start_date),
+    plannedDate: toDateOnly(r.planned_date),
+    actualDate: toDateOnly(r.actual_date),
     paymentPercentage: r.payment_percentage === null ? null : Number(r.payment_percentage),
     paymentAmount: r.payment_amount === null ? null : Number(r.payment_amount),
     completionEvidence: r.completion_evidence,
+    comments: r.comments,
     status: r.status,
   };
 }
@@ -3467,7 +4149,7 @@ function mapCapexAttachment(r) {
     size: r.size,
     mimeType: r.mime_type,
     sizeBytes: r.size_bytes,
-    retentionUntil: r.retention_until,
+    retentionUntil: toDateOnly(r.retention_until),
     uploadedBy: r.uploaded_by,
     uploadedAt: r.uploaded_at,
   };
@@ -3478,7 +4160,7 @@ function mapCapexAuc(r) {
     requestId: r.request_id,
     aucAccount: r.auc_account,
     aucValue: Number(r.auc_value || 0),
-    aucStartDate: r.auc_start_date,
+    aucStartDate: toDateOnly(r.auc_start_date),
     completionConfirmed: r.completion_confirmed,
     capitalizationReady: r.capitalization_ready,
     status: r.status,
@@ -3496,13 +4178,13 @@ function mapCapexCapitalization(r) {
     requestId: r.request_id,
     status: r.status,
     financeVerified: r.finance_verified,
-    capitalizationRequestDate: r.capitalization_request_date,
+    capitalizationRequestDate: toDateOnly(r.capitalization_request_date),
     assetMasterNumber: r.asset_master_number,
     assetCategory: r.asset_category,
     capitalizedValue: r.capitalized_value === null ? null : Number(r.capitalized_value),
-    capitalizationApprovalDate: r.capitalization_approval_date,
-    fixedAssetRegisteredAt: r.fixed_asset_registered_at,
-    depreciationStartDate: r.depreciation_start_date,
+    capitalizationApprovalDate: toDateOnly(r.capitalization_approval_date),
+    fixedAssetRegisteredAt: toDateOnly(r.fixed_asset_registered_at),
+    depreciationStartDate: toDateOnly(r.depreciation_start_date),
     comments: r.comments,
     updatedBy: r.updated_by,
     updatedAt: r.updated_at,
@@ -3517,8 +4199,10 @@ function mapCapexPoClosure(r) {
     closureStatus: r.closure_status,
     openCommitmentValue: Number(r.open_commitment_value || 0),
     unutilizedCommitment: Number(r.unutilized_commitment || 0),
-    closureDueDate: r.closure_due_date,
-    closedAt: r.closed_at,
+    closureDueDate: toDateOnly(r.closure_due_date),
+    // capex_po_closure_tracking.closed_at is a DATE (unlike the TIMESTAMPTZ
+    // closed_at on capex_financial_closure and capex_risks).
+    closedAt: toDateOnly(r.closed_at),
     followUpOwner: r.follow_up_owner,
     comments: r.comments,
     updatedBy: r.updated_by,
@@ -3533,7 +4217,7 @@ function mapCapexClosureChecklistItem(r) {
     itemKey: r.item_key,
     label: r.label,
     responsibleOwner: r.responsible_owner,
-    dueDate: r.due_date,
+    dueDate: toDateOnly(r.due_date),
     status: r.status,
     completedAt: r.completed_at,
     evidenceAttachment: r.evidence_attachment,
@@ -3554,7 +4238,9 @@ function mapCapexBenefitReview(r) {
     actualSavings: r.actual_savings === null ? null : Number(r.actual_savings),
     benefitScore: r.benefit_score === null ? null : Number(r.benefit_score),
     status: r.status,
-    reviewedAt: r.reviewed_at,
+    // capex_benefit_reviews.reviewed_at is a DATE (unlike the TIMESTAMPTZ
+    // reviewed_at on capex_decision_gate_reviews).
+    reviewedAt: toDateOnly(r.reviewed_at),
     reviewer: r.reviewer,
     comments: r.comments,
     createdAt: r.created_at,
@@ -3573,7 +4259,7 @@ function mapCapexRisk(r) {
     impact: r.impact,
     mitigationPlan: r.mitigation_plan,
     owner: r.owner,
-    dueDate: r.due_date,
+    dueDate: toDateOnly(r.due_date),
     status: r.status,
     closedAt: r.closed_at,
     createdBy: r.created_by,
@@ -3609,8 +4295,8 @@ function mapCapexMoaRecord(r) {
     valueBand: r.value_band,
     matrixValidated: r.matrix_validated,
     matrixViolationReason: r.matrix_violation_reason,
-    effectiveDate: r.effective_date,
-    expiryDate: r.expiry_date,
+    effectiveDate: toDateOnly(r.effective_date),
+    expiryDate: toDateOnly(r.expiry_date),
     renewalRequired: r.renewal_required,
     attachmentId: r.attachment_id,
     createdBy: r.created_by,
@@ -3642,7 +4328,7 @@ function mapCapexDocumentVersion(r) {
     documentName: r.document_name,
     versionLabel: r.version_label,
     changelog: r.changelog,
-    retentionUntil: r.retention_until,
+    retentionUntil: toDateOnly(r.retention_until),
     uploadedBy: r.uploaded_by,
     uploadedAt: r.uploaded_at,
   };
@@ -3675,7 +4361,7 @@ function mapCapexReportSchedule(r) {
     format: r.format,
     filters: r.filters || {},
     recipients: r.recipients || [],
-    nextRunDate: r.next_run_date,
+    nextRunDate: toDateOnly(r.next_run_date),
     isActive: r.is_active,
     createdBy: r.created_by,
     createdAt: r.created_at,
@@ -3717,9 +4403,9 @@ function mapCapexBudgetVariation(r) {
 function mapCapexProcurementPerformance(r) {
   return {
     requestId: r.request_id,
-    rfqIssuedAt: r.rfq_issued_at,
-    tenderStartedAt: r.tender_started_at,
-    tenderCompletedAt: r.tender_completed_at,
+    rfqIssuedAt: toDateOnly(r.rfq_issued_at),
+    tenderStartedAt: toDateOnly(r.tender_started_at),
+    tenderCompletedAt: toDateOnly(r.tender_completed_at),
     vendorResponseCount: r.vendor_response_count,
     invitedVendorCount: r.invited_vendor_count,
     awardedValue: r.awarded_value === null ? null : Number(r.awarded_value),
@@ -3743,6 +4429,18 @@ function mapCapexDecisionGate(r) {
     reviewedAt: r.reviewed_at,
     comments: r.comments,
     evidence: r.evidence,
+    updatedAt: r.updated_at,
+  };
+}
+
+function mapCapexAssetCategory(r) {
+  return {
+    id: r.id,
+    name: r.name,
+    description: r.description || null,
+    sortOrder: r.sort_order,
+    isActive: r.is_active,
+    updatedBy: r.updated_by || null,
     updatedAt: r.updated_at,
   };
 }

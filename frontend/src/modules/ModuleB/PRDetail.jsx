@@ -5,7 +5,8 @@ import SelectField from '../../components/SelectField';
 import Badge from '../../components/Badge';
 import ConfirmModal from '../../components/ConfirmModal';
 import { notifyError, notifySuccess } from '../../utils/toast';
-import SupplierQuotationEditor, { emptyQuotationRow, normalizeQuotationRows } from './SupplierQuotationEditor';
+import SupplierQuotationEditor from './SupplierQuotationEditor';
+import { emptyQuotationRow, normalizeQuotationRows } from './supplierQuotationUtils';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function fmtOMR(v) {

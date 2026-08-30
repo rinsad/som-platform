@@ -155,7 +155,6 @@ describe('CapexInitiationForm — interactions', () => {
   });
 
   test('shows error message when onSubmit rejects', async () => {
-    const user = userEvent.setup();
     renderForm({ onSubmit: jest.fn().mockRejectedValue(new Error('API error')) });
 
     await userEvent.type(screen.getByPlaceholderText(/Solar Panel/i), 'My Project');

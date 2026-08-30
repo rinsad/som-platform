@@ -19,8 +19,13 @@ module.exports = defineConfig({
       name: 'chromium-capex-video',
       use: { ...devices['Desktop Chrome'] },
     },
+    {
+      name: 'chrome-capex-v2',
+      testMatch: /capex-v2-ui\.spec\.cjs/,
+      use: { ...devices['Desktop Chrome'], channel: 'chrome', video: 'off' },
+    },
   ],
-  webServer: [
+  webServer: process.env.PLAYWRIGHT_SKIP_WEBSERVER === 'true' ? undefined : [
     {
       command: 'node src/index.js',
       cwd: '../backend',

@@ -24,6 +24,7 @@ export default function SelectField({
   onChange,
   options,
   style,
+  className = '',
   id,
   name,
   required = false,
@@ -48,7 +49,7 @@ export default function SelectField({
     >
       <Select.Trigger
         id={id}
-        className="som-select-trigger"
+        className={`som-select-trigger ${className}`.trim()}
         aria-label={ariaLabel}
         style={{ ...style, ...triggerLayout, ...(disabled ? disabledTrigger : null) }}
       >
@@ -64,14 +65,16 @@ export default function SelectField({
         <Select.Content className="som-select-content" position="popper" sideOffset={6}>
           <Select.ScrollUpButton className="som-select-scroll">▲</Select.ScrollUpButton>
           <Select.Viewport>
-            {opts.map((o) => (
-              <Select.Item key={o.value} value={o.value} className="som-select-item">
-                <Select.ItemText>{o.label}</Select.ItemText>
-                <Select.ItemIndicator className="som-select-check">
-                  <Check />
-                </Select.ItemIndicator>
-              </Select.Item>
-            ))}
+            <Select.Group>
+              {opts.map((o) => (
+                <Select.Item key={o.value} value={o.value} className="som-select-item">
+                  <Select.ItemText>{o.label}</Select.ItemText>
+                  <Select.ItemIndicator className="som-select-check">
+                    <Check />
+                  </Select.ItemIndicator>
+                </Select.Item>
+              ))}
+            </Select.Group>
           </Select.Viewport>
           <Select.ScrollDownButton className="som-select-scroll">▼</Select.ScrollDownButton>
         </Select.Content>

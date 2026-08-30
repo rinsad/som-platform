@@ -3,8 +3,9 @@ import SelectField from './SelectField';
 
 describe('SelectField', () => {
   test('shows placeholder when value is empty', () => {
-    render(<SelectField value="" onChange={() => {}} options={['A', 'B']} placeholder="Pick one…" aria-label="x" />);
+    render(<SelectField value="" onChange={() => {}} options={['A', 'B']} placeholder="Pick one…" aria-label="x" className="domain-select" />);
     expect(screen.getByText('Pick one…')).toBeInTheDocument();
+    expect(screen.getByRole('combobox', { name: 'x' })).toHaveClass('som-select-trigger', 'domain-select');
   });
 
   test('stays controlled when value goes empty -> set (no uncontrolled/controlled warning)', () => {

@@ -11,14 +11,18 @@ import './FileUploadField.css';
 //
 //   <FileUploadField onChange={handleUpload} uploading={busy} progress={pct} />
 export default function FileUploadField({
+  id: providedId,
   onChange,
   accept,
+  multiple = false,
   disabled = false,
   uploading = false,
   progress = 0,
+  fileName = '',
   'aria-label': ariaLabel = 'Upload file',
 }) {
-  const id = useId();
+  const generatedId = useId();
+  const id = providedId || generatedId;
   const pct = Math.max(0, Math.min(100, progress));
 
   return (
@@ -29,6 +33,7 @@ export default function FileUploadField({
           className="som-file-upload-input"
           type="file"
           accept={accept}
+          multiple={multiple}
           disabled={disabled || uploading}
           onChange={onChange}
           aria-label={ariaLabel}
@@ -41,6 +46,7 @@ export default function FileUploadField({
           </span>
         </span>
       </span>
+      {fileName && <span className="som-file-upload-name" title={fileName} aria-live="polite">{fileName}</span>}
     </div>
   );
 }

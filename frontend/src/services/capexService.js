@@ -39,6 +39,34 @@ export function getDepartments() {
   return request('/api/capex/departments');
 }
 
+// The Business / Function master. Business-scoped users get only the businesses
+// they belong to, so a request form fed from this can never offer a business the
+// user may not file into. Prefer this over the hardcoded DEPT_NAMES above.
+export function getBusinessFunctions() {
+  return request('/api/capex/business-functions');
+}
+
+// Asset categories are admin-maintained (migration 035), never hardcoded here.
+// The list returned to a requester contains only categories still selectable;
+// retired ones stay visible on the requests that already reference them.
+export function getCapexAssetCategories({ includeInactive = false } = {}) {
+  return request(`/api/capex/asset-categories${includeInactive ? '?includeInactive=true' : ''}`);
+}
+
+export function createCapexAssetCategory(data) {
+  return request('/api/capex/admin-config/asset-categories', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+}
+
+export function updateCapexAssetCategory(categoryId, data) {
+  return request(`/api/capex/admin-config/asset-categories/${encodeURIComponent(categoryId)}`, {
+    method: 'PATCH',
+    body: JSON.stringify(data),
+  });
+}
+
 export function getSyncStatus() {
   return request('/api/capex/sync-status');
 }
@@ -102,16 +130,37 @@ export function decideCapexBudgetVariation(id, variationId, decision, comment = 
 }
 
 export function createCapexRequest(data) {
-  return request('/api/capex/requests', {
+  const formData = new FormData();
+  const projectFiles = data.projectFiles || (data.strategyFile ? [data.strategyFile] : []);
+  const payload = {
+    ...data,
+    projectFiles: undefined,
+    strategyFile: undefined,
+    quotations: data.quotations.map(quotation => {
+      const payloadQuotation = { ...quotation };
+      delete payloadQuotation.file;
+      return payloadQuotation;
+    }),
+  };
+  formData.append('payload', JSON.stringify(payload));
+  projectFiles.forEach(file => formData.append('projectFiles', file));
+  data.quotations.forEach(({ file }) => formData.append('quotationFiles', file));
+
+  return fetch(`${API}/api/capex/requests`, {
     method: 'POST',
-    body: JSON.stringify(data),
+    headers: { Authorization: `Bearer ${localStorage.getItem('som_token')}` },
+    body: formData,
+  }).then(async response => {
+    const body = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(body.error || `API error (${response.status})`);
+    return body;
   });
 }
 
-export function decideCapexRequest(id, decision, comment = '') {
+export function decideCapexRequest(id, decision, comment = '', assessment = {}) {
   return request(`/api/capex/requests/${encodeURIComponent(id)}/decision`, {
     method: 'PATCH',
-    body: JSON.stringify({ decision, comment }),
+    body: JSON.stringify({ decision, comment, ...assessment }),
   });
 }
 

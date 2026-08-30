@@ -110,9 +110,20 @@ function canDecide(request) {
 //   'assigned'       — the step is explicitly assigned to this user
 //   'role-allowed'   — the admin-configured authority roles include the user
 //   'denied'         — authority roles are configured and exclude the user
+//   'out-of-scope'   — the user holds the role, but the request belongs to a
+//                      business outside their assignment
 //   'admin-override' — Admin acting outside assignment/config (audit-logged)
 //   'unconfigured'   — no assignment and no configured authority roles
-function decisionAuthority(user, step, allowedRolesFromDb) {
+//
+// `scope` is optional pure data:
+//   { tier, isAdmin, organizationUnitIds, requestOrganizationUnitId, requesterId }
+// Omitting it means "portfolio", i.e. behaviour identical to before
+// multi-business scoping existed.
+function decisionAuthority(user, step, allowedRolesFromDb, scope) {
+  // Assignment is checked before scope, deliberately: a decision that is
+  // explicitly this person's stays theirs even when the request belongs to
+  // another business. Losing sight of an assigned approval is a worse failure
+  // than seeing one request outside your business.
   const assignee = (step?.assigned_to || '').trim().toLowerCase();
   if (assignee) {
     const name = (user?.full_name || '').trim().toLowerCase();
@@ -121,7 +132,9 @@ function decisionAuthority(user, step, allowedRolesFromDb) {
   }
   const configured = Array.isArray(allowedRolesFromDb) ? allowedRolesFromDb.filter(Boolean) : [];
   if (configured.length > 0) {
-    if (user?.role && configured.includes(user.role)) return 'role-allowed';
+    if (user?.role && configured.includes(user.role)) {
+      return scopedAuthority(user, scope);
+    }
     if (user?.role === 'Admin') return 'admin-override';
     return 'denied';
   }
@@ -131,6 +144,28 @@ function decisionAuthority(user, step, allowedRolesFromDb) {
     return user?.role === 'Admin' ? 'admin-override' : 'denied';
   }
   return user?.role === 'Admin' ? 'admin-override' : 'unconfigured';
+}
+
+// Narrows a role-based grant to the business the request belongs to.
+function scopedAuthority(user, scope) {
+  if (!scope || scope.isAdmin || user?.role === 'Admin') return 'role-allowed';
+
+  const tier = scope.tier || 'PORTFOLIO';
+  if (tier === 'PORTFOLIO') return 'role-allowed';
+
+  if (tier === 'OWN') {
+    const isRequester = !!scope.requesterId && String(scope.requesterId) === String(user?.id);
+    return isRequester ? 'role-allowed' : 'out-of-scope';
+  }
+
+  // A request with no business is a data gap left by the backfill, not a grant.
+  // Failing closed here would block approval of every unmapped request, which is
+  // worse and less recoverable than a logged over-permission — the caller audits
+  // these and the enforcement switch is gated on there being none.
+  if (!scope.requestOrganizationUnitId) return 'role-allowed';
+
+  const assigned = (scope.organizationUnitIds || []).map(String);
+  return assigned.includes(String(scope.requestOrganizationUnitId)) ? 'role-allowed' : 'out-of-scope';
 }
 
 // Explicit step-role -> pending-status map (canonical names). Replaces the

@@ -8,6 +8,8 @@ const ctrl          = require('../controllers/usersController');
 router.use(verifyToken, requireAdmin);
 
 router.get('/',          ctrl.listUsers);
+router.get('/business-functions', ctrl.listBusinessFunctions);
+router.get('/role-scopes', ctrl.listRoleScopes);
 router.get('/:id',       ctrl.getUser);
 router.post('/',         ctrl.createUser);
 router.put('/:id',       ctrl.updateUser);

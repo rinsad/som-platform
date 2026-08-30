@@ -5,7 +5,7 @@ import BrandSelect from '../../components/SelectField';
 
 const DEPARTMENTS = ['IT', 'Operations', 'Finance', 'Retail', 'HR', 'Legal', 'Commercial', 'Engineering', 'Procurement', 'Internal Audit', 'Assets', 'HSSE'];
 
-export default function UserFormModal({ user, onSave, onClose }) {
+export default function UserFormModal({ user, businessFunctions = [], roleScopes = [], onSave, onClose }) {
   const isEdit = !!user;
   const navigate = useNavigate();
 
@@ -16,6 +16,7 @@ export default function UserFormModal({ user, onSave, onClose }) {
     password:    '',
     role:        'Employee',
     department:  '',
+    business_function_id: '',
   });
   const [saving, setSaving] = useState(false);
   const [error, setError]   = useState('');
@@ -29,6 +30,7 @@ export default function UserFormModal({ user, onSave, onClose }) {
         password:    '',
         role:        user.role        ?? 'Employee',
         department:  user.department  ?? '',
+        business_function_id: user.business_function_id ?? '',
       });
     }
   }, [user]);
@@ -37,9 +39,20 @@ export default function UserFormModal({ user, onSave, onClose }) {
     setForm(f => ({ ...f, [e.target.name]: e.target.value }));
   };
 
+  // Company-wide roles (CEO/Board, CFO, Admin, audit and the central functions)
+  // see every business, so they need no Business / Function. Every other role is
+  // scoped to one, and without it the user sees nothing once scoping is
+  // enforced — so require it here rather than let them be created blind.
+  const roleScope = roleScopes.find((entry) => entry.role === form.role);
+  const businessRequired = roleScope ? roleScope.requiresBusiness : false;
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
+    if (businessRequired && !form.business_function_id) {
+      setError(`The ${form.role} role is scoped to one Business / Function — select one.`);
+      return;
+    }
     setSaving(true);
     try {
       const payload = { ...form };
@@ -53,7 +66,11 @@ export default function UserFormModal({ user, onSave, onClose }) {
   };
 
   return (
-    <div style={s.overlay} onClick={e => e.target === e.currentTarget && onClose()}>
+    <div
+      role="presentation"
+      style={s.overlay}
+      onClick={e => e.target === e.currentTarget && onClose()}
+    >
       <div style={s.modal}>
         {/* Header */}
         <div style={s.header}>
@@ -85,6 +102,20 @@ export default function UserFormModal({ user, onSave, onClose }) {
               <SelectField label="Department" name="department" value={form.department}
                 onChange={handleField} options={['', ...DEPARTMENTS]} />
             </div>
+            <div style={s.row}>
+              <SelectField
+                label={businessRequired ? 'Business / Function *' : 'Business / Function'}
+                name="business_function_id"
+                value={form.business_function_id}
+                onChange={handleField}
+                options={[{ value: '', label: '— none —' }, ...businessFunctions.map((item) => ({ value: item.id, label: item.name }))]}
+                hint={roleScope && !businessRequired
+                  ? `${form.role} is a company-wide role — no Business / Function required.`
+                  : businessRequired
+                    ? `${form.role} only sees CAPEX and purchase requests for the selected Business / Function.`
+                    : null}
+              />
+            </div>
           </div>
 
           {error && <div style={s.error}>{error}</div>}
@@ -113,10 +144,12 @@ export default function UserFormModal({ user, onSave, onClose }) {
 }
 
 function Field({ label, name, type = 'text', value, onChange, placeholder, required }) {
+  const id = `user-${name}`;
   return (
     <div style={s.fieldWrap}>
-      <label style={s.label}>{label}</label>
+      <label htmlFor={id} style={s.label}>{label}</label>
       <input
+        id={id}
         style={s.input}
         type={type}
         name={name}
@@ -134,18 +167,27 @@ function Field({ label, name, type = 'text', value, onChange, placeholder, requi
 // Select items require non-empty values.
 const NONE = '__none__';
 
-function SelectField({ label, name, value, onChange, options }) {
+function SelectField({ label, name, value, onChange, options, hint }) {
+  const id = `user-${name}`;
+  const normalizedOptions = options.map((option) => {
+    if (option !== null && typeof option === 'object') {
+      return { value: option.value === '' ? NONE : option.value, label: option.label };
+    }
+    return { value: option === '' ? NONE : option, label: option || '— none —' };
+  });
   return (
     <div style={s.fieldWrap}>
-      <label style={s.label}>{label}</label>
+      <label htmlFor={id} style={s.label}>{label}</label>
       <BrandSelect
+        id={id}
         name={name}
         value={value === '' ? NONE : value}
         onChange={(v) => onChange({ target: { name, value: v === NONE ? '' : v } })}
-        options={options.map(o => ({ value: o === '' ? NONE : o, label: o || '— none —' }))}
+        options={normalizedOptions}
         style={{ ...s.input, cursor: 'pointer' }}
         aria-label={label}
       />
+      {hint && <span style={s.hint}>{hint}</span>}
     </div>
   );
 }
@@ -235,6 +277,11 @@ const s = {
     outline: 'none',
     width: '100%',
     boxSizing: 'border-box',
+  },
+  hint: {
+    fontSize: '11.5px',
+    color: 'var(--label-tertiary)',
+    lineHeight: 1.4,
   },
   error: {
     margin: '0 24px',

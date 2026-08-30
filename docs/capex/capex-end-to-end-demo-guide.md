@@ -19,7 +19,7 @@ The key message is that CAPEX is not only an approval screen. It is a full lifec
 | Line Manager | First management endorsement, if configured in the workflow. |
 | Finance in Business (FIB) | Validates budget, financial logic, savings, ROI, and finance compliance. |
 | CP Lead / CP Manager | Reviews procurement route, quotations, vendor readiness, PR / PO progress, PO evidence, and PO closure. |
-| HSSE / Worker Welfare Reviewer | Reviews risk-sensitive requests when HSSE or worker welfare risk is medium or high. |
+| HSSE Focal | Screens every request and records the qualified HSSE and worker welfare risk ratings. |
 | Business GM | Approves business-unit CAPEX when required by the value band or authority matrix. |
 | CFO | Approves finance-sensitive or higher-value CAPEX, owns financial governance visibility. |
 | EMT / Contract Board / CEO / Board | Approves high-value or strategic CAPEX when required by the configured authority matrix. |
@@ -62,7 +62,7 @@ Supporting input may come from:
 - Budget Holder
 - Finance in Business
 - CP / Procurement
-- HSSE Focal, if the work has HSSE or worker welfare exposure
+- HSSE Focal for mandatory screening of every request
 
 ### Where to show it in the demo
 
@@ -81,12 +81,11 @@ Open:
 | Financial year | Project Owner / Project Engineer | Budget year used for approval and reporting. |
 | Current cost / budget | Project Owner / Project Engineer, with Finance support | Existing budget or cost baseline. |
 | Estimated value | Project Owner / Project Engineer | Drives LOW / MEDIUM / HIGH value band. |
-| Urgent requirement | Project Owner / Project Engineer | Flags time-sensitive requests. |
-| Scope details | Project Owner / Project Engineer | Business need, scope, and justification summary. |
+| Urgent requirement | Project Owner / Project Engineer | Flags time-sensitive requests for priority display and register filtering. Normal approval requirements still apply. |
+| Project description | Project Owner / Project Engineer | Business need, scope, and justification summary, entered in the Project & Budget section. |
+| Project documents & presentations | Project Owner / Project Engineer | Upload one or more supporting scope documents, spreadsheets, images, or presentations. Each file may be up to 5 MB. |
 | Frequency | Project Owner / Project Engineer | One-time, annual, recurring, etc. |
 | Volume / year | Project Owner / Project Engineer | Relevant for recurring volume assumptions. |
-| HSSE risk | Project Owner / Project Engineer, with HSSE support | May trigger HSSE review. |
-| Worker welfare risk | Project Owner / Project Engineer, with HSSE support | May trigger worker welfare review. |
 | Savings | Project Owner / Project Engineer, with Finance support | Expected saving value. |
 | ROI | Project Owner / Project Engineer, with Finance support | Expected return or business case metric. |
 | Supplier quotations | Project Owner / Project Engineer, CP support | At least one quotation is required. |
@@ -116,7 +115,7 @@ The exact approver chain is configurable. For the demo, explain it as:
 | Line manager endorsement | Line Manager / Manager | Confirms business need and owner accountability. |
 | FIB validation | Finance in Business | Validates budget, finance logic, savings, and ROI. |
 | CP review | CP Lead / CP Manager | Reviews procurement route, quotation quality, and commercial readiness. |
-| HSSE / worker welfare review | HSSE Focal | Required for risk-sensitive requests. |
+| HSSE Focal screening | HSSE Focal | Required for every request. The focal assigns both Low / Medium / High ratings before approving the step. |
 | GM approval | Business GM | Confirms business-unit approval. |
 | CFO approval | CFO | Confirms finance governance and higher-value approval. |
 | EMT approval | EMT | Reviews strategic or high-value requests. |

@@ -46,7 +46,7 @@ export default function Login() {
         <div style={s.brandShapeLine} />
 
         <a href="/" style={s.logoRow}>
-          <img src="/leen-logo.png" alt="Leen" style={s.logo} />
+          <img src="/som-connect-logo.png" alt="SOM Connect" style={s.logo} />
           <span>
             <strong style={s.brandName}>Shell Oman Marketing</strong>
             <span style={s.brandSub}>Employee Intraportal</span>
@@ -197,8 +197,8 @@ const s = {
     zIndex: 1,
   },
   logo: {
-    width: 84,
-    height: 60,
+    width: 148,
+    height: 88,
     objectFit: 'contain',
     background: '#fff',
     borderRadius: 'var(--radius-xs)',

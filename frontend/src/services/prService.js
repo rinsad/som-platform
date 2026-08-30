@@ -67,7 +67,11 @@ async function requestPRMultipart(path, method, data) {
   const form = new FormData();
   const requestData = {
     ...data,
-    quotations: (data.quotations || []).map(({ file, ...quotation }) => quotation),
+    quotations: (data.quotations || []).map((entry) => {
+      const quotation = { ...entry };
+      delete quotation.file;
+      return quotation;
+    }),
   };
   form.append('request', JSON.stringify(requestData));
   (data.quotations || []).forEach((quotation, index) => {

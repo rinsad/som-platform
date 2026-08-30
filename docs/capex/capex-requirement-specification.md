@@ -73,7 +73,7 @@ The module shall provide one controlled workflow for business users, Finance in 
 | Line Manager | Endorses scope and request need. |
 | Budget Holder | Owns allocated budget and request accountability. |
 | Finance in Business (FiB) | Validates budget, current cost, savings, financial completeness, and low-value requests. |
-| HSSE Focal | Reviews and approves medium/high HSSE risk and worker welfare risk. |
+| HSSE Focal | Screens every CAPEX request and assigns the HSSE and worker welfare risk ratings. |
 | Business / Function CP Focal | Routes requests with sufficient quotations and supports CP process. |
 | CP Manager / Head of CP / CP Lead | Reviews procurement governance, especially fewer-than-3-quotation cases and medium/high value routes. |
 | IT Manager | Approves applicable low-value route items as captured in the process map. |
@@ -104,7 +104,7 @@ The module shall provide one controlled workflow for business users, Finance in 
    - Medium value: ACV / PO value from OMR 25,100 to OMR 300,000.
    - High value: ACV / PO value greater than OMR 300,000.
 3. Requester completes required information and attaches evidence.
-4. System determines approval route based on value band, quotation count, and HSSE/worker welfare risk.
+4. System determines the approval route based on value band and quotation count, and always inserts HSSE Focal screening.
 
 ### 4.3 Procurement, PR, and PO
 
@@ -148,7 +148,7 @@ The module shall provide one controlled workflow for business users, Finance in 
 | CAPEX-FR-006 | The system shall allow a requester to create a CAPEX purchase request with a unique request number. |
 | CAPEX-FR-007 | The system shall capture requester, department, business/function, budget holder, project title, scope details, required date, estimated budget, current cost/budget, frequency of requirement, and expected volume/quantity per year. |
 | CAPEX-FR-008 | The system shall support an urgent requirement flag. |
-| CAPEX-FR-009 | The system shall require a scope document or equivalent attachment before submission. |
+| CAPEX-FR-009 | The system shall require at least one project document or presentation before submission and shall allow the requester to upload multiple supporting files. |
 | CAPEX-FR-010 | The system shall classify requests automatically by value band using ACV / PO value in OMR. |
 | CAPEX-FR-011 | The system shall allow request draft, submit, withdraw, amend, resubmit, approve, reject, cancel, and close actions according to role permissions. |
 
@@ -156,9 +156,9 @@ The module shall provide one controlled workflow for business users, Finance in 
 
 | ID | Requirement |
 | --- | --- |
-| CAPEX-FR-012 | The system shall capture HSSE risk level as Low, Medium, or High. |
-| CAPEX-FR-013 | The system shall capture worker welfare risk level as Low, Medium, or High. |
-| CAPEX-FR-014 | The system shall require HSSE focal approval when HSSE or worker welfare risk is Medium or High. |
+| CAPEX-FR-012 | The system shall allow only the HSSE Focal to assess HSSE risk as Low, Medium, or High. New requests shall remain Not assessed until screening. |
+| CAPEX-FR-013 | The system shall allow only the HSSE Focal to assess worker welfare risk as Low, Medium, or High. New requests shall remain Not assessed until screening. |
+| CAPEX-FR-014 | The system shall require HSSE Focal screening for every submitted or resubmitted CAPEX request. |
 | CAPEX-FR-015 | The system shall require evidence of HSSE and worker welfare compliance where applicable. |
 | CAPEX-FR-016 | The system shall prevent final approval when mandatory HSSE approvals or evidence are missing. |
 
@@ -195,14 +195,14 @@ The module shall provide one controlled workflow for business users, Finance in 
 | CAPEX-FR-033 | Low-value spend shall require pre-support of FiB and CP Lead. |
 | CAPEX-FR-034 | Low-value spend shall not require contract strategy. |
 | CAPEX-FR-035 | Low-value fewer-than-3-quotation cases shall require Head of CP approval. |
-| CAPEX-FR-036 | Low-value cases shall require Business GM approval for the relevant class of business, subject to HSSE approval for Medium/High risk and Ethics and Compliance requirements. |
+| CAPEX-FR-036 | Low-value cases shall require Business GM approval for the relevant class of business, mandatory HSSE screening, and applicable Ethics and Compliance requirements. |
 | CAPEX-FR-037 | For medium-value spend from OMR 25,100 to OMR 300,000, the process shall be led by CP. |
 | CAPEX-FR-038 | Medium-value spend shall require tender/3 quotations or justification for fewer than 3 quotations. |
 | CAPEX-FR-039 | Medium-value spend shall require pre-support of Contract Holder, Owner, and FiB. |
 | CAPEX-FR-040 | Medium-value spend shall not require contract strategy/award unless later confirmed otherwise. |
 | CAPEX-FR-041 | Medium-value spend shall require EMT approval for the relevant class of business and Head of CP / CP Manager approval. |
 | CAPEX-FR-042 | Medium-value fewer-than-3-quotation cases shall require CFO approval. |
-| CAPEX-FR-043 | Medium-value cases shall be subject to HSSE approval for Medium/High risk and Ethics and Compliance requirements. |
+| CAPEX-FR-043 | Medium-value cases shall be subject to mandatory HSSE screening and applicable Ethics and Compliance requirements. |
 | CAPEX-FR-044 | For high-value spend greater than OMR 300,000, the process shall be led by CP. |
 | CAPEX-FR-045 | High-value spend shall require contract strategy, award proposal, and/or tender process. |
 | CAPEX-FR-046 | High-value spend shall require Contract Board approval. |
@@ -272,7 +272,7 @@ The module shall support at least the following statuses:
 | --- | --- |
 | Request Header | Request number, title, requester, department code, business/function, budget holder, creation date, urgency, status, value band. |
 | Budget | Budget year, approved budget, current cost/budget, allocated budget, remaining budget, ROI, savings. |
-| Scope | Scope details, frequency, volume/quantity per year, scope attachment. |
+| Scope | Project description and multiple supporting project documents or presentations, displayed in the Project & Budget section; frequency and volume/quantity per year where applicable. |
 | Risk | HSSE risk, worker welfare risk, HSSE focal, compliance evidence. |
 | Quotations | Supplier names, quote values, quote attachments, average quote, selected supplier, justification for fewer than 3 quotes. |
 | Payment Terms | 75/90 day term agreed flag, agreed payment term. |
@@ -289,8 +289,8 @@ The module shall support at least the following statuses:
 | CAPEX-BR-002 | A request cannot proceed without value amount and currency. |
 | CAPEX-BR-003 | Value band shall be determined using ACV / PO value in OMR. |
 | CAPEX-BR-004 | Fewer than 3 supplier quotations shall require justification and additional governance approval. |
-| CAPEX-BR-005 | Medium or High HSSE risk shall require HSSE focal approval before final approval. |
-| CAPEX-BR-006 | Medium or High worker welfare risk shall require HSSE focal approval before final approval. |
+| CAPEX-BR-005 | Every CAPEX request shall complete HSSE Focal screening before final approval. |
+| CAPEX-BR-006 | HSSE screening cannot be approved until both HSSE and worker welfare ratings are recorded by the HSSE Focal. |
 | CAPEX-BR-007 | Low-value requests with fewer than 3 quotations shall require Head of CP approval. |
 | CAPEX-BR-008 | Medium-value requests with fewer than 3 quotations shall require CFO approval. |
 | CAPEX-BR-009 | High-value requests shall require Contract Board approval before procurement execution. |
@@ -343,7 +343,7 @@ The module shall notify:
 - Requester when a request is submitted, returned, approved, rejected, or closed.
 - Approver when a request is pending their action.
 - Requester and CP focal when fewer-than-3-quotation justification is required.
-- HSSE focal when Medium/High HSSE or worker welfare risk is selected.
+- HSSE Focal for every submitted or resubmitted request.
 - Project Engineer when PO is uploaded and execution tracking should begin.
 - Finance when execution is complete and financial closure is pending.
 

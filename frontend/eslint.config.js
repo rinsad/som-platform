@@ -26,4 +26,16 @@ export default defineConfig([
       'no-unused-vars': ['error', { varsIgnorePattern: '^[A-Z_]' }],
     },
   },
+  {
+    files: ['**/*.test.{js,jsx}', 'src/setupTests.js'],
+    languageOptions: {
+      globals: { ...globals.browser, ...globals.node, ...globals.jest, ...globals.vitest },
+    },
+  },
+  {
+    files: ['vite.config.js', 'playwright.config.cjs', 'e2e/**/*.cjs', 'scripts/**/*.cjs'],
+    languageOptions: {
+      globals: { ...globals.browser, ...globals.node },
+    },
+  },
 ])

@@ -11,6 +11,8 @@ const ROLE_TONE = { Admin: 'danger', Manager: 'warning', Finance: 'success', Emp
 
 export default function UserManagement() {
   const [users, setUsers]         = useState([]);
+  const [businessFunctions, setBusinessFunctions] = useState([]);
+  const [roleScopes, setRoleScopes] = useState([]);
   const [loading, setLoading]     = useState(true);
   const [error, setError]         = useState('');
   const [search, setSearch]       = useState('');
@@ -22,8 +24,14 @@ export default function UserManagement() {
     setLoading(true);
     setError('');
     try {
-      const data = await usersService.list();
+      const [data, functions, scopes] = await Promise.all([
+        usersService.list(),
+        usersService.listBusinessFunctions(),
+        usersService.listRoleScopes(),
+      ]);
       setUsers(data);
+      setBusinessFunctions(functions);
+      setRoleScopes(scopes);
     } catch (err) {
       setError(err.response?.data?.error ?? 'Failed to load users');
     } finally {
@@ -94,7 +102,8 @@ export default function UserManagement() {
     u.full_name.toLowerCase().includes(search.toLowerCase()) ||
     u.email.toLowerCase().includes(search.toLowerCase()) ||
     u.role.toLowerCase().includes(search.toLowerCase()) ||
-    (u.department ?? '').toLowerCase().includes(search.toLowerCase())
+    (u.department ?? '').toLowerCase().includes(search.toLowerCase()) ||
+    (u.business_function_name ?? '').toLowerCase().includes(search.toLowerCase())
   );
 
   const stats = {
@@ -160,9 +169,12 @@ export default function UserManagement() {
       <div style={s.toolbar}>
         <div style={s.searchWrap}>
           <span style={s.searchIcon}>⊕</span>
+          <label htmlFor="user-search" style={s.searchLabel}>Search users</label>
           <input
+            id="user-search"
+            type="search"
             style={s.searchInput}
-            placeholder="Search by name, email, role or department…"
+            placeholder="Name, email, role, department or Business / Function"
             value={search}
             onChange={e => setSearch(e.target.value)}
           />
@@ -186,7 +198,7 @@ export default function UserManagement() {
           <table style={s.table}>
             <thead>
               <tr>
-                {['Employee ID', 'Name', 'Email', 'Role', 'Department', 'Status', 'Actions'].map(h => (
+                {['Employee ID', 'Name', 'Email', 'Role', 'Department', 'Business / Function', 'Status', 'Actions'].map(h => (
                   <th key={h} style={s.th}>{h}</th>
                 ))}
               </tr>
@@ -211,6 +223,7 @@ export default function UserManagement() {
                       <Badge status={user.role} tone={ROLE_TONE[user.role]} />
                     </td>
                     <td style={s.td}><span style={s.dept}>{user.department ?? '—'}</span></td>
+                    <td style={s.td}><span style={s.dept}>{user.business_function_name ?? '—'}</span></td>
                     <td style={s.td}>
                       <Badge status={user.is_active ? 'Active' : 'Inactive'} tone={user.is_active ? 'success' : 'danger'} />
                     </td>
@@ -251,6 +264,8 @@ export default function UserManagement() {
       {modalUser !== undefined && (
         <UserFormModal
           user={editData}
+          businessFunctions={businessFunctions}
+          roleScopes={roleScopes}
           onSave={handleSave}
           onClose={() => setModalUser(undefined)}
         />
@@ -324,6 +339,9 @@ const s = {
   },
   searchIcon: {
     padding: '0 10px 0 14px', fontSize: '16px', color: 'var(--gray-400)',
+  },
+  searchLabel: {
+    color: 'var(--label)', fontSize: '13px', fontWeight: '700', whiteSpace: 'nowrap',
   },
   searchInput: {
     flex: 1, background: 'none', border: 'none', outline: 'none',

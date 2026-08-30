@@ -10,6 +10,7 @@ import {
   getCapexProcessReference,
   updateCapexAuc,
   createCapexBudgetVariation,
+  createCapexRequest,
   DEPT_NAMES,
 } from './capexService';
 
@@ -116,6 +117,30 @@ describe('getInitiations', () => {
       expect.stringContaining('/api/capex/initiations'),
       expect.objectContaining({ headers: expect.objectContaining({ Authorization: 'Bearer test-token' }) })
     );
+  });
+});
+
+describe('createCapexRequest', () => {
+  test('posts request payload and evidence as multipart form data', async () => {
+    global.fetch = makeFetch({ id: 'CAPEX-2026-099' });
+    const strategyFile = new File(['strategy'], 'strategy.pdf', { type: 'application/pdf' });
+    const presentationFile = new File(['slides'], 'proposal.pptx', { type: 'application/vnd.openxmlformats-officedocument.presentationml.presentation' });
+    const quotationFile = new File(['quote'], 'quote.pdf', { type: 'application/pdf' });
+    await createCapexRequest({
+      title: 'Canopy upgrade',
+      projectFiles: [strategyFile, presentationFile],
+      quotations: [{ supplierName: 'Supplier A', quoteValue: 80, isSelected: true, file: quotationFile }],
+    });
+
+    const [, options] = global.fetch.mock.calls[0];
+    expect(options.headers).toEqual({ Authorization: 'Bearer test-token' });
+    expect(options.body).toBeInstanceOf(FormData);
+    expect(JSON.parse(options.body.get('payload'))).toMatchObject({
+      title: 'Canopy upgrade',
+      quotations: [{ supplierName: 'Supplier A', quoteValue: 80, isSelected: true }],
+    });
+    expect(options.body.getAll('projectFiles')).toEqual([strategyFile, presentationFile]);
+    expect(options.body.getAll('quotationFiles')).toEqual([quotationFile]);
   });
 });
 

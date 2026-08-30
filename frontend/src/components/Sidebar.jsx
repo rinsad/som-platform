@@ -19,7 +19,8 @@ const NAV_SECTIONS = [
   {
     label: 'Modules',
     items: [
-      { label: 'Capex Planning', path: '/capex', icon: ChartNoAxesCombined, permKey: 'capex' },
+      { label: 'CAPEX v2 Pilot', path: '/capex-v2', icon: ChartNoAxesCombined, permKey: 'capex' },
+      { label: 'Legacy CAPEX Planning', path: '/capex', icon: ChartNoAxesCombined, permKey: 'capex' },
       { label: 'Purchase Requests', path: '/purchase-requests', icon: FileText, permKey: 'purchase-requests' },
       { label: 'Assets (RADP)', path: '/assets', icon: PackageSearch, permKey: 'assets' },
     ],
@@ -40,9 +41,9 @@ export default function Sidebar() {
 
   return (
     <aside style={s.sidebar}>
-      <a href="/dashboard" style={s.brand} aria-label="Shell Oman Marketing dashboard">
+      <a href="/dashboard" style={s.brand} aria-label="SOM Connect dashboard">
         <span style={s.logoMark}>
-          <img src="/leen-logo.png" alt="Leen" style={s.logoImg} />
+          <img src="/som-connect-logo.png" alt="SOM Connect" style={s.logoImg} />
         </span>
         <span>
           <strong style={s.brandName}>Shell Oman Marketing</strong>
@@ -62,7 +63,7 @@ export default function Sidebar() {
               <div key={section.label} style={s.section}>
                 <p style={s.sectionLabel}>{section.label}</p>
                 {visibleItems.map((item) => {
-                  const active = location.pathname === item.path;
+                  const active = location.pathname === item.path || location.pathname.startsWith(`${item.path}/`);
                   const Icon = item.icon;
                   return (
                     <NavLink key={item.path} to={item.path} style={{ textDecoration: 'none' }}>
@@ -120,8 +121,8 @@ const s = {
     borderBottom: '1px solid var(--gray-100)',
   },
   logoMark: {
-    width: 48,
-    height: 34,
+    width: 88,
+    height: 50,
     flexShrink: 0,
     display: 'block',
   },

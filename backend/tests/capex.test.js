@@ -115,12 +115,27 @@ async function seedApproverPermission() {
   }
 }
 
+function submitCapex(payload, authHeader = auth) {
+  const {
+    projectEvidenceFiles = [{ name: 'strategy.pdf', content: 'project strategy evidence' }],
+    ...requestPayload
+  } = payload;
+  let call = request(app)
+    .post('/api/capex/requests')
+    .set(authHeader)
+    .field('payload', JSON.stringify(requestPayload));
+  projectEvidenceFiles.forEach(file => {
+    call = call.attach('projectFiles', Buffer.from(file.content), file.name);
+  });
+  payload.quotations.forEach((quotation, index) => {
+    call = call.attach('quotationFiles', Buffer.from(`quotation evidence ${index + 1}`), quotation.attachmentName || `quote-${index + 1}.pdf`);
+  });
+  return call;
+}
+
 async function createCapex(overrides = {}) {
   const stamp = `${Date.now()}-${Math.floor(Math.random() * 1000)}`;
-  const res = await request(app)
-    .post('/api/capex/requests')
-    .set(auth)
-    .send({
+  const payload = {
       title: `Phase 7 CAPEX ${stamp}`,
       department: 'Aviation',
       businessFunction: 'Aviation',
@@ -135,7 +150,8 @@ async function createCapex(overrides = {}) {
         { supplierName: 'Supplier C', quoteValue: 14000, attachmentName: 'c.pdf' },
       ],
       ...overrides,
-    });
+    };
+  const res = await submitCapex(payload);
   if (res.statusCode !== 201) throw new Error(`createCapex failed: ${res.statusCode} ${JSON.stringify(res.body)}`);
   return res.body;
 }
@@ -150,10 +166,14 @@ async function approveAll(requestId) {
   for (let i = 0; i < 12; i += 1) {
     const detail = await request(app).get(`/api/capex/requests/${requestId}`).set(auth);
     if (detail.body.status === 'Approved' || !detail.body.currentStepId) return detail.body;
+    const currentStep = detail.body.approvalSteps.find(step => step.id === detail.body.currentStepId);
+    const assessment = currentStep?.approverRole === 'HSSE Focal'
+      ? { hsseRisk: 'Low', workerWelfareRisk: 'Low' }
+      : {};
     const decided = await request(app)
       .patch(`/api/capex/requests/${requestId}/decision`)
       .set(auth)
-      .send({ decision: 'APPROVED' });
+      .send({ decision: 'APPROVED', ...assessment });
     if (decided.statusCode !== 200) throw new Error(`approve step failed: ${decided.statusCode} ${JSON.stringify(decided.body)}`);
   }
   throw new Error('approveAll exceeded step limit');
@@ -298,6 +318,45 @@ describe('CAPEX approval and gating hardening', () => {
     expect(secondDecision.statusCode).toBe(400);
   });
 
+  test('always routes through HSSE screening and requires the HSSE Focal assessment', async () => {
+    const created = await createCapex({ hsseRisk: 'High', workerWelfareRisk: 'Medium' });
+    expect(created.hsseRisk).toBe('Not assessed');
+    expect(created.workerWelfareRisk).toBe('Not assessed');
+
+    const initial = await request(app).get(`/api/capex/requests/${created.id}`).set(auth);
+    expect(initial.body.approvalSteps).toEqual(expect.arrayContaining([
+      expect.objectContaining({ approverRole: 'HSSE Focal', label: 'HSSE Focal Screening' }),
+    ]));
+
+    const managerApproved = await request(app)
+      .patch(`/api/capex/requests/${created.id}/decision`)
+      .set(auth)
+      .send({ decision: 'APPROVED' });
+    expect(managerApproved.statusCode).toBe(200);
+    const hsseStep = managerApproved.body.approvalSteps.find(step => step.id === managerApproved.body.currentStepId);
+    expect(hsseStep.approverRole).toBe('HSSE Focal');
+
+    const missingAssessment = await request(app)
+      .patch(`/api/capex/requests/${created.id}/decision`)
+      .set(auth)
+      .send({ decision: 'APPROVED' });
+    expect(missingAssessment.statusCode).toBe(400);
+    expect(missingAssessment.body.error).toMatch(/must be assessed/i);
+
+    const assessed = await request(app)
+      .patch(`/api/capex/requests/${created.id}/decision`)
+      .set(auth)
+      .send({ decision: 'APPROVED', hsseRisk: 'High', workerWelfareRisk: 'Medium' });
+    expect(assessed.statusCode).toBe(200);
+    expect(assessed.body).toMatchObject({ hsseRisk: 'High', workerWelfareRisk: 'Medium' });
+
+    const { rows: auditRows } = await pool.query(
+      `SELECT event_type FROM capex_audit_logs WHERE request_id = $1 AND event_type = 'HSSE_ASSESSED'`,
+      [created.id]
+    );
+    expect(auditRows).toHaveLength(1);
+  });
+
   test('configured authority matrix denies roles outside allowed_user_roles', async () => {
     const created = await createCapex();
     const detail = await request(app).get(`/api/capex/requests/${created.id}`).set(auth);
@@ -350,6 +409,18 @@ describe('CAPEX approval and gating hardening', () => {
 
     expect(returned.statusCode).toBe(200);
     expect(returned.body.status).toBe('Returned for correction');
+
+    const edited = await request(app)
+      .patch(`/api/capex/requests/${created.id}`)
+      .set(auth)
+      .send({ urgent: true });
+    expect(edited.statusCode).toBe(200);
+    expect(edited.body.urgent).toBe(true);
+    const { rows: auditRows } = await pool.query(
+      `SELECT event_type FROM capex_audit_logs WHERE request_id = $1 AND event_type = 'REQUEST_EDITED'`,
+      [created.id]
+    );
+    expect(auditRows).toHaveLength(1);
   });
 
   test('delegation uses active eligible users instead of arbitrary text', async () => {
@@ -387,6 +458,40 @@ describe('CAPEX approval and gating hardening', () => {
       .send({ delegateTo: 'phase7.delegate@shell.om' });
     expect(delegated.statusCode).toBe(200);
     expect(delegated.body.assignedTo).toBe('phase7.delegate@shell.om');
+    expect(delegated.body.startedAt).toBe(currentStep.startedAt);
+
+    const escalated = await request(app)
+      .patch(`/api/capex/requests/${created.id}/steps/${currentStep.id}/escalate`)
+      .set(auth)
+      .send({ reason: 'Approval is overdue.' });
+    expect(escalated.statusCode).toBe(201);
+
+    const afterEscalation = await request(app).get(`/api/capex/requests/${created.id}`).set(auth);
+    const agedStep = afterEscalation.body.approvalSteps.find(step => step.id === currentStep.id);
+    expect(agedStep.startedAt).toBe(currentStep.startedAt);
+  });
+
+  test('resubmission starts a fresh approval age without rewriting history', async () => {
+    const created = await createCapex();
+    const original = await request(app).get(`/api/capex/requests/${created.id}`).set(auth);
+    const originalStepId = original.body.currentStepId;
+
+    const returned = await request(app)
+      .patch(`/api/capex/requests/${created.id}/decision`)
+      .set(auth)
+      .send({ decision: 'RETURNED', comment: 'Clarify the supporting evidence.' });
+    expect(returned.statusCode).toBe(200);
+
+    const resubmitted = await request(app)
+      .post(`/api/capex/requests/${created.id}/resubmit`)
+      .set(auth)
+      .send({});
+    expect(resubmitted.statusCode).toBe(200);
+    expect(resubmitted.body.currentStepId).not.toBe(originalStepId);
+    const freshStep = resubmitted.body.approvalSteps.find(step => step.id === resubmitted.body.currentStepId);
+    expect(freshStep.startedAt).toBeTruthy();
+    expect(freshStep.pendingDays).toBe(0);
+    expect(resubmitted.body.approvalSteps.find(step => step.id === originalStepId).status).toBe('Superseded');
   });
 });
 
@@ -394,18 +499,18 @@ describe('CAPEX request lifecycle rules', () => {
   let requestId;
 
   test('creates a request with approval workflow', async () => {
-    const res = await request(app)
-      .post('/api/capex/requests')
-      .set(auth)
-      .send({
+    const res = await submitCapex({
         title: 'Automated lifecycle test',
         department: 'Aviation',
         businessFunction: 'Aviation',
         budgetHolder: 'Budget Holder',
         estimatedValue: 18000,
+        urgent: true,
         scopeDetails: 'Replace project equipment.',
-        hsseRisk: 'Low',
-        workerWelfareRisk: 'Low',
+        projectEvidenceFiles: [
+          { name: 'strategy.pdf', content: 'project strategy evidence' },
+          { name: 'project-presentation.pptx', content: 'project presentation evidence' },
+        ],
         fewerThan3Justification: 'Only two compliant suppliers available.',
         quotations: [
           { supplierName: 'Supplier A', quoteValue: 10000, isSelected: true, attachmentName: 'a.pdf' },
@@ -415,7 +520,55 @@ describe('CAPEX request lifecycle rules', () => {
 
     expect(res.statusCode).toBe(201);
     expect(res.body.status).toBe('Pending line manager endorsement');
+    expect(res.body.urgent).toBe(true);
+    expect(res.body.pendingDays).toBe(0);
     requestId = res.body.id;
+
+    const detail = await request(app).get(`/api/capex/requests/${requestId}`).set(auth);
+    expect(detail.body.approvalSteps[0]).toMatchObject({ pendingDays: 0 });
+    expect(detail.body.approvalSteps).toEqual(expect.arrayContaining([
+      expect.objectContaining({ approverRole: 'HSSE Focal', label: 'HSSE Focal Screening' }),
+    ]));
+    expect(detail.body.urgent).toBe(true);
+    expect(detail.body.approvalSteps[0].startedAt).toBeTruthy();
+    expect(detail.body.approvalSteps[1].startedAt).toBeNull();
+    expect(detail.body.attachments).toEqual(expect.arrayContaining([
+      expect.objectContaining({ type: 'Project Strategy / Scope', name: 'strategy.pdf' }),
+      expect.objectContaining({ type: 'Project Strategy / Scope', name: 'project-presentation.pptx' }),
+      expect.objectContaining({ type: 'Supplier Quotation', linkedType: 'Supplier Quotation', name: 'a.pdf' }),
+      expect.objectContaining({ type: 'Supplier Quotation', linkedType: 'Supplier Quotation', name: 'b.pdf' }),
+    ]));
+  });
+
+  test('rejects urgency edits before a request is returned for correction', async () => {
+    const res = await request(app)
+      .patch(`/api/capex/requests/${requestId}`)
+      .set(auth)
+      .send({ urgent: false });
+
+    expect(res.statusCode).toBe(409);
+    expect(res.body.error).toMatch(/only requests returned for correction can be edited/i);
+  });
+
+  test('rejects missing request evidence without creating a partial request', async () => {
+    const title = `Missing evidence ${Date.now()}`;
+    const payload = {
+      title,
+      department: 'Aviation',
+      estimatedValue: 10000,
+      scopeDetails: 'Evidence is deliberately omitted.',
+      fewerThan3Justification: 'Single compliant supplier.',
+      quotations: [{ supplierName: 'Supplier A', quoteValue: 9000, isSelected: true }],
+    };
+    const res = await request(app)
+      .post('/api/capex/requests')
+      .set(auth)
+      .field('payload', JSON.stringify(payload));
+
+    expect(res.statusCode).toBe(400);
+    expect(res.body.error).toMatch(/project document.*required/i);
+    const { rows: [{ count }] } = await pool.query('SELECT COUNT(*)::int AS count FROM capex_requests WHERE title = $1', [title]);
+    expect(count).toBe(0);
   });
 
   test('blocks procurement editing before approval completes', async () => {
@@ -427,8 +580,12 @@ describe('CAPEX request lifecycle rules', () => {
   });
 
   test('walks the approval chain to Approved', async () => {
+    const before = await request(app).get(`/api/capex/requests/${requestId}`).set(auth);
+    const firstStartedAt = before.body.approvalSteps[0].startedAt;
     const approved = await approveAll(requestId);
     expect(approved.status).toBe('Approved');
+    expect(approved.approvalSteps[0].startedAt).toBe(firstStartedAt);
+    expect(approved.approvalSteps.every(step => step.startedAt)).toBe(true);
     const capexGate = approved.decisionGates.find(gate => gate.gateKey === 'gate_2_capex');
     expect(capexGate.status).toBe('Passed');
     expect(capexGate.autoManaged).toBe(true);
@@ -961,5 +1118,459 @@ describe('CAPEX admin configuration', () => {
       .set(auth)
       .send({ lowMaxOmr: 25000, mediumMaxOmr: 300000 });
     expect(restore.statusCode).toBe(200);
+  });
+});
+
+describe('CAPEX repository fields and asset categories', () => {
+  let seededCategoryId;
+
+  beforeAll(async () => {
+    const { rows: [category] } = await pool.query(
+      `SELECT id FROM capex_reference_asset_categories WHERE is_active = true ORDER BY sort_order, name LIMIT 1`
+    );
+    seededCategoryId = category.id;
+  });
+
+  test('lists only active asset categories for requesters', async () => {
+    const res = await request(app).get('/api/capex/asset-categories').set(auth);
+    expect(res.statusCode).toBe(200);
+    expect(res.body.length).toBeGreaterThan(0);
+    expect(res.body.every(c => c.isActive)).toBe(true);
+    expect(res.body[0]).toHaveProperty('name');
+  });
+
+  test('stores project dates, owner title and asset category on creation', async () => {
+    const created = await createCapex({
+      projectOwnerTitle: 'Real Estate Project Owner',
+      startDate: '2026-09-01',
+      targetCompletionDate: '2027-03-31',
+      expectedCapitalizationDate: '2027-04-30',
+      assetCategoryId: seededCategoryId,
+    });
+
+    const detail = await request(app).get(`/api/capex/requests/${created.id}`).set(auth);
+    expect(detail.statusCode).toBe(200);
+    expect(detail.body.projectOwnerTitle).toBe('Real Estate Project Owner');
+    expect(detail.body.startDate).toBe('2026-09-01');
+    expect(detail.body.targetCompletionDate).toBe('2027-03-31');
+    expect(detail.body.expectedCapitalizationDate).toBe('2027-04-30');
+    expect(detail.body.assetCategoryId).toBe(seededCategoryId);
+    expect(detail.body.assetCategoryName).toBeTruthy();
+  });
+
+  test('rejects a target completion date before the start date', async () => {
+    const res = await submitCapex({
+      title: `Reversed dates ${Date.now()}`,
+      department: 'Aviation',
+      businessFunction: 'Aviation',
+      estimatedValue: 15000,
+      scopeDetails: 'Dates the wrong way round.',
+      startDate: '2027-01-01',
+      targetCompletionDate: '2026-12-01',
+      quotations: [
+        { supplierName: 'Supplier A', quoteValue: 10000, isSelected: true, attachmentName: 'a.pdf' },
+        { supplierName: 'Supplier B', quoteValue: 12000, attachmentName: 'b.pdf' },
+        { supplierName: 'Supplier C', quoteValue: 14000, attachmentName: 'c.pdf' },
+      ],
+    });
+    expect(res.statusCode).toBe(400);
+    expect(res.body.error).toMatch(/targetCompletionDate cannot be earlier/i);
+  });
+
+  test('rejects a malformed date and an unknown asset category', async () => {
+    const base = {
+      department: 'Aviation',
+      businessFunction: 'Aviation',
+      estimatedValue: 15000,
+      scopeDetails: 'Bad planning input.',
+      quotations: [
+        { supplierName: 'Supplier A', quoteValue: 10000, isSelected: true, attachmentName: 'a.pdf' },
+        { supplierName: 'Supplier B', quoteValue: 12000, attachmentName: 'b.pdf' },
+        { supplierName: 'Supplier C', quoteValue: 14000, attachmentName: 'c.pdf' },
+      ],
+    };
+
+    const badDate = await submitCapex({ ...base, title: `Bad date ${Date.now()}`, startDate: '01-09-2026' });
+    expect(badDate.statusCode).toBe(400);
+    expect(badDate.body.error).toMatch(/YYYY-MM-DD/);
+
+    const badCategory = await submitCapex({ ...base, title: `Bad category ${Date.now()}`, assetCategoryId: 999999 });
+    expect(badCategory.statusCode).toBe(400);
+    expect(badCategory.body.error).toMatch(/does not match a known asset category/i);
+  });
+
+  test('rejects a calendar date that does not exist', async () => {
+    const res = await submitCapex({
+      title: `Impossible date ${Date.now()}`,
+      department: 'Aviation',
+      businessFunction: 'Aviation',
+      estimatedValue: 15000,
+      scopeDetails: 'February 30th.',
+      startDate: '2026-02-30',
+      quotations: [
+        { supplierName: 'Supplier A', quoteValue: 10000, isSelected: true, attachmentName: 'a.pdf' },
+        { supplierName: 'Supplier B', quoteValue: 12000, attachmentName: 'b.pdf' },
+        { supplierName: 'Supplier C', quoteValue: 14000, attachmentName: 'c.pdf' },
+      ],
+    });
+    expect(res.statusCode).toBe(400);
+    expect(res.body.error).toMatch(/YYYY-MM-DD/);
+  });
+
+  test('admin can add, rename and retire an asset category', async () => {
+    const name = `Test Category ${Date.now()}`;
+    const created = await request(app)
+      .post('/api/capex/admin-config/asset-categories')
+      .set(auth)
+      .send({ name, description: 'Added by test', sortOrder: 500 });
+    expect(created.statusCode).toBe(201);
+    expect(created.body.name).toBe(name);
+    expect(created.body.isActive).toBe(true);
+
+    const duplicate = await request(app)
+      .post('/api/capex/admin-config/asset-categories')
+      .set(auth)
+      .send({ name: name.toUpperCase() });
+    expect(duplicate.statusCode).toBe(409);
+
+    const renamed = await request(app)
+      .patch(`/api/capex/admin-config/asset-categories/${created.body.id}`)
+      .set(auth)
+      .send({ name: `${name} renamed` });
+    expect(renamed.statusCode).toBe(200);
+    expect(renamed.body.name).toBe(`${name} renamed`);
+
+    const retired = await request(app)
+      .patch(`/api/capex/admin-config/asset-categories/${created.body.id}`)
+      .set(auth)
+      .send({ isActive: false });
+    expect(retired.statusCode).toBe(200);
+    expect(retired.body.isActive).toBe(false);
+
+    const list = await request(app).get('/api/capex/asset-categories').set(auth);
+    expect(list.body.some(c => c.id === created.body.id)).toBe(false);
+  });
+
+  test('a retired category cannot be attached to a new request', async () => {
+    const created = await request(app)
+      .post('/api/capex/admin-config/asset-categories')
+      .set(auth)
+      .send({ name: `Retired Category ${Date.now()}` });
+    expect(created.statusCode).toBe(201);
+    await request(app)
+      .patch(`/api/capex/admin-config/asset-categories/${created.body.id}`)
+      .set(auth)
+      .send({ isActive: false });
+
+    const res = await submitCapex({
+      title: `Retired category use ${Date.now()}`,
+      department: 'Aviation',
+      businessFunction: 'Aviation',
+      estimatedValue: 15000,
+      scopeDetails: 'Using a retired category.',
+      assetCategoryId: created.body.id,
+      quotations: [
+        { supplierName: 'Supplier A', quoteValue: 10000, isSelected: true, attachmentName: 'a.pdf' },
+        { supplierName: 'Supplier B', quoteValue: 12000, attachmentName: 'b.pdf' },
+        { supplierName: 'Supplier C', quoteValue: 14000, attachmentName: 'c.pdf' },
+      ],
+    });
+    expect(res.statusCode).toBe(400);
+    expect(res.body.error).toMatch(/no longer active/i);
+  });
+
+  test('non-admins cannot change the asset category list', async () => {
+    const res = await request(app)
+      .post('/api/capex/admin-config/asset-categories')
+      .set(managerAuth)
+      .send({ name: `Blocked ${Date.now()}` });
+    expect(res.statusCode).toBe(403);
+  });
+});
+
+// pg reads a DATE column into a JS Date at *local* midnight; JSON.stringify then
+// renders that in UTC, so east of Greenwich an un-normalised DATE leaves the API
+// as the *previous* calendar day ('2026-09-01' → '2026-08-31T20:00:00.000Z').
+// scripts/runTests.js pins the suite to Asia/Muscat so that shift is guaranteed
+// to happen if a mapper stops running its DATE columns through toDateOnly.
+describe('DATE columns round-trip as calendar days', () => {
+  let requestId;
+
+  // Asserts the value is a bare calendar day, and the same one that went in.
+  function expectDay(actual, expected) {
+    expect(actual).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    expect(actual).toBe(expected);
+  }
+
+  beforeAll(async () => {
+    const created = await createCapex({ title: `Date round-trip ${Date.now()}` });
+    requestId = created.id;
+    await approveAll(requestId);
+    await request(app)
+      .post(`/api/capex/requests/${requestId}/attachments`)
+      .set(auth)
+      .field('type', 'PO Document')
+      .field('retentionYears', '7')
+      .attach('file', Buffer.from('po evidence'), 'po.pdf');
+  });
+
+  test('procurement dates come back as the day they went in', async () => {
+    const res = await request(app)
+      .patch(`/api/capex/requests/${requestId}/procurement`)
+      .set(auth)
+      .send({
+        ndaRequired: true,
+        ndaCompletionDate: '2026-09-01',
+        dpaRequired: true,
+        dpaCompletionDate: '2026-09-02',
+        gsapProjectReference: 'GSAP-1',
+        gsapProjectCreatedAt: '2026-09-03',
+        prNumber: 'PR-1',
+        prCreatedAt: '2026-09-04',
+        poNumber: 'PO-1',
+        poCreatedAt: '2026-09-05',
+        poValue: 15000,
+        poStatus: 'Uploaded',
+        poAttachmentName: 'po.pdf',
+      });
+    expect(res.statusCode).toBe(200);
+
+    const detail = await request(app).get(`/api/capex/requests/${requestId}`).set(auth);
+    for (const source of [res.body, detail.body.procurement]) {
+      expectDay(source.ndaCompletionDate, '2026-09-01');
+      expectDay(source.dpaCompletionDate, '2026-09-02');
+      expectDay(source.gsapProjectCreatedAt, '2026-09-03');
+      expectDay(source.prCreatedAt, '2026-09-04');
+      expectDay(source.poCreatedAt, '2026-09-05');
+    }
+  });
+
+  test('milestone planned and actual dates come back as the day they went in', async () => {
+    const created = await request(app)
+      .post(`/api/capex/requests/${requestId}/milestones`)
+      .set(auth)
+      .send({
+        stageName: 'Delivery',
+        milestoneName: 'Install equipment',
+        plannedDate: '2026-09-01',
+        actualDate: '2026-09-30',
+      });
+    expect(created.statusCode).toBe(201);
+    expectDay(created.body.plannedDate, '2026-09-01');
+    expectDay(created.body.actualDate, '2026-09-30');
+
+    const detail = await request(app).get(`/api/capex/requests/${requestId}`).set(auth);
+    const milestone = detail.body.milestones.find(m => m.id === created.body.id);
+    expectDay(milestone.plannedDate, '2026-09-01');
+    expectDay(milestone.actualDate, '2026-09-30');
+  });
+
+  test('milestone delivery period and comments round-trip, and the period is validated', async () => {
+    const created = await request(app)
+      .post(`/api/capex/requests/${requestId}/milestones`)
+      .set(auth)
+      .send({
+        stageName: 'Delivery',
+        milestoneName: 'Site works',
+        plannedStartDate: '2026-09-01',
+        plannedDate: '2026-09-30',
+        comments: 'Civil works start once the permit lands.',
+      });
+    expect(created.statusCode).toBe(201);
+    expectDay(created.body.plannedStartDate, '2026-09-01');
+    expectDay(created.body.plannedDate, '2026-09-30');
+    expect(created.body.comments).toBe('Civil works start once the permit lands.');
+
+    const detail = await request(app).get(`/api/capex/requests/${requestId}`).set(auth);
+    const milestone = detail.body.milestones.find(m => m.id === created.body.id);
+    expectDay(milestone.plannedStartDate, '2026-09-01');
+    expect(milestone.comments).toBe('Civil works start once the permit lands.');
+
+    const inverted = await request(app)
+      .post(`/api/capex/requests/${requestId}/milestones`)
+      .set(auth)
+      .send({
+        stageName: 'Delivery',
+        milestoneName: 'Inverted period',
+        plannedStartDate: '2026-10-31',
+        plannedDate: '2026-10-01',
+      });
+    expect(inverted.statusCode).toBe(400);
+
+    // The merged row is what matters: a start sent alone must still not land
+    // after the completion date already stored.
+    const patched = await request(app)
+      .patch(`/api/capex/requests/${requestId}/milestones/${created.body.id}`)
+      .set(auth)
+      .send({ plannedStartDate: '2026-10-15' });
+    expect(patched.statusCode).toBe(400);
+
+    const unchanged = await request(app).get(`/api/capex/requests/${requestId}`).set(auth);
+    expectDay(unchanged.body.milestones.find(m => m.id === created.body.id).plannedStartDate, '2026-09-01');
+  });
+
+  test('AUC, capitalization and PO closure dates come back as the day they went in', async () => {
+    const auc = await request(app)
+      .patch(`/api/capex/requests/${requestId}/auc`)
+      .set(auth)
+      .send({ aucAccount: 'AUC-2001', aucValue: 14900, aucStartDate: '2026-09-01', status: 'Open' });
+    expect(auc.statusCode).toBe(200);
+    expectDay(auc.body.aucStartDate, '2026-09-01');
+
+    const capitalization = await request(app)
+      .patch(`/api/capex/requests/${requestId}/capitalization`)
+      .set(auth)
+      .send({
+        status: 'Pending Approval',
+        capitalizationRequestDate: '2026-09-01',
+        capitalizationApprovalDate: '2026-09-02',
+        fixedAssetRegisteredAt: '2026-09-03',
+        depreciationStartDate: '2026-10-01',
+      });
+    expect(capitalization.statusCode).toBe(200);
+    expectDay(capitalization.body.capitalizationRequestDate, '2026-09-01');
+    expectDay(capitalization.body.capitalizationApprovalDate, '2026-09-02');
+    expectDay(capitalization.body.fixedAssetRegisteredAt, '2026-09-03');
+    expectDay(capitalization.body.depreciationStartDate, '2026-10-01');
+
+    // capex_po_closure_tracking.closed_at is a DATE, unlike the TIMESTAMPTZ
+    // closed_at on capex_financial_closure.
+    const poClosure = await request(app)
+      .patch(`/api/capex/requests/${requestId}/po-closure`)
+      .set(auth)
+      .send({ closureStatus: 'In Progress', closureDueDate: '2026-09-01', closedAt: '2026-09-15' });
+    expect(poClosure.statusCode).toBe(200);
+    expectDay(poClosure.body.closureDueDate, '2026-09-01');
+    expectDay(poClosure.body.closedAt, '2026-09-15');
+
+    const detail = await request(app).get(`/api/capex/requests/${requestId}`).set(auth);
+    expectDay(detail.body.auc.aucStartDate, '2026-09-01');
+    expectDay(detail.body.capitalization.depreciationStartDate, '2026-10-01');
+    expectDay(detail.body.poClosure.closureDueDate, '2026-09-01');
+    expectDay(detail.body.poClosure.closedAt, '2026-09-15');
+  });
+
+  test('checklist, risk, benefit review and MOA dates come back as the day they went in', async () => {
+    const before = await request(app).get(`/api/capex/requests/${requestId}`).set(auth);
+    const checklistItem = before.body.closureChecklist[0];
+    const checklist = await request(app)
+      .patch(`/api/capex/requests/${requestId}/closure-checklist/${checklistItem.id}`)
+      .set(auth)
+      .send({ status: 'Open', dueDate: '2026-09-01' });
+    expect(checklist.statusCode).toBe(200);
+    expectDay(checklist.body.dueDate, '2026-09-01');
+
+    const risk = await request(app)
+      .post(`/api/capex/requests/${requestId}/risks`)
+      .set(auth)
+      .send({ category: 'Schedule Risk', title: 'Vendor delay', severity: 'Amber', dueDate: '2026-09-01' });
+    expect(risk.statusCode).toBe(201);
+    expectDay(risk.body.dueDate, '2026-09-01');
+
+    // capex_benefit_reviews.reviewed_at is a DATE, unlike the TIMESTAMPTZ
+    // reviewed_at on capex_decision_gate_reviews.
+    const benefit = await request(app)
+      .post(`/api/capex/requests/${requestId}/benefit-reviews`)
+      .set(auth)
+      .send({ reviewPeriodMonths: 6, status: 'Completed', reviewedAt: '2026-09-01' });
+    expect(benefit.statusCode).toBe(200);
+    expectDay(benefit.body.reviewedAt, '2026-09-01');
+
+    const moa = await request(app)
+      .post(`/api/capex/requests/${requestId}/moa`)
+      .set(auth)
+      .send({
+        moaNumber: `MOA-DATE-${Date.now()}`,
+        title: 'Date round-trip MOA',
+        approvalAuthority: 'Business GM',
+        approvalStatus: 'Approved',
+        projectValue: 18000,
+        effectiveDate: '2026-09-01',
+        expiryDate: '2027-09-01',
+      });
+    expect(moa.statusCode).toBe(201);
+    expectDay(moa.body.effectiveDate, '2026-09-01');
+    expectDay(moa.body.expiryDate, '2027-09-01');
+
+    const detail = await request(app).get(`/api/capex/requests/${requestId}`).set(auth);
+    expectDay(detail.body.closureChecklist.find(i => i.id === checklistItem.id).dueDate, '2026-09-01');
+    expectDay(detail.body.risks.find(r => r.id === risk.body.id).dueDate, '2026-09-01');
+    expectDay(detail.body.benefitReviews[0].reviewedAt, '2026-09-01');
+    expectDay(detail.body.moaRecords.find(m => m.id === moa.body.id).effectiveDate, '2026-09-01');
+  });
+
+  test('procurement performance, document retention and schedule dates come back as the day they went in', async () => {
+    const performance = await request(app)
+      .patch(`/api/capex/requests/${requestId}/procurement-performance`)
+      .set(auth)
+      .send({
+        rfqIssuedAt: '2026-09-01',
+        tenderStartedAt: '2026-09-02',
+        tenderCompletedAt: '2026-09-03',
+        vendorResponseCount: 2,
+        invitedVendorCount: 3,
+      });
+    expect(performance.statusCode).toBe(200);
+    expectDay(performance.body.rfqIssuedAt, '2026-09-01');
+    expectDay(performance.body.tenderStartedAt, '2026-09-02');
+    expectDay(performance.body.tenderCompletedAt, '2026-09-03');
+
+    const documentVersion = await request(app)
+      .post(`/api/capex/requests/${requestId}/document-versions`)
+      .set(auth)
+      .send({
+        documentType: 'MOA',
+        documentName: 'Date round-trip MOA',
+        versionLabel: `v${Date.now()}`,
+        retentionUntil: '2033-09-01',
+      });
+    expect(documentVersion.statusCode).toBe(201);
+    expectDay(documentVersion.body.retentionUntil, '2033-09-01');
+
+    const schedule = await request(app)
+      .post('/api/capex/report-schedules')
+      .set(auth)
+      .send({
+        reportName: `Date round-trip pack ${Date.now()}`,
+        reportType: 'governance',
+        frequency: 'Monthly',
+        recipients: ['cfo@shell.om'],
+        nextRunDate: '2026-09-01',
+      });
+    expect(schedule.statusCode).toBe(201);
+    expectDay(schedule.body.nextRunDate, '2026-09-01');
+
+    // retention_until is derived server-side, so only its shape can be asserted.
+    const attachment = await request(app)
+      .post(`/api/capex/requests/${requestId}/attachments`)
+      .set(auth)
+      .field('type', 'Scope Document')
+      .field('retentionYears', '7')
+      .attach('file', Buffer.from('retention evidence'), 'retention.txt');
+    expect(attachment.statusCode).toBe(201);
+    expect(attachment.body.retentionUntil).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+  });
+
+  test('dashboard drilldown rows expose DATE columns as calendar days', async () => {
+    const aucAging = await request(app).get('/api/capex/dashboard/drilldown?type=aucAging').set(auth);
+    expect(aucAging.statusCode).toBe(200);
+    const aucRow = aucAging.body.rows.find(row => row.id === requestId);
+    expectDay(aucRow.aucStartDate, '2026-09-01');
+
+    const risks = await request(app).get('/api/capex/dashboard/drilldown?type=risks').set(auth);
+    expect(risks.statusCode).toBe(200);
+    const riskRow = risks.body.rows.find(row => row.requestId === requestId);
+    expectDay(riskRow.dueDate, '2026-09-01');
+
+    const moaCompliance = await request(app).get('/api/capex/dashboard/drilldown?type=moaCompliance').set(auth);
+    expect(moaCompliance.statusCode).toBe(200);
+    const moaRow = moaCompliance.body.rows.find(row => row.id === requestId);
+    expectDay(moaRow.expiryDate, '2027-09-01');
+
+    const performance = await request(app).get('/api/capex/dashboard/drilldown?type=procurementPerformance').set(auth);
+    expect(performance.statusCode).toBe(200);
+    const performanceRow = performance.body.rows.find(row => row.requestId === requestId);
+    expectDay(performanceRow.rfqIssuedAt, '2026-09-01');
+    expectDay(performanceRow.tenderCompletedAt, '2026-09-03');
   });
 });

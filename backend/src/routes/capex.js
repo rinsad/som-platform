@@ -13,9 +13,15 @@ router.get('/gsap-data',       verifyToken, requirePermission('capex.planning.da
 router.get('/admin-config',    verifyToken, requireAdmin, capexController.getAdminConfig);
 router.patch('/admin-config/thresholds', verifyToken, requireAdmin, capexController.updateThresholds);
 router.patch('/admin-config/workflow-rules/:ruleId', verifyToken, requireAdmin, capexController.updateWorkflowRule);
+router.post('/admin-config/asset-categories', verifyToken, requireAdmin, capexController.createAssetCategory);
+router.patch('/admin-config/asset-categories/:categoryId', verifyToken, requireAdmin, capexController.updateAssetCategory);
 router.get('/process-reference', verifyToken, requirePermission('capex.governance.dashboard'), capexController.getProcessReferenceData);
+router.get('/business-functions', verifyToken, requirePermission('capex.requests'), capexController.getBusinessFunctions);
+// Read sits on capex.requests, not the governance key, because the people who
+// need the list are the Project Owners filling in the request form.
+router.get('/asset-categories', verifyToken, requirePermission('capex.requests'), capexController.getAssetCategories);
 router.get('/requests',        verifyToken, requirePermission('capex.requests'), capexController.getRequests);
-router.post('/requests',       verifyToken, requirePermission('capex.requests', 'can_create'), capexController.createRequest);
+router.post('/requests',       verifyToken, requirePermission('capex.requests', 'can_create'), capexController.requestEvidenceUploadMiddleware, capexController.createRequest);
 router.get('/requests/report', verifyToken, requirePermission('capex.reports'), capexController.getReport);
 router.get('/reports/export', verifyToken, requirePermission('capex.reports'), capexController.getReportExport);
 router.get('/report-schedules', verifyToken, requirePermission('capex.reports'), capexController.getReportSchedules);

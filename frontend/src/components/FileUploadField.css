@@ -1,7 +1,18 @@
 .som-file-upload {
   display: inline-flex;
   align-items: center;
+  gap: 10px;
   min-width: 0;
+}
+
+.som-file-upload-name {
+  overflow: hidden;
+  max-width: 360px;
+  color: var(--label-secondary);
+  font-size: 12px;
+  font-weight: 650;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .som-file-upload[data-disabled] {
@@ -76,4 +87,9 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
+}
+
+@media (max-width: 720px) {
+  .som-file-upload { align-items: flex-start; flex-direction: column; }
+  .som-file-upload-name { max-width: min(100%, 320px); }
 }

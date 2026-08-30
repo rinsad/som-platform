@@ -25,6 +25,14 @@ export const usersService = {
   list: () =>
     request('/api/users'),
 
+  listBusinessFunctions: () =>
+    request('/api/users/business-functions'),
+
+  // [{ role, tier, requiresBusiness }] — served by the backend so the form
+  // cannot drift from the scoping rules that are actually enforced.
+  listRoleScopes: () =>
+    request('/api/users/role-scopes'),
+
   get: (id) =>
     request(`/api/users/${id}`),
 

@@ -118,10 +118,14 @@ const ROLE_PERMISSION_PRESETS = {
     permission('capex.approvals', ['can_view', 'can_edit']),
   ],
 
+  // The only role that raises CAPEX requests and purchase requests (besides
+  // Admin) — see CREATE_ROLES below. Also owns the purchase-order fields on the
+  // procurement record.
   'Project Owner': [
     ...view(COMMON_READ),
     PR_CREATE_APPROVE,
     permission('capex.requests', ['can_view', 'can_create', 'can_edit']),
+    permission('capex.procurement', ['can_view', 'can_edit']),
     permission('capex.risks', ['can_view', 'can_create', 'can_edit']),
     permission('capex.documents', ['can_view', 'can_create', 'can_edit']),
     permission('capex.approvals', ['can_view', 'can_edit']),
@@ -129,8 +133,8 @@ const ROLE_PERMISSION_PRESETS = {
 
   'Project Engineer': [
     ...view(COMMON_READ),
-    PR_CREATE,
-    permission('capex.requests', ['can_view', 'can_create', 'can_edit']),
+    PR_VIEW,
+    permission('capex.requests', ['can_view', 'can_edit']),
     permission('capex.procurement', ['can_view', 'can_create', 'can_edit']),
     permission('capex.execution', ['can_view', 'can_create', 'can_edit']),
     permission('capex.risks', ['can_view', 'can_create', 'can_edit']),
@@ -174,10 +178,19 @@ const ROLE_PERMISSION_PRESETS = {
 
   Manager: [
     ...view(COMMON_READ),
-    PR_CREATE_APPROVE,
+    PR_APPROVE,
     permission('capex.approvals', ['can_view', 'can_edit']),
   ],
 };
+
+// Raising a CAPEX or purchase request is the Project Owner's job. Admin is
+// included for now so support can create on a requester's behalf; every other
+// role reviews, approves or executes, but does not originate.
+const CREATE_ROLES = ['Project Owner', 'Admin'];
+
+function canRoleCreateRequests(role) {
+  return CREATE_ROLES.includes(role);
+}
 
 function getRolePermissionPreset(role) {
   const preset = ROLE_PERMISSION_PRESETS[role] || [];
@@ -206,4 +219,6 @@ function getRolePermissionPreset(role) {
 module.exports = {
   ROLE_PERMISSION_PRESETS,
   getRolePermissionPreset,
+  CREATE_ROLES,
+  canRoleCreateRequests,
 };

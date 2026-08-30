@@ -24,6 +24,9 @@ app.get('/api/health', (req, res) => {
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/users', require('./routes/users'));
 app.use('/api/capex', require('./routes/capex'));
+if (process.env.CAPEX_V2_ENABLED !== 'false') {
+  app.use('/api/capex/v2', require('./routes/capexV2'));
+}
 app.use('/api/purchase-requests', require('./routes/purchaseRequests'));
 app.use('/api/assets', require('./routes/assets'));
 app.use('/api/portal', require('./routes/portal'));

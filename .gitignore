@@ -17,3 +17,7 @@ extra/
 frontend/.env.production
 start.bat
 tools/agent-form-filler/
+backend/storage/capex-v2/
+
+# Locally hosted portal videos; these will be managed by the CMS later.
+frontend/public/intraportal-v3/videos/

@@ -3,12 +3,14 @@ import { useNavigate } from 'react-router-dom';
 import { getAssets } from '../services/assetsService';
 import { getDepartments, getSyncStatus } from '../services/capexService';
 import { getAllPRs } from '../services/prService';
+import { getCapexV2Context, getCapexV2Dashboard } from '../services/capexV2Service';
+import { formatOmr as formatCapexV2Omr } from '../modules/CapexV2/capexV2Format';
 
 const BASE_MODULES = [
   {
-    label: 'Capex Planning',
-    description: 'Budget vs actual tracking, department meters, GSAP sync',
-    path: '/capex',
+    label: 'CAPEX Control',
+    description: 'Approved budget, scoped requests, HSSE screening and MOA decisions',
+    path: '/capex-v2',
     accent: 'var(--shell-yellow)',
     light: 'var(--bg-tertiary)',
     icon: 'C',
@@ -110,6 +112,8 @@ export default function Dashboard() {
     stats: DEFAULT_STATS,
     activity: [{ label: 'Loading dashboard activity...', time: '', dot: 'var(--neutral)' }],
     status: [],
+    capexWorkspaces: [],
+    capexAuthorityMode: '',
   });
   const user = useMemo(() => readUser(), []);
 
@@ -121,11 +125,13 @@ export default function Dashboard() {
     let cancelled = false;
 
     async function loadDashboard() {
-      const [deptResult, prResult, assetResult, syncResult] = await Promise.allSettled([
+      const [deptResult, prResult, assetResult, syncResult, v2ContextResult, v2DashboardResult] = await Promise.allSettled([
         getDepartments(),
         getAllPRs(),
         getAssets(),
         getSyncStatus(),
+        getCapexV2Context(),
+        getCapexV2Dashboard('operational'),
       ]);
 
       if (cancelled) return;
@@ -134,14 +140,17 @@ export default function Dashboard() {
       const prs = prResult.status === 'fulfilled' ? prResult.value : [];
       const assets = assetResult.status === 'fulfilled' ? assetResult.value : [];
       const syncStatus = syncResult.status === 'fulfilled' ? syncResult.value : null;
+      const v2Context = v2ContextResult.status === 'fulfilled' ? v2ContextResult.value : null;
+      const v2Dashboard = v2DashboardResult.status === 'fulfilled' ? v2DashboardResult.value : null;
 
       const totalBudget = departments.reduce((sum, dept) => sum + Number(dept.totalBudget || 0), 0);
       const actualSpend = departments.reduce((sum, dept) => sum + Number(dept.actual || 0), 0);
       const utilisation = totalBudget > 0 ? Math.round((actualSpend / totalBudget) * 100) : null;
       const pendingPrs = prs.filter((pr) => pr.status === 'PENDING_APPROVAL').length;
       const openPrs = prs.filter((pr) => ['DRAFT', 'PENDING_APPROVAL'].includes(pr.status)).length;
-      const regions = new Set(assets.map((asset) => asset.region).filter(Boolean)).size;
-      const sites = new Set(assets.map((asset) => asset.site).filter(Boolean)).size;
+      const regions = new Set(assets.flatMap((asset) => asset.region ? [asset.region] : [])).size;
+      const sites = new Set(assets.flatMap((asset) => asset.site ? [asset.site] : [])).size;
+      const hasActiveToken = Boolean(localStorage.getItem('som_token'));
       const moduleApiOk = [deptResult, prResult, assetResult].some((result) => result.status === 'fulfilled');
       const allDataOk = [deptResult, prResult, assetResult].every((result) => result.status === 'fulfilled');
 
@@ -152,8 +161,8 @@ export default function Dashboard() {
           : '',
         stats: {
           capex: [
-            { label: 'Total Budget', value: formatOmr(totalBudget) },
-            { label: 'Utilisation', value: utilisation === null ? '-' : `${utilisation}%` },
+            { label: 'Authorized Budget', value: v2Dashboard ? formatCapexV2Omr(v2Dashboard.financials.authorizedBudget, true) : formatOmr(totalBudget) },
+            { label: 'My Decisions', value: v2Dashboard ? String(v2Dashboard.approvals.pending || 0) : (utilisation === null ? '-' : `${utilisation}%`) },
           ],
           purchaseRequests: [
             { label: 'Open PRs', value: String(openPrs) },
@@ -165,6 +174,8 @@ export default function Dashboard() {
           ],
         },
         activity: buildActivity(prs, syncStatus),
+        capexWorkspaces: v2Context?.workspaces || [],
+        capexAuthorityMode: v2Context?.authorityMode || '',
         status: [
           { label: 'SOM API', status: moduleApiOk ? 'Operational' : 'Check connection', ok: moduleApiOk },
           {
@@ -176,8 +187,9 @@ export default function Dashboard() {
                 : 'Not synced',
             ok: !!syncStatus,
           },
-          { label: 'Authentication', status: localStorage.getItem('som_token') ? 'Operational' : 'No active token', ok: !!localStorage.getItem('som_token') },
+          { label: 'Authentication', status: hasActiveToken ? 'Operational' : 'No active token', ok: hasActiveToken },
           { label: 'PostgreSQL', status: allDataOk ? 'Operational' : 'Check connection', ok: allDataOk },
+          { label: 'CAPEX v2', status: v2Context ? (v2Context.authorityMode === 'PILOT_ONLY' ? 'Pilot mode' : 'Production controls ready') : 'Not initialized', ok: !!v2Context },
         ],
       });
     }
@@ -205,6 +217,24 @@ export default function Dashboard() {
       </div>
 
       {dashboard.error && <div style={s.notice}>{dashboard.error}</div>}
+
+      {dashboard.capexWorkspaces.length > 0 && (
+        <section style={s.workPanel} aria-label="Role-relevant CAPEX workspaces">
+          <div style={s.workIntro}>
+            <span style={s.eyebrow}>Your CAPEX work</span>
+            <h2 style={s.workTitle}>Open the information and actions relevant to your assigned scope.</h2>
+            <p style={s.workCopy}>{dashboard.capexAuthorityMode === 'PILOT_ONLY' ? 'Pilot decisions are visibly non-binding until production identity and control gates pass.' : 'Production identity controls are ready.'}</p>
+          </div>
+          <div style={s.workspaceList}>
+            {dashboard.capexWorkspaces.map((workspace) => (
+              <button key={workspace.key} type="button" style={s.workspaceButton} onClick={() => navigate(workspace.path)}>
+                <span><strong style={s.workspaceTitle}>{workspace.label}</strong><small style={s.workspaceMeta}>{workspace.path}</small></span>
+                <span style={s.workspaceOpen}>Open</span>
+              </button>
+            ))}
+          </div>
+        </section>
+      )}
 
       <div style={s.grid}>
         {modules.map((mod) => (
@@ -237,8 +267,8 @@ export default function Dashboard() {
         <div style={s.panel}>
           <h2 style={s.cardTitle}>Recent Activity</h2>
           <div style={s.activityList}>
-            {dashboard.activity.map((a, i) => (
-              <div key={i} style={s.activityItem}>
+            {dashboard.activity.map((a) => (
+              <div key={`${a.label}-${a.time}`} style={s.activityItem}>
                 <div style={{ ...s.activityDot, background: a.dot }} />
                 <div>
                   <p style={s.activityLabel}>{a.label}</p>
@@ -326,6 +356,26 @@ const s = {
   },
   dateText: { fontSize: 13, color: 'var(--gray-600)', fontWeight: 700 },
   grid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 16, marginBottom: 20 },
+  workPanel: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+    gap: 22,
+    padding: 22,
+    marginBottom: 18,
+    background: 'var(--surface)',
+    border: '1px solid var(--gray-200)',
+    borderLeft: '5px solid var(--shell-red)',
+    borderRadius: 'var(--radius-md)',
+    boxShadow: 'var(--shadow-sm)',
+  },
+  workIntro: { alignSelf: 'center' },
+  workTitle: { margin: '0 0 6px', fontSize: 18, lineHeight: 1.3, fontWeight: 850 },
+  workCopy: { margin: 0, color: 'var(--label-secondary)', fontSize: 12.5, lineHeight: 1.55 },
+  workspaceList: { display: 'grid', gap: 7 },
+  workspaceButton: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, minHeight: 52, padding: '10px 13px', color: 'var(--label)', background: 'var(--fill-quaternary)', border: '1px solid var(--gray-200)', borderRadius: 'var(--radius-md)', textAlign: 'left', fontFamily: 'inherit' },
+  workspaceTitle: { display: 'block', fontSize: 12.5, fontWeight: 800 },
+  workspaceMeta: { display: 'block', marginTop: 2, color: 'var(--label-tertiary)', fontSize: 10.5 },
+  workspaceOpen: { color: 'var(--shell-red)', fontSize: 11, fontWeight: 850, textTransform: 'uppercase' },
   card: {
     background: '#fff',
     border: '1px solid var(--gray-200)',
