@@ -134,7 +134,7 @@
   --ip3-shadow: var(--shadow-sm);
   --ip3-shadow-raised: var(--shadow-md);
   --ip3-speed: var(--transition);
-  --ip3-logo-column: clamp(14rem, 16.25vw, 19.5rem);
+  --ip3-logo-column: clamp(17rem, 19.5vw, 23rem);
 
   min-height: 100dvh;
   display: grid;
@@ -477,7 +477,7 @@
 
 .ip3-topbar {
   grid-row: 1;
-  min-height: 3.75rem;
+  min-height: 6rem;
   position: relative;
   z-index: 8;
   display: grid;
@@ -497,14 +497,14 @@
   top: 0;
   left: 0;
   z-index: 8;
-  padding: var(--ip3-space-2) var(--ip3-space-4);
+  padding: var(--ip3-space-1) var(--ip3-space-4);
   border-right: 1px solid var(--ip3-line);
   border-bottom: 1px solid var(--ip3-line);
 }
 
 .ip3-topbar > .ip3-brand img {
-  width: min(15rem, 97%);
-  max-height: 7.6rem;
+  width: min(18rem, 97%);
+  max-height: 9.6rem;
 }
 
 .ip3-menu-button { display: none; }
