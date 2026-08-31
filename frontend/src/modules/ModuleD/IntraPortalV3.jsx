@@ -1,6 +1,7 @@
 import { createElement, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ArrowUpRight,
+  Bank,
   CalendarDots,
   CaretDown,
   CaretLeft,
@@ -9,12 +10,15 @@ import {
   ChatCircleText,
   CheckCircle,
   ClipboardText,
+  Confetti,
   Coffee,
   Clock,
+  DeviceMobile,
   Drop,
   EnvelopeSimple,
   Check,
   Fire,
+  FirstAidKit,
   Gear,
   GraduationCap,
   HardHat,
@@ -27,6 +31,7 @@ import {
   NewspaperClipping,
   Pause,
   Play,
+  ReadCvLogo,
   RoadHorizon,
   Shield,
   ShieldCheck,
@@ -51,22 +56,22 @@ const MEDIA_ROOT = '/intraportal-v3/media';
 
 const NAV_ITEMS = [
   { label: 'Our Shell', icon: House, megaMenu: true },
-  { label: 'Tools & resources', icon: Toolbox, href: '#learning' },
+  { label: 'Tools & resources', icon: Toolbox, href: '/tools-and-resources' },
   { label: 'Latest company news', icon: NewspaperClipping, href: '#news' },
-  { label: 'HR online', icon: IdentificationCard, href: '/intraportal-v3/hr-online' },
+  { label: 'HR online', icon: IdentificationCard, href: '/hr-online' },
   { label: 'Upcoming events', icon: CalendarDots, href: '#performance' },
   { label: 'Find us', icon: MapPin, href: '#footer' },
   { label: 'Org structure', icon: TreeStructure, href: '#ip3-main' },
-  { label: 'Learning', icon: GraduationCap, href: '#learning' },
+  { label: 'Learning', icon: GraduationCap, href: '/learning' },
 ];
 
 const OUR_SHELL_MENU = [
   {
     title: 'About Shell',
     items: [
-      { label: 'This is Shell', href: '/intraportal-v3/this-is-shell' },
-      { label: 'CEO Corner', href: '/intraportal-v3/ceo-corner' },
-      { label: 'Performance and Results', href: '/intraportal-v3#performance' },
+      { label: 'This is Shell', href: '/this-is-shell' },
+      { label: 'CEO Corner', href: '/ceo-corner' },
+      { label: 'Performance and Results', href: '/#performance' },
     ],
   },
   {
@@ -291,7 +296,7 @@ const HR_ONLINE_SERVICES = [
     detail: null,
     image: `${HR_ONLINE_MEDIA}/business-mileage.png`,
     alt: 'Business mileage claim',
-    href: '/intraportal-v3/business-mileage-claim',
+    href: '/business-mileage-claim',
   },
   {
     id: 'recreational-wellness-scheme',
@@ -299,7 +304,7 @@ const HR_ONLINE_SERVICES = [
     detail: null,
     image: `${HR_ONLINE_MEDIA}/recreational-wellness-scheme.png`,
     alt: 'Recreational and wellness scheme',
-    href: '/intraportal-v3/recreational-wellness-scheme',
+    href: '/recreational-wellness-scheme',
   },
   {
     id: 'healthcare-benefits',
@@ -307,7 +312,7 @@ const HR_ONLINE_SERVICES = [
     detail: null,
     image: `${HR_ONLINE_MEDIA}/healthcare-benefits.png`,
     alt: 'Healthcare benefits',
-    href: '/intraportal-v3/healthcare-benefits',
+    href: '/healthcare-benefits',
   },
   {
     id: 'mobile-phones-business-numbers',
@@ -315,7 +320,7 @@ const HR_ONLINE_SERVICES = [
     detail: null,
     image: `${HR_ONLINE_MEDIA}/mobile-phones-business-numbers.png`,
     alt: 'SOM allocated mobile phones and business numbers',
-    href: '/intraportal-v3/mobile-phones-business-numbers',
+    href: '/mobile-phones-business-numbers',
   },
 ];
 
@@ -780,7 +785,7 @@ function CeoCornerPage() {
   return (
     <main className="ip3-main ip3-ceo-page" id="ip3-main">
       <nav className="ip3-ceo-breadcrumb" aria-label="Breadcrumb">
-        <a href="/intraportal-v3">Our Shell</a>
+        <a href="/">Our Shell</a>
         <CaretRight size={15} weight="bold" aria-hidden="true" />
         <span aria-current="page">CEO Corner</span>
       </nav>
@@ -843,7 +848,7 @@ function HrOnlinePage() {
   return (
     <main className="ip3-main ip3-hr-page" id="ip3-main">
       <nav className="ip3-ceo-breadcrumb" aria-label="Breadcrumb">
-        <a href="/intraportal-v3">SOM Connect</a>
+        <a href="/">SOM Connect</a>
         <CaretRight size={15} weight="bold" aria-hidden="true" />
         <span aria-current="page">HR online</span>
       </nav>
@@ -862,10 +867,6 @@ function HrOnlinePage() {
           <p className="ip3-eyebrow">HR online</p>
           <h1 id="ip3-hr-welcome-title">Welcome to the Human Resources Hub</h1>
           {HR_ONLINE_INTRO.map((paragraph) => <p key={paragraph}>{paragraph}</p>)}
-          <p className="ip3-hr-assist-note">
-            For everyday HR questions start with <strong>Shell Assist</strong>, our new AI-powered digital assistant in
-            MS Teams, providing a quicker way to access functional guidance and support in one place.
-          </p>
         </article>
 
         <aside className="ip3-hr-highlights" aria-label="HR highlights">
@@ -1189,18 +1190,18 @@ function HrArticlePage({ slug }) {
   return (
     <main className="ip3-main ip3-hr-article" id="ip3-main">
       <nav className="ip3-ceo-breadcrumb" aria-label="Breadcrumb">
-        <a href="/intraportal-v3">Home</a>
+        <a href="/">Home</a>
         <CaretRight size={15} weight="bold" aria-hidden="true" />
-        <a href="/intraportal-v3/hr-online">HR online</a>
+        <a href="/hr-online">HR online</a>
         <CaretRight size={15} weight="bold" aria-hidden="true" />
         <span aria-current="page">{article.title}</span>
       </nav>
 
-      <article className="ip3-hr-article-body" aria-labelledby="ip3-hr-article-title">
-        <header className="ip3-hr-article-hero">
-          <Image src={article.image} alt={article.alt} loading="eager" fetchPriority="high" />
-        </header>
+      <section className="ip3-hr-banner" aria-label={article.title}>
+        <Image src={article.image} alt={article.alt} loading="eager" fetchPriority="high" />
+      </section>
 
+      <article className="ip3-hr-article-body" aria-labelledby="ip3-hr-article-title">
         <p className="ip3-eyebrow">HR online</p>
         <h1 id="ip3-hr-article-title">{article.title}</h1>
 
@@ -1266,13 +1267,214 @@ function HrArticlePage({ slug }) {
   );
 }
 
+const LEARNING_MATERIALS_MEDIA = '/intraportal-v3/media/learning-materials';
+
+const LEARNING_MATERIALS = [
+  {
+    id: 'management-essentials',
+    title: 'Hot Skills: Management Essentials (January 2026)',
+    href: `${LEARNING_MATERIALS_MEDIA}/hot-skills-management-essentials-jan26.pdf`,
+  },
+  {
+    id: 'change-management',
+    title: 'Hot Skills: Change Management (February 2026)',
+    href: `${LEARNING_MATERIALS_MEDIA}/hot-skills-change-management-feb26.pdf`,
+  },
+  {
+    id: 'career-development',
+    title: 'Hot Skills: Career Development (March 2026)',
+    href: `${LEARNING_MATERIALS_MEDIA}/hot-skills-career-development-mar26.pdf`,
+  },
+  {
+    id: 'resilience-agility',
+    title: 'Hot Skills: Resilience & Agility (April 2026)',
+    href: `${LEARNING_MATERIALS_MEDIA}/hot-skills-resilience-and-agility-apr26.pdf`,
+  },
+  {
+    id: 'strategic-communication',
+    title: 'Hot Skills: Strategic Communication (May 2026)',
+    href: `${LEARNING_MATERIALS_MEDIA}/hot-skills-strategic-communication-may26.pdf`,
+  },
+  {
+    id: 'commercial-acumen',
+    title: 'Hot Skills: Commercial Acumen (June 2026)',
+    href: `${LEARNING_MATERIALS_MEDIA}/hot-skills-commercial-acumen-jun26.pdf`,
+  },
+  {
+    id: 'stakeholder-management',
+    title: 'Hot Skills: Stakeholder Management (July 2026)',
+    href: `${LEARNING_MATERIALS_MEDIA}/hot-skills-stakeholder-management-jul26.pdf`,
+  },
+  {
+    id: 'data-analysis',
+    title: 'Hot Skills: Data Analysis (August 2026)',
+    href: `${LEARNING_MATERIALS_MEDIA}/hot-skills-data-analysis-aug26.pdf`,
+  },
+];
+
+function LearningPage() {
+  return (
+    <main className="ip3-main ip3-learning-page" id="ip3-main">
+      <nav className="ip3-ceo-breadcrumb" aria-label="Breadcrumb">
+        <a href="/">Home</a>
+        <CaretRight size={15} weight="bold" aria-hidden="true" />
+        <span aria-current="page">Learning</span>
+      </nav>
+
+      <section className="ip3-hr-quick-links" aria-labelledby="ip3-learning-materials-title">
+        <p className="ip3-eyebrow">Learning</p>
+        <h2 id="ip3-learning-materials-title">Learning materials</h2>
+        <div className="ip3-hr-quick-links-grid">
+          {LEARNING_MATERIALS.map((item) => (
+            <a
+              className="ip3-hr-quick-link"
+              key={item.id}
+              href={item.href}
+              target="_blank"
+              rel="noreferrer"
+            >
+              <Image src={HR_ONLINE_LINK_ICON} alt="" ariaHidden />
+              <span>{item.title}</span>
+            </a>
+          ))}
+        </div>
+      </section>
+    </main>
+  );
+}
+
+const TOOLS_RESOURCES_MEDIA = '/intraportal-v3/media/tools-and-resources';
+
+const TOOLS_AND_RESOURCES = [
+  {
+    id: 'information-risk-cyber-security-portal',
+    tone: 'cyber',
+    title: 'Information Risk and Cyber Security Portal',
+    description: 'Your place for accessing resources or raising requests related to information risk and cyber security services.',
+    icon: ShieldCheck,
+    href: null,
+  },
+  {
+    id: 'sap-successfactors',
+    tone: 'people',
+    title: 'SAP SuccessFactors',
+    description: 'Your self-service HR portal for managing personal details, time off, learning, performance, and career development.',
+    icon: User,
+    href: 'https://performancemanager.successfactors.eu/',
+  },
+  {
+    id: 'mobile-device-sim-card',
+    tone: 'devices',
+    title: 'Mobile device & SIM card',
+    description: 'Your place for requesting and managing business mobile devices and SIM cards.',
+    icon: DeviceMobile,
+    href: 'https://performancemanager.successfactors.eu/sf/liveprofile?company=ShellOmanMktg&categoryId=customCategory1760852311168661&cardId=customCard1761109783432217',
+  },
+  {
+    id: 'employee-experience-letter',
+    tone: 'letters',
+    title: 'Employee Experience Letter',
+    description: 'Request an official letter confirming your employment history and experience.',
+    icon: ReadCvLogo,
+    href: 'https://performancemanager.successfactors.eu/sf/liveprofile?company=ShellOmanMktg&categoryId=customCategory1760852311168661&cardId=customCard1761109783432217',
+  },
+  {
+    id: 'bank-letter',
+    tone: 'finance',
+    title: 'Bank Letter',
+    description: 'Request an official letter confirming your employment and salary details for bank requirements.',
+    icon: Bank,
+    href: 'https://performancemanager.successfactors.eu/sf/liveprofile?company=ShellOmanMktg&categoryId=customCategory1760852311168661&cardId=customCard1761109783432217',
+  },
+  {
+    id: 'health-benefit',
+    tone: 'health',
+    title: 'Health Benefit',
+    description: 'Your place for requesting a medical insurance card for you or your dependents.',
+    icon: FirstAidKit,
+    href: 'https://performancemanager.successfactors.eu/sf/liveprofile?company=ShellOmanMktg&categoryId=customCategory1760852311168661&cardId=customCard1761109783432217',
+  },
+  {
+    id: 'recreational-wellness-scheme',
+    tone: 'wellness',
+    title: 'Recreational & Wellness Scheme',
+    description: 'Your place for accessing recreational and wellness benefits and claims.',
+    icon: Confetti,
+    href: 'https://performancemanager.successfactors.eu/sf/liveprofile?company=ShellOmanMktg&categoryId=benefits&cardId=benefitActions',
+  },
+  {
+    id: 'time-management',
+    tone: 'time',
+    title: 'Time Management',
+    description: 'Your place for submitting and managing leave requests.',
+    icon: Clock,
+    href: 'https://performancemanager.successfactors.eu/sf/liveprofile?company=ShellOmanMktg&categoryId=timeManagement',
+  },
+];
+
+function ToolsAndResourcesPage() {
+  return (
+    <main className="ip3-main ip3-tools-page" id="ip3-main">
+      <nav className="ip3-ceo-breadcrumb" aria-label="Breadcrumb">
+        <a href="/">SOM Connect</a>
+        <CaretRight size={15} weight="bold" aria-hidden="true" />
+        <span aria-current="page">Tools &amp; resources</span>
+      </nav>
+
+      <section className="ip3-tools-banner" aria-labelledby="ip3-tools-banner-title">
+        <Image
+          src={`${TOOLS_RESOURCES_MEDIA}/tools-and-resources-banner.jpg`}
+          alt=""
+          ariaHidden
+          loading="eager"
+          fetchPriority="high"
+        />
+        <div className="ip3-tools-banner-panel">
+          <h1 id="ip3-tools-banner-title">Tools and Resources</h1>
+        </div>
+      </section>
+
+      <section className="ip3-tools-catalogue" aria-labelledby="ip3-tools-catalogue-title">
+        <header className="ip3-tools-catalogue-head">
+          <div>
+            <p className="ip3-eyebrow">Tools &amp; resources</p>
+            <h2 id="ip3-tools-catalogue-title">My tools and resources</h2>
+          </div>
+          <p className="ip3-tools-count">
+            {TOOLS_AND_RESOURCES.length} results
+          </p>
+        </header>
+
+        <div className="ip3-tools-grid">
+          {TOOLS_AND_RESOURCES.map((item) => {
+            const Card = item.href ? 'a' : 'article';
+            const linkProps = item.href
+              ? { href: item.href, target: '_blank', rel: 'noreferrer' }
+              : {};
+
+            return (
+              <Card className="ip3-tool-card" key={item.id} data-tone={item.tone} {...linkProps}>
+                <span className="ip3-tool-card-icon" aria-hidden="true">
+                  {createElement(item.icon, { size: 26, weight: 'fill' })}
+                </span>
+                <h3>{item.title}</h3>
+                <p>{item.description}</p>
+              </Card>
+            );
+          })}
+        </div>
+      </section>
+    </main>
+  );
+}
+
 const THIS_IS_SHELL_MEDIA = '/intraportal-v3/media/this-is-shell';
 
 function ThisIsShellPage() {
   return (
     <main className="ip3-main ip3-shell-page" id="ip3-main">
       <nav className="ip3-ceo-breadcrumb" aria-label="Breadcrumb">
-        <a href="/intraportal-v3">Our Shell</a>
+        <a href="/">Our Shell</a>
         <CaretRight size={15} weight="bold" aria-hidden="true" />
         <span aria-current="page">This is Shell</span>
       </nav>
@@ -1475,7 +1677,7 @@ export default function IntraPortalV3({ page = 'home' }) {
               );
             }
 
-            const isActive = Boolean(page) && item.href === `/intraportal-v3/${page}`;
+            const isActive = Boolean(page) && item.href === `/${page}`;
 
             return (
               <a
@@ -1567,7 +1769,7 @@ export default function IntraPortalV3({ page = 'home' }) {
 
       <div className="ip3-workspace">
         <header className="ip3-topbar">
-          <a className="ip3-brand" href="/intraportal-v3" aria-label="SOM Connect portal home">
+          <a className="ip3-brand" href="/" aria-label="SOM Connect portal home">
             <img src="/som-connect-logo.png" alt="SOM Connect" />
           </a>
 
@@ -1608,6 +1810,10 @@ export default function IntraPortalV3({ page = 'home' }) {
           <ThisIsShellPage />
         ) : page === 'ceo-corner' ? (
           <CeoCornerPage />
+        ) : page === 'tools-and-resources' ? (
+          <ToolsAndResourcesPage />
+        ) : page === 'learning' ? (
+          <LearningPage />
         ) : HR_ARTICLES[page] ? (
           <HrArticlePage slug={page} />
         ) : page === 'hr-online' ? (

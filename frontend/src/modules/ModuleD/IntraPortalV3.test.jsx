@@ -4,7 +4,7 @@ import IntraPortalV3 from './IntraPortalV3';
 
 beforeEach(() => {
   localStorage.clear();
-  window.history.pushState({}, '', '/intraportal-v3');
+  window.history.pushState({}, '', '/');
 });
 
 test('renders the reference-based portal hierarchy', () => {
@@ -48,9 +48,9 @@ test('opens the Our Shell mega menu only on click without marking it as the curr
   const aboutShell = within(menu).getByRole('region', { name: 'About Shell' });
   expect(within(aboutShell).getAllByRole('link')).toHaveLength(3);
   expect(within(aboutShell).getByRole('link', { name: 'This is Shell' })).toBeInTheDocument();
-  expect(within(aboutShell).getByRole('link', { name: 'This is Shell' })).toHaveAttribute('href', '/intraportal-v3/this-is-shell');
+  expect(within(aboutShell).getByRole('link', { name: 'This is Shell' })).toHaveAttribute('href', '/this-is-shell');
   expect(within(aboutShell).getByRole('link', { name: 'CEO Corner' })).toBeInTheDocument();
-  expect(within(aboutShell).getByRole('link', { name: 'CEO Corner' })).toHaveAttribute('href', '/intraportal-v3/ceo-corner');
+  expect(within(aboutShell).getByRole('link', { name: 'CEO Corner' })).toHaveAttribute('href', '/ceo-corner');
   expect(within(aboutShell).getByRole('link', { name: 'Performance and Results' })).toBeInTheDocument();
   const business = within(menu).getByRole('region', { name: 'Business' });
   expect(within(business).getByRole('heading', { name: 'Trade & Supply' })).toBeInTheDocument();

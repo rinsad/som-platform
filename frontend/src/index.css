@@ -39,6 +39,15 @@
   --learning-topic-phishing:      var(--shell-red);
   --learning-topic-outside:       #65a30d;
 
+  --tool-tone-cyber:    var(--shell-red);
+  --tool-tone-people:   #0891b2;
+  --tool-tone-devices:  #7c3aed;
+  --tool-tone-letters:  #d97706;
+  --tool-tone-finance:  #16866b;
+  --tool-tone-health:   #db2777;
+  --tool-tone-wellness: #65a30d;
+  --tool-tone-time:     var(--shell-navy);
+
   /* ── Semantic status — the ONLY status palette (accent / text / soft-bg) ──── */
   --success:      #16a34a;  --success-text: #166534;  --success-bg: #f0fdf4;
   --warning:      #f59e0b;  --warning-text: #92400e;  --warning-bg: #fff8cc;

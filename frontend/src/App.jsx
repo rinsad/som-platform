@@ -10,7 +10,6 @@ import PurchaseRequestList from './modules/ModuleB/PurchaseRequestList';
 import NewPurchaseRequest from './modules/ModuleB/NewPurchaseRequest';
 import PRDetail from './modules/ModuleB/PRDetail';
 import AssetRegistry from './modules/ModuleC/AssetRegistry';
-import IntraPortal from './modules/ModuleD/IntraPortal';
 import IntraPortalPreview from './modules/ModuleD/IntraPortalPreview';
 import IntraPortalV3 from './modules/ModuleD/IntraPortalV3';
 import UserManagement from './modules/Admin/UserManagement';
@@ -69,19 +68,20 @@ function App() {
       />
       <Routes>
         <Route path="/login" element={<Login />} />
-        <Route path="/intraportal-v3" element={<IntraPortalV3 />} />
-        <Route path="/intraportal-v3/this-is-shell" element={<IntraPortalV3 page="this-is-shell" />} />
-        <Route path="/intraportal-v3/ceo-corner" element={<IntraPortalV3 page="ceo-corner" />} />
-        <Route path="/intraportal-v3/hr-online" element={<IntraPortalV3 page="hr-online" />} />
-        <Route path="/intraportal-v3/business-mileage-claim" element={<IntraPortalV3 page="business-mileage-claim" />} />
-        <Route path="/intraportal-v3/recreational-wellness-scheme" element={<IntraPortalV3 page="recreational-wellness-scheme" />} />
-        <Route path="/intraportal-v3/healthcare-benefits" element={<IntraPortalV3 page="healthcare-benefits" />} />
-        <Route path="/intraportal-v3/mobile-phones-business-numbers" element={<IntraPortalV3 page="mobile-phones-business-numbers" />} />
+        {/* Public intra-portal — home page at /, no auth required. */}
+        <Route path="/" element={<IntraPortalV3 />} />
+        <Route path="/this-is-shell" element={<IntraPortalV3 page="this-is-shell" />} />
+        <Route path="/ceo-corner" element={<IntraPortalV3 page="ceo-corner" />} />
+        <Route path="/hr-online" element={<IntraPortalV3 page="hr-online" />} />
+        <Route path="/business-mileage-claim" element={<IntraPortalV3 page="business-mileage-claim" />} />
+        <Route path="/recreational-wellness-scheme" element={<IntraPortalV3 page="recreational-wellness-scheme" />} />
+        <Route path="/healthcare-benefits" element={<IntraPortalV3 page="healthcare-benefits" />} />
+        <Route path="/mobile-phones-business-numbers" element={<IntraPortalV3 page="mobile-phones-business-numbers" />} />
+        <Route path="/learning" element={<IntraPortalV3 page="learning" />} />
+        <Route path="/tools-and-resources" element={<IntraPortalV3 page="tools-and-resources" />} />
 
-        {/* Public portal — home page at /, no auth required. Must come first so
-            React Router resolves / here instead of the authenticated group. */}
+        {/* Standalone design preview, kept outside the authenticated app. */}
         <Route element={<PublicShell />}>
-          <Route path="/" element={<IntraPortal />} />
           <Route path="/intra-portal-preview" element={<IntraPortalPreview />} />
         </Route>
 
