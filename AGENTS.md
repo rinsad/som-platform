@@ -135,7 +135,7 @@ verifyToken -> requirePermission(resourceKey, action) -> controller
 - There is no global Axios authentication interceptor. Match the service pattern in the file being edited: `services/api.js` provides a shared Axios instance, while many services build a bearer header from `localStorage.som_token` in a local `authHeaders()` or fetch helper.
 - Login stores `som_token`, `som_user`, and `som_permissions` in `localStorage`.
 - Frontend route guards such as `RequireAuth`, `RequireAdmin`, and `RequirePerm` provide user-experience gating only. Backend middleware remains the security boundary.
-- `/` is the deliberately public Intra-Portal. Authenticated application routes are rendered under `AppShell`.
+- `/` is the deliberately public Intra-Portal (`ModuleD/IntraPortalV3`), along with its top-level page slugs (`/hr-online`, `/learning`, `/tools-and-resources`, `/this-is-shell`, `/ceo-corner`, and the HR article pages). Authenticated application routes are rendered under `AppShell`.
 
 ### Frontend Design System
 

@@ -70,7 +70,7 @@ verifyToken  →  requirePermission(resourceKey, action)  →  controller
 ### Frontend auth & permissions
 - No global axios interceptor. Two token patterns coexist: the shared `services/api.js` axios instance (baseURL only), and most services (`capexService.js`, `assetsService.js`, …) build `Authorization: Bearer ${localStorage.som_token}` headers manually via a local `authHeaders()`/fetch helper. Match the pattern of the file you are editing.
 - On login, `pages/Login.jsx` stores `som_token`, `som_user`, and `som_permissions` in `localStorage`. `App.jsx` route guards (`RequireAuth`, `RequireAdmin`, `RequirePerm`) read these to gate client routes — this is **UX only**; the backend permission middleware is the real enforcement.
-- `/` is the **public** Intra-Portal (`PublicShell`, no auth) and is deliberately public; authenticated app routes live under `AppShell`.
+- `/` is the **public** Intra-Portal (`ModuleD/IntraPortalV3`, no auth) and is deliberately public, as are its top-level page slugs (`/hr-online`, `/learning`, `/tools-and-resources`, `/this-is-shell`, `/ceo-corner`, and the HR article pages). Authenticated app routes live under `AppShell`. `PublicShell` now wraps only `/intra-portal-preview`.
 
 ### Frontend design system
 Read [`frontend/DESIGN_SYSTEM.md`](frontend/DESIGN_SYSTEM.md) before frontend, UX, or styling work. It is the source of truth for the current Shell Oman visual language: React 19 + Vite, vanilla CSS, global tokens in `frontend/src/index.css`, component-local JS style objects, light enterprise surfaces, Shell red/yellow brand accents, tight radius tokens, restrained shadows, semantic status colors, and existing component conventions.
