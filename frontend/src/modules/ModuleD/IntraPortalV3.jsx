@@ -411,12 +411,7 @@ const SHELL_PEOPLE_SURVEY_HREF = 'https://eu001-sp.shell.com/sites/SPO000430';
 
 function ThinkSecureLearning() {
   return (
-    <a
-      className="ip3-learning-panel"
-      href={SHELL_PEOPLE_SURVEY_HREF}
-      target="_blank"
-      rel="noreferrer"
-    >
+    <article className="ip3-learning-panel">
       <Image
         className="ip3-learning-banner"
         src="/intraportal-v3/shell-people-survey-2026-banner.png"
@@ -432,9 +427,18 @@ function ThinkSecureLearning() {
           to measure our engagement, motivation, and commitment to Shell. It covers crucial topics like safety,
           diversity, equity and Inclusion, ethics, collaboration, organization and team leadership.
         </p>
-        <p className="ip3-learning-cta">Take the Shell People Survey</p>
+        <p>
+          <a
+            className="ip3-learning-cta"
+            href={SHELL_PEOPLE_SURVEY_HREF}
+            target="_blank"
+            rel="noreferrer"
+          >
+            Take the Shell People Survey
+          </a>
+        </p>
       </div>
-    </a>
+    </article>
   );
 }
 

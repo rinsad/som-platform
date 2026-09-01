@@ -728,9 +728,9 @@
 .ip3-learning-copy { align-content: start; display: grid; gap: var(--ip3-space-5); padding: clamp(1.5rem, 2.6vw, 2.5rem); }
 .ip3-learning-copy p { max-width: 74ch; margin: 0; color: var(--ip3-ink); font-size: var(--ip3-type-body); line-height: 1.6; }
 .ip3-learning-copy-lead { font-weight: var(--ip3-weight-bold); }
-.ip3-learning-panel { color: inherit; text-decoration: none; }
-.ip3-learning-cta { color: var(--ip3-brand-red); font-weight: var(--ip3-weight-bold); }
-.ip3-learning-panel:hover .ip3-learning-cta, .ip3-learning-panel:focus-visible .ip3-learning-cta { text-decoration: underline; }
+/* Needs the parent class to outrank .ip3-learning-copy p, which sets the ink colour. */
+.ip3-learning-copy .ip3-learning-cta { color: var(--ip3-brand-red); font-size: var(--ip3-type-body); font-weight: var(--ip3-weight-bold); text-decoration: none; }
+.ip3-learning-copy .ip3-learning-cta:hover, .ip3-learning-copy .ip3-learning-cta:focus-visible { text-decoration: underline; }
 
 .ip3-performance { display: grid; grid-template-columns: minmax(0, 1.8fr) minmax(18rem, 0.7fr); gap: var(--ip3-space-3); }
 .ip3-performance-wide { grid-template-columns: minmax(0, 1fr); }
