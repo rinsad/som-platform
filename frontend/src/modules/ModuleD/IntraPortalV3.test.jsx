@@ -24,7 +24,7 @@ test('renders the reference-based portal hierarchy', () => {
     'src',
     '/intraportal-v3/media/banners/05-Banners_Hero_Carousel_Past&Today_SOM_1356x768px-01.jpg',
   );
-  expect(screen.getByRole('heading', { name: /collective progress/i })).toBeInTheDocument();
+  expect(screen.getByRole('heading', { name: /governance, ethics & compliance/i })).toBeInTheDocument();
   expect(screen.getByRole('heading', { name: /more to watch/i })).toBeInTheDocument();
 });
 
@@ -324,7 +324,7 @@ test('uses the Shell People Survey banner and survey copy without tabs', () => {
     'src',
     '/intraportal-v3/shell-people-survey-2026-banner.png',
   );
-  const surveyPanel = surveyBanner.closest('article');
+  const surveyPanel = surveyBanner.closest('.ip3-learning-panel');
   expect(within(surveyPanel).queryByRole('tab')).not.toBeInTheDocument();
   expect(within(surveyPanel).getByText(/The Shell People Survey \(SPS\) 2026 will be open/i)).toBeInTheDocument();
   expect(within(surveyPanel).getByText(/to measure our engagement, motivation, and commitment to Shell/i)).toBeInTheDocument();
@@ -335,7 +335,7 @@ test('uses project media instead of remote placeholder images', () => {
 
   const imageSources = [...container.querySelectorAll('img')].map((image) => image.getAttribute('src'));
   expect(imageSources.some((source) => source?.includes('picsum.photos'))).toBe(false);
-  expect(imageSources.filter((source) => source?.startsWith('/intraportal-v3/media/'))).toHaveLength(26);
+  expect(imageSources.filter((source) => source?.startsWith('/intraportal-v3/media/'))).toHaveLength(25);
   expect(screen.getByAltText(/annual report cover/i)).toHaveAttribute(
     'src',
     '/intraportal-v3/media/annual-report-2025.webp',
@@ -412,7 +412,8 @@ test('renders an interactive anonymous employee feedback panel', () => {
   render(<IntraPortalV3 />);
 
   const form = screen.getByRole('form', { name: /anonymous employee feedback/i });
-  expect(screen.getByRole('tab', { name: /give feedback/i })).toHaveAttribute('aria-selected', 'true');
+  expect(screen.getByRole('heading', { name: /give feedback/i })).toBeInTheDocument();
+  expect(screen.queryByRole('tab')).not.toBeInTheDocument();
   fireEvent.click(within(form).getByRole('radio', { name: 'Happy' }));
   fireEvent.click(within(form).getByRole('button', { name: 'Tools & resources' }));
   fireEvent.change(within(form).getByLabelText(/share your thoughts/i), { target: { value: 'The new tools page is easier to use.' } });

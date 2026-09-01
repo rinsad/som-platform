@@ -27,6 +27,7 @@ import {
   InstagramLogo,
   Leaf,
   LinkedinLogo,
+  MagnifyingGlass,
   MapPin,
   NewspaperClipping,
   Pause,
@@ -44,7 +45,6 @@ import {
   Star,
   Toolbox,
   TreeStructure,
-  Trophy,
   User,
   UsersThree,
   X,
@@ -155,7 +155,7 @@ const LATEST_POSTS = [
   {
     id: 'phishing-scorecard-target',
     title: 'Phishing Scorecard Target',
-    subtitle: 'Every SOM employee can move the scorecard.',
+    subtitle: '31.08% achieved today. 40% is our next destination.',
     image: `${POSTS_MEDIA}/internal-screens-05.jpg`,
     alt: 'Don’t be the golden catch — report phishing',
     href: 'https://eu001-sp.shell.com/sites/SPO000684',
@@ -407,9 +407,16 @@ function SectionHeading({ eyebrow, title, action }) {
   );
 }
 
+const SHELL_PEOPLE_SURVEY_HREF = 'https://eu001-sp.shell.com/sites/SPO000430';
+
 function ThinkSecureLearning() {
   return (
-    <article className="ip3-learning-panel">
+    <a
+      className="ip3-learning-panel"
+      href={SHELL_PEOPLE_SURVEY_HREF}
+      target="_blank"
+      rel="noreferrer"
+    >
       <Image
         className="ip3-learning-banner"
         src="/intraportal-v3/shell-people-survey-2026-banner.png"
@@ -425,8 +432,9 @@ function ThinkSecureLearning() {
           to measure our engagement, motivation, and commitment to Shell. It covers crucial topics like safety,
           diversity, equity and Inclusion, ethics, collaboration, organization and team leadership.
         </p>
+        <p className="ip3-learning-cta">Take the Shell People Survey</p>
       </div>
-    </article>
+    </a>
   );
 }
 
@@ -609,7 +617,6 @@ function LatestPostsSlider() {
 }
 
 function EmployeePulse() {
-  const [activeTab, setActiveTab] = useState('feedback');
   const [mood, setMood] = useState('');
   const [topics, setTopics] = useState([]);
   const [comment, setComment] = useState('');
@@ -633,23 +640,12 @@ function EmployeePulse() {
 
   return (
     <article className="ip3-feedback-card" aria-label="Employee feedback">
-      <div className="ip3-feedback-tabs" role="tablist" aria-label="Employee pulse views">
-        <button type="button" role="tab" aria-selected={activeTab === 'feedback'} onClick={() => setActiveTab('feedback')}>
-          <ChatCircleText size={17} weight="regular" aria-hidden="true" />
-          Give feedback
-        </button>
-        <button type="button" role="tab" aria-selected={activeTab === 'leaderboard'} onClick={() => setActiveTab('leaderboard')}>
-          <Trophy size={17} weight="regular" aria-hidden="true" />
-          Leaderboard
-        </button>
-        <button type="button" role="tab" aria-selected={activeTab === 'analytics'} onClick={() => setActiveTab('analytics')}>
-          <ChartBar size={17} weight="regular" aria-hidden="true" />
-          Analytics
-        </button>
+      <div className="ip3-feedback-head">
+        <ChatCircleText size={17} weight="regular" aria-hidden="true" />
+        <h3>Give feedback</h3>
       </div>
 
-      {activeTab === 'feedback' && (
-        <form className="ip3-feedback-form" onSubmit={submitFeedback} aria-label="Anonymous employee feedback form">
+      <form className="ip3-feedback-form" onSubmit={submitFeedback} aria-label="Anonymous employee feedback form">
           <fieldset className="ip3-mood-fieldset">
             <legend>How are you feeling today?</legend>
             <div className="ip3-mood-options" role="radiogroup" aria-label="Current mood">
@@ -702,35 +698,43 @@ function EmployeePulse() {
             <p className={notice.startsWith('Thank') ? 'is-success' : 'is-error'} aria-live="polite">{notice}</p>
             <button type="submit">Send feedback</button>
           </div>
-        </form>
-      )}
-
-      {activeTab === 'leaderboard' && (
-        <div className="ip3-pulse-summary" role="tabpanel" aria-label="Participation leaderboard">
-          <p className="ip3-eyebrow">June participation</p>
-          <h3>Teams making their voices heard</h3>
-          <ol>
-            <li><span>Retail operations</span><strong>84%</strong></li>
-            <li><span>Corporate services</span><strong>78%</strong></li>
-            <li><span>Supply and distribution</span><strong>71%</strong></li>
-          </ol>
-        </div>
-      )}
-
-      {activeTab === 'analytics' && (
-        <div className="ip3-pulse-summary" role="tabpanel" aria-label="Feedback analytics">
-          <p className="ip3-eyebrow">Monthly snapshot</p>
-          <h3>Employee sentiment at a glance</h3>
-          <dl>
-            <div><dt>Positive sentiment</dt><dd>68%</dd></div>
-            <div><dt>Most discussed</dt><dd>Tools & resources</dd></div>
-            <div><dt>Responses this month</dt><dd>426</dd></div>
-          </dl>
-        </div>
-      )}
+      </form>
     </article>
   );
 }
+
+// The Code of Conduct tile has no destination yet — the client is still to supply
+// the document, so it renders as a plain (unlinked) tile until then.
+const GOVERNANCE_TILES = [
+  {
+    id: 'code-of-conduct',
+    title: 'Code of Conduct',
+    tagline: 'Our Values in Action',
+    description: 'Guidance and resources to support ethical behavior and responsible decision-making.',
+    href: null,
+  },
+  {
+    id: 'ethics-and-compliance-learning',
+    title: 'Ethics & Compliance Learning',
+    tagline: 'Learn and Stay Compliant',
+    description: 'Access mandatory learning and compliance resources in one place.',
+    href: 'https://eu001-sp.shell.com/sites/AAAAA7246/SitePages/E%26C-Learning.aspx#additional-resources',
+  },
+  {
+    id: 'goal-zero-and-hsse',
+    title: 'Goal Zero & HSSE',
+    tagline: 'Safety Starts Here',
+    description: 'Safety updates, Goal Zero resources, and HSSE information for everyone.',
+    href: 'https://hub.shell.com/sites/functions/hsse/SitePageModern/384310/goal-zero-hsse',
+  },
+  {
+    id: 'diversity-equity-and-inclusion',
+    title: 'Diversity, Equity & Inclusion',
+    tagline: 'Your One-stop Shop',
+    description: 'Global diversity, equity and inclusion resources, gathered in one portal.',
+    href: 'https://eu001-sp.shell.com/sites/AAAAA9387/SitePages/Homepage.aspx',
+  },
+];
 
 const SAFETY_FOCUS_AREAS = [
   { label: 'Process Safety', icon: UsersThree },
@@ -1120,7 +1124,6 @@ const HR_ARTICLES = {
     title: 'Recreational & Wellness Scheme',
     image: `${HR_ONLINE_MEDIA}/recreational-wellness-scheme.png`,
     alt: 'Recreational and wellness scheme',
-    contents: true,
     sections: [
       {
         id: 'overview',
@@ -1354,17 +1357,6 @@ function HrArticlePage({ slug }) {
           </p>
         ) : null}
 
-        {article.contents ? (
-          <nav className="ip3-hr-article-toc" aria-labelledby="ip3-hr-article-toc-title">
-            <h2 id="ip3-hr-article-toc-title">Table of contents</h2>
-            <ol>
-              {article.sections.map((section) => (
-                <li key={section.id}><a href={`#${section.id}`}>{section.title}</a></li>
-              ))}
-            </ol>
-          </nav>
-        ) : null}
-
         {article.sections.map((section) => (
           <section key={section.id} id={section.id} aria-labelledby={`${section.id}-title`}>
             <h2 id={`${section.id}-title`}>{section.title}</h2>
@@ -1451,6 +1443,11 @@ const LEARNING_MATERIALS = [
     id: 'data-analysis',
     title: 'Hot Skills: Data Analysis (August 2026)',
     href: `${LEARNING_MATERIALS_MEDIA}/hot-skills-data-analysis-aug26.pdf`,
+  },
+  {
+    id: 'learning-and-development-overview',
+    title: 'Learning & Development overview',
+    href: `${LEARNING_MATERIALS_MEDIA}/learning-and-development-overview.pptx`,
   },
 ];
 
@@ -1555,6 +1552,15 @@ const TOOLS_AND_RESOURCES = [
 ];
 
 function ToolsAndResourcesPage() {
+  const [query, setQuery] = useState('');
+
+  const term = query.trim().toLowerCase();
+  const results = term
+    ? TOOLS_AND_RESOURCES.filter((item) => (
+      `${item.title} ${item.description}`.toLowerCase().includes(term)
+    ))
+    : TOOLS_AND_RESOURCES;
+
   return (
     <main className="ip3-main ip3-tools-page" id="ip3-main">
       <nav className="ip3-ceo-breadcrumb" aria-label="Breadcrumb">
@@ -1577,18 +1583,26 @@ function ToolsAndResourcesPage() {
       </section>
 
       <section className="ip3-tools-catalogue" aria-labelledby="ip3-tools-catalogue-title">
+        <div className="ip3-tools-search">
+          <MagnifyingGlass size={17} weight="bold" aria-hidden="true" />
+          <input
+            type="search"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="Search tools and resources..."
+            aria-label="Search tools and resources"
+          />
+        </div>
+
         <header className="ip3-tools-catalogue-head">
-          <div>
-            <p className="ip3-eyebrow">Tools &amp; resources</p>
-            <h2 id="ip3-tools-catalogue-title">My tools and resources</h2>
-          </div>
-          <p className="ip3-tools-count">
-            {TOOLS_AND_RESOURCES.length} results
+          <h2 id="ip3-tools-catalogue-title">Tools and resources</h2>
+          <p className="ip3-tools-count" aria-live="polite">
+            {results.length} {results.length === 1 ? 'result' : 'results'}
           </p>
         </header>
 
         <div className="ip3-tools-grid">
-          {TOOLS_AND_RESOURCES.map((item) => {
+          {results.map((item) => {
             const Card = item.href ? 'a' : 'article';
             const linkProps = item.href
               ? { href: item.href, target: '_blank', rel: 'noreferrer' }
@@ -1605,6 +1619,10 @@ function ToolsAndResourcesPage() {
             );
           })}
         </div>
+
+        {results.length ? null : (
+          <p className="ip3-tools-empty">No tools match &ldquo;{query.trim()}&rdquo;.</p>
+        )}
       </section>
     </main>
   );
@@ -2066,14 +2084,26 @@ export default function IntraPortalV3({ page = 'home' }) {
                 id="performance"
               >
                 <div className="ip3-performance-main">
-                  <p className="ip3-eyebrow">Performance and results</p>
-                  <h2>Collective progress, visible to everyone</h2>
-                  <p>A focused view of achievements, business goals, Goal Zero, HSSE events, DE&I and worker welfare.</p>
+                  <h2>Governance, Ethics &amp; Compliance</h2>
+                  <p>
+                    Find the guidance, policies, and resources you need to make informed decisions
+                    and uphold Shell&rsquo;s values.
+                  </p>
                   <div className="ip3-metrics">
-                    <div><strong>Goal Zero</strong><span>HSSE dashboard</span><small>Safety moments and team actions</small></div>
-                    <div><strong>High performance</strong><span>Achievements</span><small>Internal and external value stories</small></div>
-                    <div><strong>Business goals</strong><span>Targets</span><small>Progress visibility by function</small></div>
-                    <div><strong>DE&I</strong><span>Worker welfare</span><small>Employee wellbeing and inclusion</small></div>
+                    {GOVERNANCE_TILES.map((tile) => {
+                      const Tile = tile.href ? 'a' : 'div';
+                      const linkProps = tile.href
+                        ? { href: tile.href, target: '_blank', rel: 'noreferrer' }
+                        : {};
+
+                      return (
+                        <Tile key={tile.id} {...linkProps}>
+                          <strong>{tile.title}</strong>
+                          <span>{tile.tagline}</span>
+                          <small>{tile.description}</small>
+                        </Tile>
+                      );
+                    })}
                   </div>
                 </div>
 
@@ -2091,7 +2121,6 @@ export default function IntraPortalV3({ page = 'home' }) {
               </section>
 
               <section className="ip3-community" id="tools">
-                <SectionHeading eyebrow="Community" title="Life across Sada Shell" />
                 <div className="ip3-community-grid">
                   <EmployeePulse />
                   <div className="ip3-community-stories">
@@ -2109,7 +2138,7 @@ export default function IntraPortalV3({ page = 'home' }) {
                         <Image className="ip3-community-baby-art" src={`${MEDIA_ROOT}/baby-congratulations-art.png`} alt="" />
                       </div>
                     </article>
-                    <article><Image src={`${MEDIA_ROOT}/community-milestone.webp`} alt="Colleagues celebrating a teammate’s achievement" /><div><span>Milestones</span><h3>Congratulations from colleagues across Oman</h3></div></article>
+                    <article className="ip3-community-banner"><Image src={`${MEDIA_ROOT}/long-service-awards.webp`} alt="Long Service Awards — honouring our people, celebrating their legacy" /></article>
                   </div>
                 </div>
               </section>
@@ -2118,15 +2147,17 @@ export default function IntraPortalV3({ page = 'home' }) {
             <aside className="ip3-right-rail" aria-label="Quick information">
               <GoalZeroCounter />
 
-              <article className="ip3-help-card">
-                <Image src={`${MEDIA_ROOT}/support-digital-tools.webp`} alt="Digital workplace tools on a laptop and tablet" />
-                <div><span>Need help?</span><h2>Key tools and resources in one place</h2><button type="button">Find support</button></div>
-              </article>
-
-              <article className="ip3-small-feature">
-                <Image src={`${MEDIA_ROOT}/support-employee-assistance.webp`} alt="Confidential employee wellbeing support conversation" />
-                <div><h3>Employee assistance programme</h3><p>Support when you need it.</p></div>
-              </article>
+              <a
+                className="ip3-rail-banner"
+                href={`${MEDIA_ROOT}/wellness-eap-cigna-choice-oman.pdf`}
+                target="_blank"
+                rel="noreferrer"
+              >
+                <Image
+                  src={`${MEDIA_ROOT}/employee-assistance-programme.webp`}
+                  alt="Employee assistance programme — open the Cigna Choice Oman wellness guide (PDF)"
+                />
+              </a>
 
               <article className="ip3-corporate-card">
                 <p>Corporate relations</p>
