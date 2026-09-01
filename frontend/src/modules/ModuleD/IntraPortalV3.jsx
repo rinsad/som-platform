@@ -147,6 +147,54 @@ const BREAKING_NEWS = [
   },
 ];
 
+const POSTS_MEDIA = `${MEDIA_ROOT}/posts`;
+
+// Each entry renders as one card: image, then title, subtitle and note beneath
+// it. Every field except id, title and image is optional.
+const LATEST_POSTS = [
+  {
+    id: 'phishing-scorecard-target',
+    title: 'Phishing Scorecard Target',
+    subtitle: 'Every SOM employee can move the scorecard.',
+    image: `${POSTS_MEDIA}/internal-screens-05.jpg`,
+    alt: 'Don’t be the golden catch — report phishing',
+    href: 'https://eu001-sp.shell.com/sites/SPO000684',
+  },
+  {
+    id: 'how-to-move-toward-40',
+    title: 'How to move toward 40%',
+    subtitle: 'Every valid report takes us closer to our 40% ambition.',
+    image: `${POSTS_MEDIA}/internal-screens-03.jpg`,
+    alt: 'Don’t fall into the trap — report suspicious emails',
+    href: 'https://shell2.service-now.com/esc?id=irm_index',
+  },
+  {
+    id: 'welcome-shurooq-al-darmaki',
+    portrait: true,
+    title: 'Welcome on board, Shurooq Al Darmaki',
+    subtitle: 'Corporate Finance Accountant',
+    note: 'Welcome to new beginnings and exciting opportunities together.',
+    image: `${MEDIA_ROOT}/portrait-shurooq-al-darmaki.png`,
+    alt: 'Shurooq Al Darmaki, Corporate Finance Accountant',
+    href: '/welcome-shurooq-al-darmaki',
+  },
+  {
+    id: 'own-the-spotlight-salma-al-madailwi',
+    portrait: true,
+    title: 'OWN the Spotlight: Salma Al Madailwi',
+    subtitle: 'Ambition and Empowerment',
+    note: '“Every Challenge Creates an Opportunity to Grow”',
+    image: `${MEDIA_ROOT}/portrait-salma-al-madailwi.png`,
+    alt: 'Salma Al Madailwi',
+    href: '/own-the-spotlight-salma-al-madailwi',
+  },
+];
+
+// Destination for the "View All" pill. The pill is hidden while this is null.
+const LATEST_POSTS_VIEW_ALL_HREF = null;
+
+const LATEST_POSTS_PER_PAGE = 2;
+
 const LEAD_STORY_ROTATION_MS = 6000;
 const BREAKING_NEWS_ROTATION_MS = 6000;
 
@@ -204,24 +252,6 @@ const WATCH_ITEMS = [
   { title: 'Sparta’s big milestone', duration: '02:46', image: `${MEDIA_ROOT}/watch-sparta.webp` },
   { title: 'Learning is vital', duration: '03:12', image: `${MEDIA_ROOT}/watch-learning.webp` },
   { title: 'People behind the platform', duration: '05:03', image: `${MEDIA_ROOT}/watch-platform-people.webp` },
-];
-
-const GOLDEN_STAR_ACTIONS = [
-  {
-    title: 'Report suspicious emails',
-    detail: 'Use the Report Phishing button as soon as an email looks unusual.',
-    tone: 'green',
-  },
-  {
-    title: 'Pause before opening',
-    detail: 'Check the sender, link, attachment, and QR code before taking action.',
-    tone: 'blue',
-  },
-  {
-    title: 'Join awareness activities',
-    detail: 'Practice the right response and remind colleagues to report.',
-    tone: 'red',
-  },
 ];
 
 const FEEDBACK_MOODS = [
@@ -400,68 +430,180 @@ function ThinkSecureLearning() {
   );
 }
 
-function GoldenStarScorecard() {
+const PEOPLE_STORIES = {
+  'own-the-spotlight-salma-al-madailwi': 'OWN the Spotlight',
+  'welcome-shurooq-al-darmaki': 'Staff announcement',
+};
+
+function PeopleStoryPage({ slug }) {
+  const crumb = PEOPLE_STORIES[slug];
+  if (!crumb) return null;
+
   return (
-    <section className="ip3-golden-scorecard" aria-labelledby="ip3-golden-scorecard-title">
-      <h2 id="ip3-golden-scorecard-title">
-        Golden Star Rate: 30% Target Achieved <span>— Aim for 40% Ambition</span>
-      </h2>
+    <main className="ip3-main ip3-people-page" id="ip3-main">
+      <nav className="ip3-ceo-breadcrumb" aria-label="Breadcrumb">
+        <a href="/">SOM Connect</a>
+        <CaretRight size={15} weight="bold" aria-hidden="true" />
+        <span aria-current="page">{crumb}</span>
+      </nav>
 
-      <div className="ip3-golden-status" aria-label="Golden Star scorecard status">
-        <strong>Scorecard:</strong>
-        <div className="ip3-golden-status-item is-achieved">
-          <span className="ip3-golden-status-icon"><Check size={19} weight="bold" aria-hidden="true" /></span>
-          <span><b>30% Target</b><small>Achieved</small></span>
-        </div>
-        <div className="ip3-golden-status-item is-ambition">
-          <span className="ip3-golden-status-icon"><Star size={16} weight="fill" aria-hidden="true" /></span>
-          <span><b>40% Ambition</b><small>Our next goal</small></span>
-        </div>
-        <p>We’ve reached the scorecard target. Now let’s keep improving toward 40%.</p>
-      </div>
-
-      <div className="ip3-golden-body">
-        <section className="ip3-golden-current" aria-labelledby="ip3-golden-current-title">
-          <data value="31.08">31.08%</data>
-          <h3 id="ip3-golden-current-title">Current Golden Star Rate</h3>
-
-          <div className="ip3-golden-scale" role="img" aria-label="Current Golden Star Rate is 31.08 percent, above the 30 percent target and moving toward the 40 percent ambition">
-            <div className="ip3-golden-scale-track" aria-hidden="true">
-              <span className="ip3-golden-scale-progress" />
-              <span className="ip3-golden-scale-remaining" />
-              <i className="ip3-golden-marker is-start" />
-              <i className="ip3-golden-marker is-target"><Check size={15} weight="bold" /></i>
-              <i className="ip3-golden-current-pin" />
-              <i className="ip3-golden-marker is-goal"><Star size={13} weight="fill" /></i>
-            </div>
-            <div className="ip3-golden-scale-labels" aria-hidden="true">
-              <span>0%</span>
-              <span className="is-target">30%<small>Target</small></span>
-              <span className="is-current">31.08%<small>Current</small></span>
-              <span className="is-goal">40%<small>Ambition</small></span>
-            </div>
+      {slug === 'own-the-spotlight-salma-al-madailwi' ? (
+        <article className="ip3-announcement ip3-announcement-red">
+          <div className="ip3-announcement-banner">OWN the Spotlight</div>
+          <Image
+            className="ip3-announcement-salma"
+            src={`${MEDIA_ROOT}/portrait-salma-al-madailwi.png`}
+            alt="Salma Al-Madailwi portrait"
+          />
+          <div className="ip3-announcement-copy-long">
+            <section className="ip3-announcement-copy-section">
+              <h3><strong>Ambition and Empowerment</strong> - “Every Challenge Creates an Opportunity to Grow”</h3>
+              <p>
+                My name is <strong>Salma Al-Madailwi</strong>, an Aviation Operations Executive with over eight years of
+                aviation experience and ten years with Shell Oman Marketing. My expertise focuses on operations
+                management and HSSE, ensuring safe, efficient, and compliant operations. I hold a Bachelor&apos;s degree
+                in Applied Chemistry, an MBA from Franklin University, and a NEBOSH International General Certificate.
+                These qualifications, combined with practical experience, have strengthened my capabilities in risk
+                management, operational excellence, stakeholder engagement, and continuous improvement.
+              </p>
+              <p>
+                Over the years, I have had the opportunity to work in dynamic and fast-paced operational environments,
+                gaining valuable experience in operational coordination and safety management.
+              </p>
+            </section>
+            <section className="ip3-announcement-copy-section">
+              <h3><strong>Creativity and Community</strong> - How I Show Up and Add Value</h3>
+              <p>
+                I believe creativity in aviation comes from finding practical solutions that connect people, processes,
+                and operational needs. I add value through collaboration, problem-solving, and continuous improvement,
+                while supporting teams to achieve operational excellence and Goal Zero. Building strong relationships,
+                encouraging open communication, and fostering teamwork are central to how I contribute to a positive and
+                high-performing work environment.
+              </p>
+            </section>
+            <section className="ip3-announcement-copy-section">
+              <h3><strong>Serenity &amp; Energy</strong> - Staying Grounded Beyond Work</h3>
+              <p>
+                I am a proud mother of two wonderful daughters, who inspire me daily and remind me of the importance of
+                balance, resilience, and growth. My family is my greatest source of strength and support. Outside of work,
+                I enjoy graphic design, which allows me to express creativity and develop new skills. Spending quality
+                time with my family helps me stay focused, adaptable, and motivated both personally and professionally.
+              </p>
+            </section>
           </div>
+        </article>
+      ) : (
+        <article className="ip3-announcement ip3-announcement-light">
+          <div className="ip3-announcement-banner">Staff announcement · new joiner</div>
+          <Image
+            className="ip3-announcement-shurooq"
+            src={`${MEDIA_ROOT}/portrait-shurooq-al-darmaki.png`}
+            alt="Shurooq Al Darmaki portrait"
+          />
+          <div className="ip3-announcement-copy-long">
+            <p className="ip3-announcement-lead">
+              We are delighted to announce that <strong>Shurooq Al Darmaki</strong> is joining Shell Oman as{' '}
+              <strong>Corporate Finance Accountant</strong>, effective <strong>9th of August 2026.</strong>
+            </p>
+            <p>
+              Shurooq brings seven years of experience across external audit and corporate finance in the professional
+              services and energy sectors. Most recently, she worked in the Financial Control function as a General
+              Ledger Specialist at OQ Refineries and Petroleum Industries (OQ RPI), where she was responsible for
+              financial reporting, month-end close activities, account reconciliations, and driving finance process
+              improvements. Prior to OQ RPI, Shurooq spent four years with EY, building a strong foundation in external
+              audit, financial reporting, risk assessment, and internal controls while working with clients across a
+              range of industries.
+            </p>
+            <p>Shurooq holds a bachelor’s degree in accounting from Modern College of Business and Science.</p>
+            <p>
+              Outside of work, she enjoys travelling, staying active, and embracing new challenges for learning and
+              personal growth.
+            </p>
+            <p>We are thrilled to welcome Shurooq to our team and wish her great success in her new role.</p>
+          </div>
+        </article>
+      )}
+    </main>
+  );
+}
 
-          <aside className="ip3-golden-improvement">
-            <span><ArrowUpRight size={18} weight="bold" aria-hidden="true" /></span>
-            <p><strong>What improves the Golden Star Rate?</strong>More valid reports of suspicious emails from all employees.</p>
-          </aside>
-        </section>
+function LatestPostsSlider() {
+  const [page, setPage] = useState(0);
 
-        <section className="ip3-golden-actions" aria-labelledby="ip3-golden-actions-title">
-          <h3 id="ip3-golden-actions-title">How we move toward 40%</h3>
-          <ol>
-            {GOLDEN_STAR_ACTIONS.map((action, index) => (
-              <li className={`is-${action.tone}`} key={action.title}>
-                <span>{index + 1}</span>
-                <div><strong>{action.title}</strong><p>{action.detail}</p></div>
-              </li>
-            ))}
-          </ol>
-        </section>
+  const pages = [];
+  for (let index = 0; index < LATEST_POSTS.length; index += LATEST_POSTS_PER_PAGE) {
+    pages.push(LATEST_POSTS.slice(index, index + LATEST_POSTS_PER_PAGE));
+  }
+
+  if (!pages.length) return null;
+
+  const showPage = (index) => {
+    setPage((index + pages.length) % pages.length);
+  };
+
+  return (
+    <section className="ip3-post-slider" aria-labelledby="ip3-post-slider-title">
+      <h2 id="ip3-post-slider-title">Latest updates</h2>
+
+      {/* Every page stays in the DOM and the track slides, so the panel keeps
+          one height across pages and the change can be animated. */}
+      <div className="ip3-post-slider-viewport">
+        <div
+          className="ip3-post-slider-track"
+          style={{ transform: `translate3d(-${page * 100}%, 0, 0)` }}
+        >
+          {pages.map((posts, pageIndex) => (
+            <div
+              className="ip3-post-slider-page"
+              key={posts[0].id}
+              inert={pageIndex === page ? undefined : true}
+            >
+              {posts.map((item) => {
+                const Card = item.href ? 'a' : 'article';
+                const isExternal = Boolean(item.href) && /^https?:/.test(item.href);
+                const linkProps = item.href
+                  ? { href: item.href, ...(isExternal ? { target: '_blank', rel: 'noreferrer' } : {}) }
+                  : {};
+
+                return (
+                  <Card className="ip3-post-card" key={item.id} {...linkProps}>
+                    <span className={`ip3-post-card-media${item.portrait ? ' is-portrait' : ''}`}>
+                      <Image src={item.image} alt={item.alt ?? ''} />
+                      {item.tags?.length ? (
+                        <span className="ip3-post-card-tags">
+                          {item.tags.map((tag) => <span key={tag}>{tag}</span>)}
+                        </span>
+                      ) : null}
+                    </span>
+                    <h3>{item.title}</h3>
+                    {item.subtitle ? <p className="ip3-post-card-subtitle">{item.subtitle}</p> : null}
+                    {item.note ? <p className="ip3-post-card-note">{item.note}</p> : null}
+                    {item.date ? <p className="ip3-post-card-meta">{item.date}</p> : null}
+                  </Card>
+                );
+              })}
+            </div>
+          ))}
+        </div>
       </div>
 
-      <footer>30% achieved — every valid report takes us closer to our 40% ambition.</footer>
+      <div className="ip3-post-slider-footer">
+        {pages.length > 1 ? (
+          <div className="ip3-post-slider-pager">
+            <button type="button" onClick={() => showPage(page - 1)} aria-label="Previous stories">
+              <CaretLeft size={17} weight="bold" aria-hidden="true" />
+            </button>
+            <span aria-live="polite">{page + 1} of {pages.length}</span>
+            <button type="button" onClick={() => showPage(page + 1)} aria-label="Next stories">
+              <CaretRight size={17} weight="bold" aria-hidden="true" />
+            </button>
+          </div>
+        ) : null}
+
+        {LATEST_POSTS_VIEW_ALL_HREF ? (
+          <a className="ip3-post-slider-view-all" href={LATEST_POSTS_VIEW_ALL_HREF}>View All</a>
+        ) : null}
+      </div>
     </section>
   );
 }
@@ -1810,6 +1952,8 @@ export default function IntraPortalV3({ page = 'home' }) {
           <ThisIsShellPage />
         ) : page === 'ceo-corner' ? (
           <CeoCornerPage />
+        ) : PEOPLE_STORIES[page] ? (
+          <PeopleStoryPage slug={page} />
         ) : page === 'tools-and-resources' ? (
           <ToolsAndResourcesPage />
         ) : page === 'learning' ? (
@@ -1838,166 +1982,82 @@ export default function IntraPortalV3({ page = 'home' }) {
           </section>
 
           <div className="ip3-content-grid">
-            <div className="ip3-primary-column">
-              <section className="ip3-lead-grid" id="news" aria-label="Latest company news">
-                <article className="ip3-lead-story" aria-label="Shell Oman past and today carousel">
-                  <div
-                    className="ip3-story-track"
-                    style={{ transform: `translate3d(-${activeStory * 100}%, 0, 0)` }}
-                  >
-                    {LEAD_STORIES.map((item, index) => (
-                      <Image
-                        key={item.id}
-                        src={item.image}
-                        alt={item.alt}
-                        loading={index === 0 ? 'eager' : 'lazy'}
-                        fetchPriority={index === 0 ? 'high' : undefined}
-                        ariaHidden={activeStory !== index}
-                      />
-                    ))}
-                  </div>
-                  <div className="ip3-story-controls" aria-label="Lead story controls">
-                    <button
-                      type="button"
-                      className="ip3-story-control-play"
-                      onClick={() => setStoryPaused((value) => !value)}
-                      aria-label={storyPaused ? 'Play banner carousel' : 'Pause banner carousel'}
-                    >
-                      {storyPaused
-                        ? <Play size={15} weight="fill" aria-hidden="true" />
-                        : <Pause size={15} weight="fill" aria-hidden="true" />}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => showStory(activeStory - 1)}
-                      aria-label="Previous banner"
-                    >
-                      <CaretLeft size={15} weight="bold" aria-hidden="true" />
-                    </button>
-                    <span aria-live="polite">{activeStory + 1} of {LEAD_STORIES.length}</span>
-                    <button
-                      type="button"
-                      onClick={() => showStory(activeStory + 1)}
-                      aria-label="Next banner"
-                    >
-                      <CaretRight size={15} weight="bold" aria-hidden="true" />
-                    </button>
-                  </div>
-                </article>
-
-                <div className="ip3-story-rail">
-                  {SIDE_NEWS.map((item) => (
-                    <article key={item.title} className="ip3-story-rail-item">
-                      <button
-                        className="ip3-story-rail-trigger"
-                        type="button"
-                        aria-label={`Play video: ${item.title}`}
-                        aria-haspopup="dialog"
-                        onClick={() => setActiveVideo(item)}
-                      >
-                        <span className="ip3-story-rail-thumbnail">
-                          <Image src={item.image} alt="" className={item.thumbnailClass} />
-                          <span className="ip3-story-rail-play" aria-hidden="true">
-                            <Play size={25} weight="fill" />
-                          </span>
-                        </span>
-                        <span className="ip3-story-rail-copy">
-                          <strong>{item.title}</strong>
-                          <span>{item.description}</span>
-                        </span>
-                      </button>
-                    </article>
+            <section className="ip3-lead-grid" id="news" aria-label="Latest company news">
+              <article className="ip3-lead-story" aria-label="Shell Oman past and today carousel">
+                <div
+                  className="ip3-story-track"
+                  style={{ transform: `translate3d(-${activeStory * 100}%, 0, 0)` }}
+                >
+                  {LEAD_STORIES.map((item, index) => (
+                    <Image
+                      key={item.id}
+                      src={item.image}
+                      alt={item.alt}
+                      loading={index === 0 ? 'eager' : 'lazy'}
+                      fetchPriority={index === 0 ? 'high' : undefined}
+                      ariaHidden={activeStory !== index}
+                    />
                   ))}
                 </div>
-              </section>
+                <div className="ip3-story-controls" aria-label="Lead story controls">
+                  <button
+                    type="button"
+                    className="ip3-story-control-play"
+                    onClick={() => setStoryPaused((value) => !value)}
+                    aria-label={storyPaused ? 'Play banner carousel' : 'Pause banner carousel'}
+                  >
+                    {storyPaused
+                      ? <Play size={15} weight="fill" aria-hidden="true" />
+                      : <Pause size={15} weight="fill" aria-hidden="true" />}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => showStory(activeStory - 1)}
+                    aria-label="Previous banner"
+                  >
+                    <CaretLeft size={15} weight="bold" aria-hidden="true" />
+                  </button>
+                  <span aria-live="polite">{activeStory + 1} of {LEAD_STORIES.length}</span>
+                  <button
+                    type="button"
+                    onClick={() => showStory(activeStory + 1)}
+                    aria-label="Next banner"
+                  >
+                    <CaretRight size={15} weight="bold" aria-hidden="true" />
+                  </button>
+                </div>
+              </article>
 
-              <section className="ip3-announcements" id="people">
-                <article className="ip3-announcement ip3-announcement-red">
-                  <div className="ip3-announcement-banner">OWN the Spotlight</div>
-                  <Image
-                    className="ip3-announcement-salma"
-                    src={`${MEDIA_ROOT}/portrait-salma-al-madailwi.png`}
-                    alt="Salma Al-Madailwi portrait"
-                  />
-                  <div className="ip3-announcement-copy-long">
-                    <section className="ip3-announcement-copy-section">
-                      <h3><strong>Ambition and Empowerment</strong> - “Every Challenge Creates an Opportunity to Grow”</h3>
-                      <p>
-                        My name is <strong>Salma Al-Madailwi</strong>, an Aviation Operations Executive with over eight years of
-                        aviation experience and ten years with Shell Oman Marketing. My expertise focuses on operations
-                        management and HSSE, ensuring safe, efficient, and compliant operations. I hold a Bachelor&apos;s degree
-                        in Applied Chemistry, an MBA from Franklin University, and a NEBOSH International General Certificate.
-                        These qualifications, combined with practical experience, have strengthened my capabilities in risk
-                        management, operational excellence, stakeholder engagement, and continuous improvement.
-                      </p>
-                      <p>
-                        Over the years, I have had the opportunity to work in dynamic and fast-paced operational environments,
-                        gaining valuable experience in operational coordination and safety management.
-                      </p>
-                    </section>
-                    <section className="ip3-announcement-copy-section">
-                      <h3><strong>Creativity and Community</strong> - How I Show Up and Add Value</h3>
-                      <p>
-                        I believe creativity in aviation comes from finding practical solutions that connect people, processes,
-                        and operational needs. I add value through collaboration, problem-solving, and continuous improvement,
-                        while supporting teams to achieve operational excellence and Goal Zero. Building strong relationships,
-                        encouraging open communication, and fostering teamwork are central to how I contribute to a positive and
-                        high-performing work environment.
-                      </p>
-                    </section>
-                    <section className="ip3-announcement-copy-section">
-                      <h3><strong>Serenity &amp; Energy</strong> - Staying Grounded Beyond Work</h3>
-                      <p>
-                        I am a proud mother of two wonderful daughters, who inspire me daily and remind me of the importance of
-                        balance, resilience, and growth. My family is my greatest source of strength and support. Outside of work,
-                        I enjoy graphic design, which allows me to express creativity and develop new skills. Spending quality
-                        time with my family helps me stay focused, adaptable, and motivated both personally and professionally.
-                      </p>
-                    </section>
-                  </div>
-                </article>
+              <div className="ip3-story-rail">
+                {SIDE_NEWS.map((item) => (
+                  <article key={item.title} className="ip3-story-rail-item">
+                    <button
+                      className="ip3-story-rail-trigger"
+                      type="button"
+                      aria-label={`Play video: ${item.title}`}
+                      aria-haspopup="dialog"
+                      onClick={() => setActiveVideo(item)}
+                    >
+                      <span className="ip3-story-rail-thumbnail">
+                        <Image src={item.image} alt="" className={item.thumbnailClass} />
+                        <span className="ip3-story-rail-play" aria-hidden="true">
+                          <Play size={25} weight="fill" />
+                        </span>
+                      </span>
+                      <span className="ip3-story-rail-copy">
+                        <strong>{item.title}</strong>
+                        <span>{item.description}</span>
+                      </span>
+                    </button>
+                  </article>
+                ))}
+              </div>
+            </section>
 
-                <article className="ip3-phishing-panel">
-                  <Image
-                    className="ip3-phishing-art"
-                    src="/intraportal-v3/phishing-golden-catch-som-connect.png"
-                    alt="Don't be the golden Catch. Report Phishing."
-                  />
-                  <GoldenStarScorecard />
-                </article>
-              </section>
+            <div className="ip3-primary-column">
+              <LatestPostsSlider />
 
               <section className="ip3-resource-grid" id="learning">
-                <article className="ip3-announcement ip3-announcement-light">
-                  <div className="ip3-announcement-banner">Staff announcement · new joiner</div>
-                  <Image
-                    className="ip3-announcement-shurooq"
-                    src={`${MEDIA_ROOT}/portrait-shurooq-al-darmaki.png`}
-                    alt="Shurooq Al Darmaki portrait"
-                  />
-                  <div className="ip3-announcement-copy-long">
-                    <p className="ip3-announcement-lead">
-                      We are delighted to announce that <strong>Shurooq Al Darmaki</strong> is joining Shell Oman as{' '}
-                      <strong>Corporate Finance Accountant</strong>, effective <strong>9th of August 2026.</strong>
-                    </p>
-                    <p>
-                      Shurooq brings seven years of experience across external audit and corporate finance in the professional
-                      services and energy sectors. Most recently, she worked in the Financial Control function as a General
-                      Ledger Specialist at OQ Refineries and Petroleum Industries (OQ RPI), where she was responsible for
-                      financial reporting, month-end close activities, account reconciliations, and driving finance process
-                      improvements. Prior to OQ RPI, Shurooq spent four years with EY, building a strong foundation in external
-                      audit, financial reporting, risk assessment, and internal controls while working with clients across a
-                      range of industries.
-                    </p>
-                    <p>Shurooq holds a bachelor’s degree in accounting from Modern College of Business and Science.</p>
-                    <p>
-                      Outside of work, she enjoys travelling, staying active, and embracing new challenges for learning and
-                      personal growth.
-                    </p>
-                    <p>We are thrilled to welcome Shurooq to our team and wish her great success in her new role.</p>
-                  </div>
-                </article>
-
                 <ThinkSecureLearning />
               </section>
 
@@ -2031,7 +2091,7 @@ export default function IntraPortalV3({ page = 'home' }) {
               </section>
 
               <section className="ip3-community" id="tools">
-                <SectionHeading eyebrow="Community" title="Life across Sada Shell" action="View all stories" />
+                <SectionHeading eyebrow="Community" title="Life across Sada Shell" />
                 <div className="ip3-community-grid">
                   <EmployeePulse />
                   <div className="ip3-community-stories">
@@ -2077,7 +2137,13 @@ export default function IntraPortalV3({ page = 'home' }) {
                   src={`${MEDIA_ROOT}/annual-report-2025.webp`}
                   alt="Annual report cover featuring Oman’s mountains and energy infrastructure"
                 />
-                <button type="button">Open report</button>
+                <a
+                  href="https://www.shelloman.com.om/en_om/investors/results-and-reporting/annual-reports.html"
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  Open report
+                </a>
               </article>
 
               <section className="ip3-watch-card">

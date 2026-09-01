@@ -301,19 +301,19 @@ test('temporarily hides the upcoming events panel', () => {
   expect(screen.queryByRole('complementary', { name: 'Upcoming events' })).not.toBeInTheDocument();
 });
 
-test('renders the Golden Catch banner with an accessible text scorecard', () => {
-  render(<IntraPortalV3 />);
+test('no longer renders the Golden Star Rate scorecard panel', () => {
+  const { container } = render(<IntraPortalV3 />);
 
-  expect(screen.getByAltText(/don't be the golden catch/i)).toHaveAttribute(
-    'src',
-    '/intraportal-v3/phishing-golden-catch-som-connect.png',
+  expect(container.querySelector('.ip3-phishing-panel')).not.toBeInTheDocument();
+  expect(container.querySelector('.ip3-golden-scorecard')).not.toBeInTheDocument();
+  expect(screen.queryByRole('heading', { name: /golden star rate/i })).not.toBeInTheDocument();
+  expect(screen.queryByText('31.08%')).not.toBeInTheDocument();
+
+  // the phishing message now reaches people through the story slider instead
+  expect(screen.getByRole('link', { name: /Phishing Scorecard Target/i })).toHaveAttribute(
+    'href',
+    'https://eu001-sp.shell.com/sites/SPO000684',
   );
-  expect(screen.getByRole('heading', { name: /golden star rate: 30% target achieved/i })).toBeInTheDocument();
-  expect(screen.getAllByText('31.08%')).toHaveLength(2);
-  expect(screen.getByText('Report suspicious emails')).toBeInTheDocument();
-  expect(screen.getByText('Pause before opening')).toBeInTheDocument();
-  expect(screen.getByText('Join awareness activities')).toBeInTheDocument();
-  expect(screen.getByText(/every valid report takes us closer to our 40% ambition/i)).toBeInTheDocument();
 });
 
 test('uses the Shell People Survey banner and survey copy without tabs', () => {
@@ -335,17 +335,17 @@ test('uses project media instead of remote placeholder images', () => {
 
   const imageSources = [...container.querySelectorAll('img')].map((image) => image.getAttribute('src'));
   expect(imageSources.some((source) => source?.includes('picsum.photos'))).toBe(false);
-  expect(imageSources.filter((source) => source?.startsWith('/intraportal-v3/media/'))).toHaveLength(24);
+  expect(imageSources.filter((source) => source?.startsWith('/intraportal-v3/media/'))).toHaveLength(26);
   expect(screen.getByAltText(/annual report cover/i)).toHaveAttribute(
     'src',
     '/intraportal-v3/media/annual-report-2025.webp',
   );
 });
 
-test('features Salma Al-Madailwi in the OWN the Spotlight card', () => {
-  render(<IntraPortalV3 />);
+test('features Salma Al-Madailwi on the OWN the Spotlight page', () => {
+  const { container } = render(<IntraPortalV3 page="own-the-spotlight-salma-al-madailwi" />);
 
-  const rotationCard = screen.getByText('OWN the Spotlight').closest('article');
+  const rotationCard = container.querySelector('.ip3-announcement-red');
   expect(rotationCard).not.toBeNull();
   expect(within(rotationCard).getByAltText('Salma Al-Madailwi portrait')).toHaveAttribute(
     'src',
@@ -358,10 +358,10 @@ test('features Salma Al-Madailwi in the OWN the Spotlight card', () => {
   expect(screen.queryByText(/Noura Al Hashar/)).not.toBeInTheDocument();
 });
 
-test('features Shurooq Al Darmaki in the new joiner announcement', () => {
-  render(<IntraPortalV3 />);
+test('features Shurooq Al Darmaki on the new joiner page', () => {
+  const { container } = render(<IntraPortalV3 page="welcome-shurooq-al-darmaki" />);
 
-  const newJoinerCard = screen.getByText('Staff announcement · new joiner').closest('article');
+  const newJoinerCard = container.querySelector('.ip3-announcement-light');
   expect(newJoinerCard).not.toBeNull();
   expect(within(newJoinerCard).getByAltText('Shurooq Al Darmaki portrait')).toHaveAttribute(
     'src',
@@ -373,6 +373,28 @@ test('features Shurooq Al Darmaki in the new joiner announcement', () => {
   expect(newJoinerCard).toHaveTextContent(/Shurooq brings seven years of experience across external audit/i);
   expect(newJoinerCard).toHaveTextContent(/bachelor’s degree in accounting from Modern College of Business and Science/i);
   expect(newJoinerCard).toHaveTextContent(/thrilled to welcome Shurooq to our team/i);
+});
+
+test('home page links to the people stories instead of embedding them', () => {
+  const { container } = render(<IntraPortalV3 />);
+
+  expect(container.querySelector('.ip3-announcement-red')).not.toBeInTheDocument();
+  expect(container.querySelector('.ip3-announcement-light')).not.toBeInTheDocument();
+
+  // every page stays mounted so the panel keeps one height; only the visible
+  // page is interactive, so assert against that one
+  const visiblePage = () => container.querySelector('.ip3-post-slider-page:not([inert])');
+  const hrefsOf = (page) => [...page.querySelectorAll('a.ip3-post-card')].map((card) => card.getAttribute('href'));
+
+  expect(container.querySelectorAll('.ip3-post-slider-page')).toHaveLength(2);
+  expect(hrefsOf(visiblePage())).toEqual([
+    'https://eu001-sp.shell.com/sites/SPO000684',
+    'https://shell2.service-now.com/esc?id=irm_index',
+  ]);
+
+  fireEvent.click(screen.getByRole('button', { name: 'Next stories' }));
+  expect(hrefsOf(visiblePage())).toEqual(['/welcome-shurooq-al-darmaki', '/own-the-spotlight-salma-al-madailwi']);
+  expect(container.querySelector('.ip3-post-slider-track')).toHaveStyle({ transform: 'translate3d(-100%, 0, 0)' });
 });
 
 test('links to the Shell People Survey from the HR online highlights', () => {

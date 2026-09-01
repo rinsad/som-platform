@@ -134,7 +134,12 @@
   --ip3-shadow: var(--shadow-sm);
   --ip3-shadow-raised: var(--shadow-md);
   --ip3-speed: var(--transition);
-  --ip3-logo-column: clamp(17rem, 19.5vw, 23rem);
+  --ip3-logo-column: clamp(16rem, 18vw, 23rem);
+  /* Width of the story rail beside the hero. The post slider matches the
+     hero column, so both are derived from this and --ip3-space-3. */
+  --ip3-lead-rail-min: 20rem;
+  /* Width of the right-hand rail column of .ip3-content-grid. */
+  --ip3-rail-column: 27rem;
 
   min-height: 100dvh;
   display: grid;
@@ -164,6 +169,10 @@
 
 .ip3-sidebar {
   grid-row: 2;
+  /* Without this the nav's intrinsic width (its logo-column padding plus every
+     item) becomes the floor for the whole page grid and scrolls the document
+     sideways. The nav scrolls on its own instead. */
+  min-width: 0;
   position: sticky;
   top: 0;
   height: auto;
@@ -210,8 +219,8 @@
   display: flex;
   align-items: stretch;
   justify-content: center;
-  padding: 0 clamp(0.35rem, 1vw, 1rem) 0 calc(var(--ip3-logo-column) + clamp(0.35rem, 1vw, 1rem));
-  gap: clamp(0.05rem, 0.25vw, 0.3rem);
+  padding: 0 clamp(0.9rem, 1.8vw, 2.25rem) 0 calc(var(--ip3-logo-column) + clamp(0.35rem, 1vw, 1rem));
+  gap: clamp(0.05rem, 0.2vw, 0.3rem);
   overflow-x: auto;
   overflow-y: hidden;
   scrollbar-width: thin;
@@ -224,8 +233,8 @@
   align-items: center;
   justify-content: center;
   flex: 0 0 auto;
-  gap: 0.4rem;
-  padding: var(--ip3-space-1) clamp(0.45rem, 0.7vw, 0.75rem);
+  gap: 0.3rem;
+  padding: var(--ip3-space-1) clamp(0.25rem, 0.4vw, 0.65rem);
   border: 0;
   border-bottom: 3px solid transparent;
   border-radius: 0;
@@ -563,10 +572,10 @@
   to { opacity: 1; transform: translate3d(0, 0, 0); }
 }
 
-.ip3-content-grid { display: grid; grid-template-columns: minmax(0, 1fr) 27rem; gap: var(--ip3-space-4); align-items: start; }
+.ip3-content-grid { display: grid; grid-template-columns: minmax(0, 1fr) var(--ip3-rail-column); gap: var(--ip3-space-4); align-items: start; }
 .ip3-primary-column, .ip3-right-rail { display: grid; gap: var(--ip3-space-4); min-width: 0; }
 
-.ip3-lead-grid { display: grid; grid-template-columns: minmax(0, 2fr) minmax(20rem, 1fr); gap: var(--ip3-space-3); }
+.ip3-lead-grid { display: grid; grid-template-columns: minmax(0, 2fr) minmax(var(--ip3-lead-rail-min), 1fr); gap: var(--ip3-space-3); }
 .ip3-lead-story { position: relative; aspect-ratio: 1356 / 768; min-height: 0; overflow: hidden; border-radius: var(--ip3-radius-md); background: var(--gray-800); box-shadow: var(--ip3-shadow-raised); }
 .ip3-story-track { position: absolute; inset: 0; display: flex; will-change: transform; transition: transform 900ms cubic-bezier(0.22, 0.61, 0.36, 1); }
 @media (prefers-reduced-motion: reduce) { .ip3-story-track { transition: none; } }
@@ -577,7 +586,10 @@
 .ip3-story-controls .ip3-story-control-play { border: 1px solid rgba(255, 255, 255, 0.45); }
 .ip3-story-controls span { min-width: 3.25rem; color: var(--ip3-surface); font-size: var(--ip3-text-sm); font-weight: var(--ip3-weight-medium); font-variant-numeric: tabular-nums; text-align: center; }
 
-.ip3-story-rail { display: grid; grid-auto-rows: 1fr; gap: var(--ip3-space-3); }
+/* The hero sets the row height via its aspect-ratio. Zeroing the rail's own
+   contribution keeps its cards from making the row taller, then min-height
+   stretches it back to exactly that row. */
+.ip3-story-rail { display: grid; grid-auto-rows: minmax(0, 1fr); gap: var(--ip3-space-3); height: 0; min-height: 100%; }
 .ip3-story-rail-item { min-height: 0; overflow: hidden; border: 1px solid var(--ip3-line); border-radius: var(--ip3-radius-md); background: var(--ip3-surface); transition: border-color var(--ip3-speed); }
 .ip3-story-rail-item:hover { border-color: var(--accent-amber-line); }
 .ip3-story-rail-item:focus-within { border-color: var(--ip3-brand-red); box-shadow: 0 0 0 2px color-mix(in srgb, var(--ip3-brand-red) 18%, transparent); }
@@ -591,9 +603,9 @@
 .ip3-story-rail-trigger:hover .ip3-story-rail-thumbnail img { transform: scale(1.025); }
 .ip3-story-rail-play, .ip3-video-modal-play { position: absolute; inset: 50% auto auto 50%; display: grid; place-items: center; border-radius: var(--ip3-radius-pill); background: color-mix(in srgb, var(--ip3-brand-red) 88%, transparent); color: var(--ip3-surface); transform: translate3d(-50%, -50%, 0); box-shadow: var(--ip3-shadow-raised); }
 .ip3-story-rail-play { width: 2.6rem; height: 2.6rem; }
-.ip3-story-rail-copy { align-self: center; display: grid; padding: var(--ip3-space-3); }
-.ip3-story-rail-copy strong { font-size: var(--ip3-text-md); line-height: 1.25; text-wrap: balance; }
-.ip3-story-rail-copy > span { margin-top: var(--ip3-space-1); color: var(--ip3-ink-subtle); font-size: var(--ip3-text-xs); line-height: 1.35; }
+.ip3-story-rail-copy { align-self: center; display: grid; min-height: 0; padding: var(--ip3-space-3); }
+.ip3-story-rail-copy strong { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; overflow: hidden; font-size: var(--ip3-text-md); line-height: 1.25; text-wrap: balance; }
+.ip3-story-rail-copy > span { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; overflow: hidden; margin-top: var(--ip3-space-1); color: var(--ip3-ink-subtle); font-size: var(--ip3-text-xs); line-height: 1.35; }
 
 .ip3-video-dialog { width: min(78rem, calc(100% - 2.5rem)); max-width: none; max-height: calc(100dvh - 2.5rem); margin: auto; padding: 0; overflow: hidden; border: 0; background: transparent; color: inherit; }
 .ip3-video-dialog::backdrop { background: rgba(28, 28, 28, 0.72); backdrop-filter: blur(5px); animation: ip3ModalFade 0.18s var(--ease) both; }
@@ -627,7 +639,7 @@
   to { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
 }
 
-.ip3-announcements { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; gap: var(--ip3-space-3); }
+.ip3-announcements { display: grid; grid-template-columns: minmax(0, 1fr); align-items: start; gap: var(--ip3-space-3); }
 .ip3-announcement { min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: auto auto 1fr; overflow: hidden; border: 1px solid var(--ip3-line); border-radius: var(--ip3-radius-md); background: var(--ip3-surface); box-shadow: var(--ip3-shadow); }
 .ip3-announcement-banner { grid-column: 1 / -1; padding: var(--ip3-space-3) var(--ip3-space-4); font-size: var(--ip3-text-sm); font-weight: var(--ip3-weight-heavy); text-transform: uppercase; letter-spacing: 0.04em; }
 .ip3-announcement-red .ip3-announcement-banner,
@@ -641,7 +653,7 @@
 .ip3-announcement span { color: var(--ip3-ink-subtle); font-size: var(--ip3-text-sm); }
 .ip3-announcement-copy-long { gap: var(--ip3-space-4); }
 
-.ip3-resource-grid { display: grid; grid-template-columns: minmax(17rem, 0.8fr) minmax(0, 1.5fr); gap: var(--ip3-space-3); }
+.ip3-resource-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--ip3-space-3); }
 .ip3-phishing-panel, .ip3-learning-panel { overflow: hidden; border: 1px solid var(--ip3-line); border-radius: var(--ip3-radius-md); background: var(--ip3-surface); }
 .ip3-phishing-panel { align-self: start; container-type: inline-size; }
 .ip3-phishing-art { display: block; width: 100%; height: auto; }
@@ -832,7 +844,7 @@
 .ip3-help-card > div { position: absolute; inset: auto 0 0; padding: var(--ip3-space-5); background: var(--ip3-surface); }
 .ip3-help-card span { color: var(--ip3-brand-red); font-size: var(--ip3-text-xs); font-weight: var(--ip3-weight-heavy); text-transform: uppercase; }
 .ip3-help-card h2 { margin: var(--ip3-space-1) 0 var(--ip3-space-4); font-size: var(--ip3-text-lg); line-height: 1.25; }
-.ip3-help-card button, .ip3-corporate-card button, .ip3-watch-card > button { padding: 0.6rem var(--ip3-space-3); border: 1px solid var(--accent-amber-line); border-radius: var(--ip3-radius-sm); background: var(--ip3-brand-yellow); color: var(--ip3-ink); font-weight: 800; }
+.ip3-help-card button, .ip3-corporate-card button, .ip3-corporate-card > a, .ip3-watch-card > button { padding: 0.6rem var(--ip3-space-3); border: 1px solid var(--accent-amber-line); border-radius: var(--ip3-radius-sm); background: var(--ip3-brand-yellow); color: var(--ip3-ink); font-weight: 800; }
 
 .ip3-small-feature { display: grid; grid-template-columns: 7rem 1fr; }
 .ip3-small-feature img { width: 100%; height: 100%; min-height: 6.5rem; object-fit: cover; }
@@ -845,7 +857,7 @@
 .ip3-corporate-card h2 { margin-top: var(--ip3-space-3); font-size: var(--ip3-text-xl); }
 .ip3-corporate-card > span { display: block; max-width: 14ch; margin-top: var(--ip3-space-1); color: var(--ip3-ink-muted); }
 .ip3-report-cover { position: absolute; right: var(--ip3-space-5); bottom: var(--ip3-space-5); width: 6rem; aspect-ratio: 0.72; object-fit: cover; border: 1px solid var(--ip3-line); background: var(--ip3-surface); box-shadow: var(--ip3-shadow); }
-.ip3-corporate-card button { position: absolute; left: var(--ip3-space-5); bottom: var(--ip3-space-5); }
+.ip3-corporate-card button, .ip3-corporate-card > a { position: absolute; left: var(--ip3-space-5); bottom: var(--ip3-space-5); text-decoration: none; }
 
 .ip3-watch-card { padding: var(--ip3-space-5); }
 .ip3-watch-card article { display: grid; grid-template-columns: 5.5rem 1fr; gap: var(--ip3-space-3); padding: var(--ip3-space-2) 0; border-top: 1px solid var(--ip3-line); }
@@ -1108,6 +1120,33 @@ a.ip3-tool-card:hover h3, a.ip3-tool-card:focus-visible h3 { color: var(--ip3-to
 .ip3-tool-card[data-tone="time"] { --ip3-tool-tone: var(--tool-tone-time); }
 .ip3-tool-card h3 { font-size: var(--ip3-text-md); font-weight: var(--ip3-weight-heavy); line-height: 1.3; }
 .ip3-tool-card p { color: var(--ip3-ink-muted); font-size: var(--ip3-text-sm); line-height: var(--ip3-leading-body); }
+.ip3-people-page { display: grid; gap: var(--ip3-space-4); align-content: start; }
+.ip3-people-page .ip3-announcement { max-width: 56rem; justify-self: center; width: 100%; }
+.ip3-people-page .ip3-announcement img { max-width: 20rem; max-height: 20rem; }
+.ip3-post-slider { padding: var(--ip3-space-5); border: 1px solid var(--ip3-line); border-radius: var(--ip3-radius-md); background: var(--ip3-surface); box-shadow: var(--ip3-shadow); }
+.ip3-post-slider > h2 { margin-bottom: var(--ip3-space-4); font-size: var(--ip3-type-subheading); font-weight: var(--ip3-weight-heavy); line-height: 1.25; }
+.ip3-post-slider-viewport { overflow: hidden; }
+.ip3-post-slider-track { display: flex; align-items: stretch; will-change: transform; transition: transform 520ms cubic-bezier(0.22, 0.61, 0.36, 1); }
+@media (prefers-reduced-motion: reduce) { .ip3-post-slider-track { transition: none; } }
+.ip3-post-slider-page { flex: 0 0 100%; min-width: 100%; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-content: start; gap: var(--ip3-space-4); }
+.ip3-post-card { display: grid; align-content: start; gap: var(--ip3-space-2); color: inherit; text-decoration: none; }
+.ip3-post-card-media { position: relative; display: block; overflow: hidden; border-radius: var(--ip3-radius-sm); background: var(--ip3-surface-muted); }
+.ip3-post-card-media img { display: block; width: 100%; height: auto; aspect-ratio: 16 / 10; object-fit: cover; object-position: center top; }
+.ip3-post-card-media.is-portrait img { object-fit: contain; }
+.ip3-post-card-tags { position: absolute; top: var(--ip3-space-2); left: var(--ip3-space-2); display: grid; justify-items: start; gap: var(--ip3-space-1); }
+.ip3-post-card-tags span { padding: 0.2rem var(--ip3-space-3); border-radius: var(--ip3-radius-pill); background: var(--ip3-brand-red); color: var(--ip3-surface); font-size: var(--ip3-text-xs); font-weight: var(--ip3-weight-heavy); line-height: 1.5; }
+.ip3-post-card h3 { margin-top: var(--ip3-space-1); font-size: var(--ip3-type-card-title); font-weight: var(--ip3-weight-heavy); line-height: 1.3; }
+.ip3-post-card-subtitle { color: var(--ip3-ink-muted); font-size: var(--ip3-text-md); line-height: 1.5; }
+.ip3-post-card-note { color: var(--ip3-ink-muted); font-size: var(--ip3-text-md); font-style: italic; line-height: 1.5; }
+.ip3-post-card-meta { color: var(--ip3-ink-subtle); font-size: var(--ip3-text-sm); font-weight: var(--ip3-weight-medium); }
+a.ip3-post-card:hover h3, a.ip3-post-card:focus-visible h3 { color: var(--ip3-brand-red); }
+.ip3-post-slider-footer { display: grid; grid-template-columns: 1fr auto; align-items: center; margin-top: var(--ip3-space-5); }
+.ip3-post-slider-pager { grid-column: 1 / -1; grid-row: 1; display: flex; align-items: center; justify-content: center; gap: var(--ip3-space-3); }
+.ip3-post-slider-pager button { display: grid; place-items: center; width: 2rem; height: 2rem; border: 0; border-radius: var(--ip3-radius-pill); background: transparent; color: var(--ip3-ink-muted); transition: background var(--ip3-speed), color var(--ip3-speed); }
+.ip3-post-slider-pager button:hover, .ip3-post-slider-pager button:focus-visible { background: var(--ip3-surface-muted); color: var(--ip3-ink); }
+.ip3-post-slider-pager span { min-width: 3.25rem; font-size: var(--ip3-text-md); font-weight: var(--ip3-weight-medium); font-variant-numeric: tabular-nums; text-align: center; }
+.ip3-post-slider-view-all { grid-column: 2; grid-row: 1; justify-self: end; padding: var(--ip3-space-2) var(--ip3-space-5); border-radius: var(--ip3-radius-xs); background: var(--ip3-brand-yellow); color: var(--ip3-ink); font-size: var(--ip3-text-md); font-weight: var(--ip3-weight-heavy); text-decoration: none; }
+.ip3-post-slider-view-all:hover, .ip3-post-slider-view-all:focus-visible { background: color-mix(in srgb, var(--ip3-brand-yellow) 82%, var(--ip3-ink)); }
 .ip3-hr-quick-links { padding: var(--ip3-space-5); border: 1px solid var(--ip3-line); border-radius: var(--ip3-radius-md); background: var(--ip3-surface); box-shadow: var(--ip3-shadow); }
 .ip3-hr-quick-links > h2 { margin-bottom: var(--ip3-space-4); font-size: var(--ip3-type-subheading); font-weight: var(--ip3-weight-heavy); line-height: 1.25; }
 .ip3-hr-quick-links-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--ip3-space-4); }
@@ -1266,19 +1305,35 @@ a.ip3-hr-service:hover h2, a.ip3-hr-service:focus-visible h2 { color: var(--ip3-
 .intraportal-v3 button:focus-visible, .intraportal-v3 a:focus-visible { outline: 2px solid var(--ip3-brand-red); outline-offset: 3px; }
 
 @media (min-width: 68.001rem) {
-  .ip3-primary-column { display: contents; }
   .ip3-lead-grid { grid-column: 1 / -1; grid-row: 1; }
-  .ip3-announcements { grid-column: 1; grid-row: 2; }
-  .ip3-resource-grid { grid-column: 1; grid-row: 3; }
-  .ip3-performance { grid-column: 1; grid-row: 4; }
-  .ip3-community { grid-column: 1; grid-row: 5; }
-  .ip3-right-rail { grid-column: 2; grid-row: 2 / 6; align-self: start; }
+  .ip3-primary-column { grid-column: 1; grid-row: 2; }
+  .ip3-right-rail { grid-column: 2; grid-row: 2; align-self: start; }
+
+  /* Match the hero column exactly. The slider now sits inside the primary
+     column, so the full content width is rebuilt from it and the rail column,
+     then split the way .ip3-lead-grid splits it. */
+  .ip3-post-slider {
+    --ip3-lead-width: calc(100% + var(--ip3-space-4) + var(--ip3-rail-column));
+    width: min(
+      calc((var(--ip3-lead-width) - var(--ip3-space-3)) * 2 / 3),
+      calc(var(--ip3-lead-width) - var(--ip3-space-3) - var(--ip3-lead-rail-min))
+    );
+  }
+}
+
+@media (max-width: 87.5rem) {
+  /* Below ~1400px the eight nav items and the logo cell cannot both keep
+     their full width, so the logo yields before the nav does. */
+  .intraportal-v3 { --ip3-logo-column: clamp(13rem, 15.5vw, 20rem); }
 }
 
 @media (max-width: 86rem) {
-  .ip3-content-grid { grid-template-columns: minmax(0, 1fr) 24rem; }
+  .intraportal-v3 { --ip3-rail-column: 24rem; }
   .ip3-topbar { grid-template-columns: minmax(16rem, 1fr) auto; }
   .ip3-topbar-links { display: none; }
+  /* Labels carry the meaning; dropping the glyphs keeps all eight items on one
+     row at these widths instead of scrolling the nav. */
+  .ip3-nav .ip3-nav-icon { display: none; }
   .ip3-profile { padding-left: 0; border-left: 0; }
   .ip3-performance { grid-template-columns: minmax(0, 1fr); }
   .ip3-community-grid { grid-template-columns: minmax(0, 1fr); }
@@ -1359,6 +1414,7 @@ a.ip3-hr-service:hover h2, a.ip3-hr-service:focus-visible h2 { color: var(--ip3-
   .ip3-tools-grid { grid-template-columns: minmax(0, 1fr); }
   .ip3-tools-banner img { aspect-ratio: 16 / 9; }
   .ip3-tools-banner-panel { top: var(--ip3-space-4); left: var(--ip3-space-4); padding: var(--ip3-space-3) var(--ip3-space-4); }
+  .ip3-post-slider-page { grid-template-columns: minmax(0, 1fr); }
   .ip3-hr-quick-links-grid { grid-template-columns: minmax(0, 1fr); }
   .ip3-hr-service { grid-template-columns: minmax(0, 1fr); }
   .ip3-hr-service img { min-height: 0; aspect-ratio: 16 / 9; }
