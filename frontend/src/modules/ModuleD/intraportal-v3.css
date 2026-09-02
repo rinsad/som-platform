@@ -100,8 +100,8 @@
   /* Pinned: the nav is width-critical, so body copy can grow without
      pushing the eight items off the row. */
   --ip3-type-nav: 0.875rem;
-  --ip3-type-card-title: 1rem;
-  --ip3-type-subheading: 1.0625rem;
+  --ip3-type-card-title: 1.125rem;
+  --ip3-type-subheading: 1.25rem;
   --ip3-type-section-title: 1.5rem;
   --ip3-type-display: clamp(1.75rem, 2.2vw, 2rem);
   --ip3-type-page-title: clamp(2rem, 3.6vw, 3.35rem);
@@ -735,7 +735,7 @@
 .ip3-performance { display: grid; grid-template-columns: minmax(0, 1.8fr) minmax(18rem, 0.7fr); gap: var(--ip3-space-3); }
 .ip3-performance-wide { grid-template-columns: minmax(0, 1fr); }
 .ip3-performance-main { padding: clamp(1.5rem, 3vw, 2.8rem); border-radius: var(--ip3-radius-md); background: var(--ip3-brand-yellow); }
-.ip3-performance-main > h2 { max-width: 24ch; margin: var(--ip3-space-2) 0; font-size: var(--ip3-type-display); line-height: 1.08; letter-spacing: -0.035em; }
+.ip3-performance-main > h2 { max-width: none; margin: var(--ip3-space-2) 0; font-size: var(--ip3-type-display); line-height: 1.08; letter-spacing: -0.035em; }
 .ip3-performance-main > p:not(.ip3-eyebrow) { max-width: 62ch; color: var(--ip3-ink-muted); }
 .ip3-metrics { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--ip3-space-2); margin-top: var(--ip3-space-6); }
 .ip3-metrics div, .ip3-metrics a { min-height: 8.4rem; display: grid; align-content: start; gap: var(--ip3-space-1); padding: var(--ip3-space-4); background: rgba(255,255,255,0.72); border-top: 3px solid var(--ip3-brand-red); }
@@ -1036,20 +1036,31 @@
   width: 100%;
   max-width: none;
   margin: 0;
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 18rem));
-  justify-content: center;
-  gap: var(--ip3-space-8);
-  padding: var(--ip3-space-8) clamp(1rem, 2.4vw, 2.25rem);
+  padding: var(--ip3-space-8) 0;
   box-sizing: border-box;
-  border-top: 6px solid var(--ip3-brand-yellow);
   background: var(--gray-800);
   color: var(--ip3-surface);
+}
+
+/* The dark band stays full bleed while the columns line up with .ip3-main, which
+   is what the footer was missing: its columns were centred in their own narrower
+   band and read as detached from the page above. */
+.ip3-footer-inner {
+  width: 100%;
+  max-width: 87.5rem;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--ip3-space-6);
+  padding-inline: clamp(1.5rem, 2vw, 2rem);
+  box-sizing: border-box;
 }
 
 .ip3-footer h2 { margin-bottom: var(--ip3-space-3); font-size: var(--ip3-text-md); }
 .ip3-footer a { display: block; margin-top: var(--ip3-space-2); color: var(--gray-300); font-size: var(--ip3-text-sm); }
 .ip3-footer a:hover { color: var(--ip3-brand-yellow); }
+.ip3-footer-social a { display: flex; align-items: center; gap: var(--ip3-space-2); }
+.ip3-footer-social svg { flex: none; }
 
 .ip3-ceo-page { display: grid; gap: var(--ip3-space-4); }
 .ip3-ceo-breadcrumb { display: flex; align-items: center; gap: var(--ip3-space-2); color: var(--ip3-ink-subtle); font-size: var(--ip3-text-sm); font-weight: var(--ip3-weight-bold); }
@@ -1058,7 +1069,7 @@
 .ip3-ceo-banner { display: block; width: 100%; height: auto; aspect-ratio: 8638 / 2881; object-fit: cover; background: #075d58; }
 .ip3-ceo-content { display: grid; grid-template-columns: minmax(0, 1.7fr) minmax(18rem, 0.72fr); }
 .ip3-ceo-copy { min-width: 0; padding: clamp(1.5rem, 3vw, 3rem); }
-.ip3-ceo-copy h1 { max-width: 18ch; margin-top: var(--ip3-space-2); font-size: var(--ip3-type-page-title); line-height: 1.02; letter-spacing: -0.045em; }
+.ip3-ceo-copy h1 { max-width: none; margin-top: var(--ip3-space-2); font-size: var(--ip3-type-page-title); line-height: 1.02; letter-spacing: -0.045em; }
 .ip3-ceo-lede { max-width: 58ch; margin: var(--ip3-space-4) 0 var(--ip3-space-6); color: #075d58; font-size: var(--ip3-type-lede); font-weight: var(--ip3-weight-bold); line-height: 1.5; }
 .ip3-ceo-copy > p:not(.ip3-eyebrow):not(.ip3-ceo-lede):not(.ip3-ceo-signature) { max-width: 68ch; margin-top: var(--ip3-space-4); color: var(--ip3-ink-muted); font-size: var(--ip3-text-md); line-height: 1.75; }
 .ip3-ceo-copy strong { color: var(--ip3-ink); }
@@ -1241,7 +1252,7 @@ a.ip3-hr-service:hover h2, a.ip3-hr-service:focus-visible h2 { color: var(--ip3-
   line-height: 1.08;
   letter-spacing: -0.035em;
 }
-.ip3-shell-intro h2 { max-width: 15ch; margin-top: var(--ip3-space-2); font-size: var(--ip3-type-subheading); font-weight: var(--ip3-weight-heavy); line-height: 1.2; }
+.ip3-shell-intro h2 { max-width: none; margin-top: var(--ip3-space-2); font-size: var(--ip3-type-subheading); font-weight: var(--ip3-weight-heavy); line-height: 1.2; }
 .ip3-shell-intro > p:last-child { max-width: none; color: var(--ip3-ink-muted); font-size: var(--ip3-type-body); line-height: 1.65; }
 
 .ip3-shell-sections { padding: 0 0 clamp(2rem, 3.5vw, 3.5rem); }
@@ -1270,7 +1281,7 @@ a.ip3-hr-service:hover h2, a.ip3-hr-service:focus-visible h2 { color: var(--ip3-
 }
 
 .ip3-shell-feature > div { min-width: 0; }
-.ip3-shell-feature h2 { max-width: 20ch; margin-top: var(--ip3-space-2); font-size: var(--ip3-type-subheading); font-weight: var(--ip3-weight-heavy); line-height: 1.2; letter-spacing: -0.015em; }
+.ip3-shell-feature h2 { max-width: none; margin-top: var(--ip3-space-2); font-size: var(--ip3-type-subheading); font-weight: var(--ip3-weight-heavy); line-height: 1.2; letter-spacing: -0.015em; }
 .ip3-shell-feature > div > p:not(.ip3-eyebrow) { max-width: 58ch; margin-top: var(--ip3-space-4); color: var(--ip3-ink-muted); font-size: var(--ip3-type-body); line-height: 1.7; }
 
 .ip3-shell-facts { margin-top: var(--ip3-space-5); border-top: 0; }
@@ -1390,6 +1401,10 @@ a.ip3-hr-service:hover h2, a.ip3-hr-service:focus-visible h2 { color: var(--ip3-
   .ip3-shell-feature.is-reversed > div { grid-column: 1; grid-row: auto; }
 }
 
+@media (max-width: 64rem) and (min-width: 47.001rem) {
+  .ip3-footer-inner { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
 @media (max-width: 47rem) {
   .ip3-topbar { min-height: auto; grid-template-columns: auto auto minmax(0, 1fr); gap: var(--ip3-space-2); padding: var(--ip3-space-3); }
   .ip3-topbar > .ip3-brand { width: 6.5rem; }
@@ -1400,7 +1415,7 @@ a.ip3-hr-service:hover h2, a.ip3-hr-service:focus-visible h2 { color: var(--ip3-
   .ip3-main { padding-inline: var(--ip3-space-3); }
   .ip3-ticker { grid-template-columns: 1fr auto; }
   .ip3-ticker p { grid-column: 1 / -1; grid-row: 2; white-space: normal; }
-  .ip3-story-rail, .ip3-announcements, .ip3-resource-grid, .ip3-right-rail, .ip3-community-grid, .ip3-footer { grid-template-columns: minmax(0, 1fr); }
+  .ip3-story-rail, .ip3-announcements, .ip3-resource-grid, .ip3-right-rail, .ip3-community-grid, .ip3-footer-inner { grid-template-columns: minmax(0, 1fr); }
   .ip3-community-stories { grid-template-columns: minmax(0, 1fr); }
   .ip3-mood-options { grid-template-columns: repeat(5, minmax(0, 1fr)); }
   .ip3-feedback-submit { align-items: flex-end; }
@@ -1411,7 +1426,7 @@ a.ip3-hr-service:hover h2, a.ip3-hr-service:focus-visible h2 { color: var(--ip3-
   .ip3-phishing-actions { gap: var(--ip3-space-2); }
   .ip3-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .ip3-community { padding: 0; }
-  .ip3-footer { padding-inline: var(--ip3-space-5); }
+  .ip3-footer-inner { padding-inline: var(--ip3-space-5); }
   .ip3-hr-banner img { aspect-ratio: 16 / 9; }
   .ip3-hr-highlight { grid-template-columns: 6.5rem minmax(0, 1fr); }
   .ip3-tools-grid { grid-template-columns: minmax(0, 1fr); }

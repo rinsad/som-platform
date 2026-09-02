@@ -147,6 +147,13 @@ const BREAKING_NEWS = [
   },
 ];
 
+// Used by both the topbar icon row and the footer column.
+const SOCIAL_CHANNELS = [
+  { id: 'linkedin', label: 'LinkedIn', href: 'https://www.linkedin.com/company/shell', icon: LinkedinLogo },
+  { id: 'instagram', label: 'Instagram', href: 'https://www.instagram.com/shell', icon: InstagramLogo },
+  { id: 'x', label: 'X', href: 'https://x.com/Shell', icon: XLogo },
+];
+
 const POSTS_MEDIA = `${MEDIA_ROOT}/posts`;
 
 // Each entry renders as one card: image, then title, subtitle and note beneath
@@ -1953,15 +1960,17 @@ export default function IntraPortalV3({ page = 'home' }) {
           </form>
 
           <div className="ip3-topbar-links" aria-label="Social channels">
-            <a href="https://www.linkedin.com/company/shell" target="_blank" rel="noreferrer" aria-label="LinkedIn">
-              <LinkedinLogo size={22} weight="regular" aria-hidden="true" />
-            </a>
-            <a href="https://www.instagram.com/shell" target="_blank" rel="noreferrer" aria-label="Instagram">
-              <InstagramLogo size={22} weight="regular" aria-hidden="true" />
-            </a>
-            <a href="https://x.com/Shell" target="_blank" rel="noreferrer" aria-label="X">
-              <XLogo size={22} weight="regular" aria-hidden="true" />
-            </a>
+            {SOCIAL_CHANNELS.map((channel) => (
+              <a
+                key={channel.id}
+                href={channel.href}
+                target="_blank"
+                rel="noreferrer"
+                aria-label={channel.label}
+              >
+                {createElement(channel.icon, { size: 22, weight: 'regular', 'aria-hidden': 'true' })}
+              </a>
+            ))}
           </div>
 
           <div className="ip3-profile">
@@ -2197,9 +2206,20 @@ export default function IntraPortalV3({ page = 'home' }) {
         )}
 
         <footer className="ip3-footer" id="footer">
-          <div><h2>Essential links</h2><a href="/login">Code of conduct and helpline</a><a href="https://www.shell.com" target="_blank" rel="noreferrer">Shell.com</a><a href="/login">Social media guidelines</a></div>
-          <div><h2>Hub information and forms</h2><a href="/login">The hub introduction</a><a href="/login">Hub feedback and help</a><a href="/login">Report an inappropriate comment</a></div>
-          <div><h2>Terms and conditions</h2><a href="/login">Terms of use</a><a href="/login">Privacy information</a><a href="/login">Confidentiality classification rules</a></div>
+          <div className="ip3-footer-inner">
+            <div><h2>Essential links</h2><a href="/login">Code of conduct and helpline</a><a href="https://www.shell.com" target="_blank" rel="noreferrer">Shell.com</a><a href="/login">Social media guidelines</a></div>
+            <div><h2>Hub information and forms</h2><a href="/login">The hub introduction</a><a href="/login">Hub feedback and help</a><a href="/login">Report an inappropriate comment</a></div>
+            <div><h2>Terms and conditions</h2><a href="/login">Terms of use</a><a href="/login">Privacy information</a><a href="/login">Confidentiality classification rules</a></div>
+            <div className="ip3-footer-social">
+              <h2>Follow Shell</h2>
+              {SOCIAL_CHANNELS.map((channel) => (
+                <a key={channel.id} href={channel.href} target="_blank" rel="noreferrer">
+                  {createElement(channel.icon, { size: 18, weight: 'regular', 'aria-hidden': 'true' })}
+                  <span>Shell on {channel.label}</span>
+                </a>
+              ))}
+            </div>
+          </div>
         </footer>
       </div>
       {activeVideo && <VideoModal item={activeVideo} setActiveVideo={setActiveVideo} />}
