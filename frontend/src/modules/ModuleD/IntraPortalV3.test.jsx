@@ -278,11 +278,11 @@ test('renders the Goal Zero safety dashboard with the supplied performance data'
   const statusCard = screen.getByRole('region', { name: 'Goal Zero Safety Dashboard' });
   expect(within(statusCard).getByText('Shell Oman Marketing Company SAOG')).toBeInTheDocument();
   expect(within(statusCard).getByText('Safety Performance 2026')).toBeInTheDocument();
-  expect(within(statusCard).getByLabelText('212 days no harm')).toBeInTheDocument();
-  expect(within(statusCard).getByLabelText('212 days no leak')).toBeInTheDocument();
+  expect(within(statusCard).getByLabelText('243 days no harm')).toBeInTheDocument();
+  expect(within(statusCard).getByLabelText('243 days no leak')).toBeInTheDocument();
   expect(within(statusCard).getByLabelText('189 days no harm in 2025')).toBeInTheDocument();
   expect(within(statusCard).getByLabelText('365 days no leak in 2025')).toBeInTheDocument();
-  expect(within(statusCard).getByLabelText('Last updated 25 August 2026 at 8:02 AM')).toBeInTheDocument();
+  expect(within(statusCard).getByLabelText('Last updated 1 September 2026')).toBeInTheDocument();
   expect(within(statusCard).getByText('Process Safety')).toBeInTheDocument();
   expect(within(statusCard).getByText('Safety Audits')).toBeInTheDocument();
   expect(statusCard.querySelector('.ip3-safety-dashboard-artwork')).toHaveAttribute(

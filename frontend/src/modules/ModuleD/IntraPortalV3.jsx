@@ -826,8 +826,8 @@ function GoalZeroCounter() {
       <div className="ip3-safety-dashboard-section">
         <SafetySectionHeading icon={ChartBar}>Current Performance</SafetySectionHeading>
         <div className="ip3-safety-dashboard-current-grid">
-          <CurrentSafetyMetric icon={ShieldCheck} label="No Harm" value={212} />
-          <CurrentSafetyMetric icon={Drop} label="No Leak" value={212} />
+          <CurrentSafetyMetric icon={ShieldCheck} label="No Harm" value={243} />
+          <CurrentSafetyMetric icon={Drop} label="No Leak" value={243} />
         </div>
       </div>
 
@@ -841,9 +841,9 @@ function GoalZeroCounter() {
 
       <div className="ip3-safety-dashboard-section">
         <SafetySectionHeading icon={Clock}>Last Updated</SafetySectionHeading>
-        <time className="ip3-safety-dashboard-updated" dateTime="2026-08-25T08:02:00" aria-label="Last updated 25 August 2026 at 8:02 AM">
-          <span>25 August 2026</span>
-          <strong>08:02 AM</strong>
+        <time className="ip3-safety-dashboard-updated" dateTime="2026-09-01" aria-label="Last updated 1 September 2026">
+          <span>Last updated</span>
+          <strong>1 September 2026</strong>
         </time>
       </div>
 
