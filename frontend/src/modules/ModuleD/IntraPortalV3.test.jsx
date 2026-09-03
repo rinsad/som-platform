@@ -274,7 +274,7 @@ test('renders the Goal Zero safety dashboard with the supplied performance data'
   expect(within(statusCard).getByLabelText('243 days no leak')).toBeInTheDocument();
   expect(within(statusCard).getByLabelText('189 days no harm in 2025')).toBeInTheDocument();
   expect(within(statusCard).getByLabelText('365 days no leak in 2025')).toBeInTheDocument();
-  expect(within(statusCard).getByLabelText(/Last updated 1 September 2026, shown at \d{2}:\d{2} (AM|PM) Oman time/))
+  expect(within(statusCard).getByLabelText(/^\d{1,2} [A-Z][a-z]+ \d{4} at \d{2}:\d{2} (AM|PM) Oman time$/))
     .toBeInTheDocument();
   expect(within(statusCard).getByText('Process Safety')).toBeInTheDocument();
   expect(within(statusCard).getByText('Safety Audits')).toBeInTheDocument();

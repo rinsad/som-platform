@@ -806,24 +806,45 @@ function PreviousSafetyMetric({ icon, label, value }) {
   );
 }
 
-// The counter itself is published with a date only, so the date stays fixed and
-// the badge shows the Oman clock time at page load. Asia/Muscat is used rather
-// than the viewer's own zone so everyone sees the same time.
-const GOAL_ZERO_UPDATED_DATE = '1 September 2026';
-const GOAL_ZERO_UPDATED_ISO = '2026-09-01';
+// The badge reads as an Oman wall clock: both halves are resolved at page load
+// in Asia/Muscat rather than the viewer's own zone, so everyone sees the same
+// date and time wherever they are.
+const OMAN_TIME_ZONE = 'Asia/Muscat';
+
+function formatOmanDate(date) {
+  return new Intl.DateTimeFormat('en-GB', {
+    timeZone: OMAN_TIME_ZONE,
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  }).format(date);
+}
 
 function formatOmanTime(date) {
   return new Intl.DateTimeFormat('en-US', {
-    timeZone: 'Asia/Muscat',
+    timeZone: OMAN_TIME_ZONE,
     hour: '2-digit',
     minute: '2-digit',
     hour12: true,
   }).format(date);
 }
 
+// en-CA renders as YYYY-MM-DD, which is what the datetime attribute wants.
+function omanIsoDate(date) {
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: OMAN_TIME_ZONE,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(date);
+}
+
 function GoalZeroCounter() {
-  // Resolved once per mount, so it reflects the time the page was loaded.
-  const omanTime = useMemo(() => formatOmanTime(new Date()), []);
+  // Resolved once per mount, so it reflects the moment the page was loaded.
+  const omanNow = useMemo(() => {
+    const now = new Date();
+    return { date: formatOmanDate(now), time: formatOmanTime(now), iso: omanIsoDate(now) };
+  }, []);
 
   return (
     <section className="ip3-goal-zero-counter" aria-labelledby="ip3-goal-zero-title">
@@ -862,11 +883,11 @@ function GoalZeroCounter() {
         <SafetySectionHeading icon={Clock}>Last Updated</SafetySectionHeading>
         <time
           className="ip3-safety-dashboard-updated"
-          dateTime={GOAL_ZERO_UPDATED_ISO}
-          aria-label={`Last updated ${GOAL_ZERO_UPDATED_DATE}, shown at ${omanTime} Oman time`}
+          dateTime={omanNow.iso}
+          aria-label={`${omanNow.date} at ${omanNow.time} Oman time`}
         >
-          <span>{GOAL_ZERO_UPDATED_DATE}</span>
-          <strong>{omanTime}</strong>
+          <span>{omanNow.date}</span>
+          <strong>{omanNow.time}</strong>
         </time>
       </div>
 
