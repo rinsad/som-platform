@@ -544,12 +544,6 @@
 .ip3-topbar-links a { width: 1.75rem; height: 1.75rem; display: grid; place-items: center; border-radius: var(--ip3-radius-pill); color: var(--ip3-ink-muted); }
 .ip3-topbar-links a:hover { background: var(--fill-primary); color: var(--ip3-brand-red); }
 
-.ip3-profile { min-width: 13rem; display: grid; grid-template-columns: 2.35rem 1fr; align-items: center; gap: var(--ip3-space-2); padding-left: var(--ip3-space-4); border-left: 1px solid var(--ip3-line); }
-.ip3-profile img { width: 2.35rem; height: 2.35rem; object-fit: cover; border-radius: var(--ip3-radius-pill); border: 2px solid var(--ip3-brand-yellow); background: var(--ip3-line); }
-.ip3-profile span { display: grid; gap: 1px; min-width: 0; }
-.ip3-profile strong, .ip3-profile small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.ip3-profile strong { font-size: var(--ip3-text-md); }
-.ip3-profile small { color: var(--ip3-ink-muted); font-size: var(--ip3-text-xs); font-weight: 700; }
 
 .ip3-main { grid-row: 3; width: 100%; max-width: 87.5rem; margin: 0 auto; padding: var(--ip3-space-4) clamp(1.5rem, 2vw, 2rem) var(--ip3-space-8); }
 
@@ -896,13 +890,6 @@
   line-height: var(--ip3-leading-tight);
 }
 
-.ip3-profile strong {
-  font-size: var(--ip3-type-body);
-  font-weight: var(--ip3-weight-bold);
-  line-height: var(--ip3-leading-tight);
-}
-
-.ip3-profile small,
 .ip3-golden-status > p,
 .ip3-golden-status-item small,
 .ip3-golden-scale-labels,
@@ -1139,6 +1126,7 @@ a.ip3-tool-card:hover h3, a.ip3-tool-card:focus-visible h3 { color: var(--ip3-to
 .ip3-tool-card[data-tone="health"] { --ip3-tool-tone: var(--tool-tone-health); }
 .ip3-tool-card[data-tone="wellness"] { --ip3-tool-tone: var(--tool-tone-wellness); }
 .ip3-tool-card[data-tone="time"] { --ip3-tool-tone: var(--tool-tone-time); }
+.ip3-tool-card[data-tone="expenses"] { --ip3-tool-tone: var(--tool-tone-expenses); }
 .ip3-tool-card h3 { font-size: var(--ip3-text-md); font-weight: var(--ip3-weight-heavy); line-height: 1.3; }
 .ip3-tool-card p { color: var(--ip3-ink-muted); font-size: var(--ip3-text-sm); line-height: var(--ip3-leading-body); }
 .ip3-people-page { display: grid; gap: var(--ip3-space-4); align-content: start; }
@@ -1349,7 +1337,6 @@ a.ip3-hr-service:hover h2, a.ip3-hr-service:focus-visible h2 { color: var(--ip3-
   /* Labels carry the meaning; dropping the glyphs keeps all eight items on one
      row at these widths instead of scrolling the nav. */
   .ip3-nav .ip3-nav-icon { display: none; }
-  .ip3-profile { padding-left: 0; border-left: 0; }
   .ip3-performance { grid-template-columns: minmax(0, 1fr); }
   .ip3-community-grid { grid-template-columns: minmax(0, 1fr); }
   .ip3-community-stories { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -1373,8 +1360,6 @@ a.ip3-hr-service:hover h2, a.ip3-hr-service:focus-visible h2 { color: var(--ip3-
   .ip3-topbar > .ip3-brand { width: 8.5rem; height: auto; position: static; padding: var(--ip3-space-3); border-bottom: 0; }
   .ip3-topbar > .ip3-brand img { width: min(7.5rem, 94%); max-height: 3.9rem; }
   .ip3-menu-button { display: inline-flex; padding: 0.72rem var(--ip3-space-3); border: 1px solid var(--ip3-line); border-radius: var(--ip3-radius-sm); background: var(--ip3-surface); color: var(--ip3-brand-red); font-weight: 800; }
-  .ip3-profile { min-width: 2.8rem; grid-template-columns: 2.8rem; }
-  .ip3-profile span { display: none; }
   .ip3-content-grid { grid-template-columns: minmax(0, 1fr); }
   .ip3-lead-grid { grid-template-columns: minmax(0, 1fr); }
   .ip3-right-rail { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -1408,7 +1393,6 @@ a.ip3-hr-service:hover h2, a.ip3-hr-service:focus-visible h2 { color: var(--ip3-
 @media (max-width: 47rem) {
   .ip3-topbar { min-height: auto; grid-template-columns: auto auto minmax(0, 1fr); gap: var(--ip3-space-2); padding: var(--ip3-space-3); }
   .ip3-topbar > .ip3-brand { width: 6.5rem; }
-  .ip3-profile { display: none; }
   .ip3-mega-menu { left: 0; width: calc(100vw - var(--ip3-space-3)); grid-template-columns: minmax(0, 1fr); }
   .ip3-mega-group { min-height: auto; }
   .ip3-search button { padding: 0 var(--ip3-space-3); }

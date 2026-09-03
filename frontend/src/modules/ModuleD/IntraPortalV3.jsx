@@ -33,6 +33,7 @@ import {
   Pause,
   Play,
   ReadCvLogo,
+  Receipt,
   RoadHorizon,
   Shield,
   ShieldCheck,
@@ -805,7 +806,25 @@ function PreviousSafetyMetric({ icon, label, value }) {
   );
 }
 
+// The counter itself is published with a date only, so the date stays fixed and
+// the badge shows the Oman clock time at page load. Asia/Muscat is used rather
+// than the viewer's own zone so everyone sees the same time.
+const GOAL_ZERO_UPDATED_DATE = '1 September 2026';
+const GOAL_ZERO_UPDATED_ISO = '2026-09-01';
+
+function formatOmanTime(date) {
+  return new Intl.DateTimeFormat('en-US', {
+    timeZone: 'Asia/Muscat',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: true,
+  }).format(date);
+}
+
 function GoalZeroCounter() {
+  // Resolved once per mount, so it reflects the time the page was loaded.
+  const omanTime = useMemo(() => formatOmanTime(new Date()), []);
+
   return (
     <section className="ip3-goal-zero-counter" aria-labelledby="ip3-goal-zero-title">
       <header className="ip3-safety-dashboard-header">
@@ -841,9 +860,13 @@ function GoalZeroCounter() {
 
       <div className="ip3-safety-dashboard-section">
         <SafetySectionHeading icon={Clock}>Last Updated</SafetySectionHeading>
-        <time className="ip3-safety-dashboard-updated" dateTime="2026-09-01" aria-label="Last updated 1 September 2026">
-          <span>Last updated</span>
-          <strong>1 September 2026</strong>
+        <time
+          className="ip3-safety-dashboard-updated"
+          dateTime={GOAL_ZERO_UPDATED_ISO}
+          aria-label={`Last updated ${GOAL_ZERO_UPDATED_DATE}, shown at ${omanTime} Oman time`}
+        >
+          <span>{GOAL_ZERO_UPDATED_DATE}</span>
+          <strong>{omanTime}</strong>
         </time>
       </div>
 
@@ -1560,6 +1583,14 @@ const TOOLS_AND_RESOURCES = [
     icon: Clock,
     href: 'https://performancemanager.successfactors.eu/sf/liveprofile?company=ShellOmanMktg&categoryId=timeManagement',
   },
+  {
+    id: 'concur-expense-claims',
+    tone: 'expenses',
+    title: 'Sign in to Concur | Concur Solutions',
+    description: 'Submit, track, and manage your business expense claims through Concur in one convenient place.',
+    icon: Receipt,
+    href: 'https://eu1.concursolutions.com/nui/signin',
+  },
 ];
 
 function ToolsAndResourcesPage() {
@@ -1752,16 +1783,6 @@ export default function IntraPortalV3({ page = 'home' }) {
     setOpenSubmenu((current) => (current === submenuId ? null : submenuId));
   };
 
-  const storedUser = useMemo(() => {
-    try {
-      return JSON.parse(localStorage.getItem('som_user') || 'null');
-    } catch {
-      return null;
-    }
-  }, []);
-
-  const userName = storedUser?.name || 'Nada Al-Balushi';
-  const userRole = storedUser?.role || 'Payroll & HR system administrator';
   const breakingNews = BREAKING_NEWS[activeNews];
 
   useEffect(() => {
@@ -1971,11 +1992,6 @@ export default function IntraPortalV3({ page = 'home' }) {
                 {createElement(channel.icon, { size: 22, weight: 'regular', 'aria-hidden': 'true' })}
               </a>
             ))}
-          </div>
-
-          <div className="ip3-profile">
-            <Image src={`${MEDIA_ROOT}/profile-nada.webp`} alt={`${userName} profile`} />
-            <span><strong>{userName}</strong><small>{userRole}</small></span>
           </div>
         </header>
 

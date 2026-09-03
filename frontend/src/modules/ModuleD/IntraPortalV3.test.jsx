@@ -264,14 +264,6 @@ test('shows the current new-baby congratulations announcement', () => {
   expect(screen.queryByText('Celebrating a new addition to the family')).not.toBeInTheDocument();
 });
 
-test('uses the signed-in user profile when available', () => {
-  localStorage.setItem('som_user', JSON.stringify({ name: 'Sara Al Balushi', role: 'Operations manager' }));
-  render(<IntraPortalV3 />);
-
-  expect(screen.getByText('Sara Al Balushi')).toBeInTheDocument();
-  expect(screen.getByText('Operations manager')).toBeInTheDocument();
-});
-
 test('renders the Goal Zero safety dashboard with the supplied performance data', () => {
   render(<IntraPortalV3 />);
 
@@ -282,7 +274,8 @@ test('renders the Goal Zero safety dashboard with the supplied performance data'
   expect(within(statusCard).getByLabelText('243 days no leak')).toBeInTheDocument();
   expect(within(statusCard).getByLabelText('189 days no harm in 2025')).toBeInTheDocument();
   expect(within(statusCard).getByLabelText('365 days no leak in 2025')).toBeInTheDocument();
-  expect(within(statusCard).getByLabelText('Last updated 1 September 2026')).toBeInTheDocument();
+  expect(within(statusCard).getByLabelText(/Last updated 1 September 2026, shown at \d{2}:\d{2} (AM|PM) Oman time/))
+    .toBeInTheDocument();
   expect(within(statusCard).getByText('Process Safety')).toBeInTheDocument();
   expect(within(statusCard).getByText('Safety Audits')).toBeInTheDocument();
   expect(statusCard.querySelector('.ip3-safety-dashboard-artwork')).toHaveAttribute(
@@ -335,7 +328,7 @@ test('uses project media instead of remote placeholder images', () => {
 
   const imageSources = [...container.querySelectorAll('img')].map((image) => image.getAttribute('src'));
   expect(imageSources.some((source) => source?.includes('picsum.photos'))).toBe(false);
-  expect(imageSources.filter((source) => source?.startsWith('/intraportal-v3/media/'))).toHaveLength(25);
+  expect(imageSources.filter((source) => source?.startsWith('/intraportal-v3/media/'))).toHaveLength(24);
   expect(screen.getByAltText(/annual report cover/i)).toHaveAttribute(
     'src',
     '/intraportal-v3/media/annual-report-2025.webp',

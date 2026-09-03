@@ -47,6 +47,7 @@
   --tool-tone-health:   #db2777;
   --tool-tone-wellness: #65a30d;
   --tool-tone-time:     var(--shell-navy);
+  --tool-tone-expenses: #2563eb;
 
   /* ── Semantic status — the ONLY status palette (accent / text / soft-bg) ──── */
   --success:      #16a34a;  --success-text: #166534;  --success-bg: #f0fdf4;
