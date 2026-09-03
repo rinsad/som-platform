@@ -1494,6 +1494,15 @@ function LearningPage() {
         <span aria-current="page">Learning</span>
       </nav>
 
+      <section className="ip3-hr-banner" aria-label="Learning and development">
+        <Image
+          src={`${LEARNING_MATERIALS_MEDIA}/learning-banner.webp`}
+          alt="Learn today, grow tomorrow — empowering our people to grow, innovate and deliver more for Oman. Explore a wide range of learning resources, develop your skills and capabilities, achieve your goals and strengthen performance, and succeed together to make a lasting impact."
+          loading="eager"
+          fetchPriority="high"
+        />
+      </section>
+
       <section className="ip3-hr-quick-links" aria-labelledby="ip3-learning-materials-title">
         <p className="ip3-eyebrow">Learning</p>
         <h2 id="ip3-learning-materials-title">Learning materials</h2>

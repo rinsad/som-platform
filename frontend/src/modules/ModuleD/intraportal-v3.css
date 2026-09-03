@@ -1097,6 +1097,10 @@ a.ip3-hr-highlight:hover h2, a.ip3-hr-highlight:focus-visible h2 { color: var(--
 .ip3-hr-highlight h2 { font-size: var(--ip3-type-card-title); font-weight: var(--ip3-weight-heavy); line-height: 1.25; }
 
 .ip3-learning-page { display: grid; gap: var(--ip3-space-4); }
+/* The banner art is authored at exactly 21:8 and carries its own headline, so
+   it keeps that ratio at every width — the narrow-screen 16:9 crop used by the
+   HR photos would cut into the wordmark and the people. */
+.ip3-learning-page .ip3-hr-banner img { aspect-ratio: 21 / 8; object-position: center; }
 .ip3-learning-page .ip3-hr-quick-links > h2 { margin-top: var(--ip3-space-1); }
 .ip3-learning-page .ip3-hr-quick-links-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--ip3-space-4) var(--ip3-space-5); }
 .ip3-tools-page { display: grid; gap: var(--ip3-space-5); }
@@ -1412,6 +1416,7 @@ a.ip3-hr-service:hover h2, a.ip3-hr-service:focus-visible h2 { color: var(--ip3-
   .ip3-community { padding: 0; }
   .ip3-footer-inner { padding-inline: var(--ip3-space-5); }
   .ip3-hr-banner img { aspect-ratio: 16 / 9; }
+  .ip3-learning-page .ip3-hr-banner img { aspect-ratio: 21 / 8; }
   .ip3-hr-highlight { grid-template-columns: 6.5rem minmax(0, 1fr); }
   .ip3-tools-grid { grid-template-columns: minmax(0, 1fr); }
   .ip3-tools-banner img { aspect-ratio: 16 / 9; }
