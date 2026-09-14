@@ -45,7 +45,6 @@ import {
   SquaresFour,
   Star,
   Toolbox,
-  TreeStructure,
   User,
   UsersThree,
   X,
@@ -62,7 +61,6 @@ const NAV_ITEMS = [
   { label: 'HR online', icon: IdentificationCard, href: '/hr-online' },
   { label: 'Upcoming events', icon: CalendarDots, href: '#performance' },
   { label: 'Find us', icon: MapPin, href: '#footer' },
-  { label: 'Org structure', icon: TreeStructure, href: '#ip3-main' },
   { label: 'Learning', icon: GraduationCap, href: '/learning' },
 ];
 
@@ -134,10 +132,6 @@ const LEAD_STORIES = [
 // Frontend-only demonstration data. Replace this array with the CMS response
 // when the intraportal backend is connected.
 const BREAKING_NEWS = [
-  {
-    headline: 'Shell agrees to sell Spring Energy Group to Aditya Birla Renewables Limited.',
-    target: 'news',
-  },
   {
     headline: 'Shell Oman celebrates the opening of Oman’s first hydrogen service station.',
     target: 'performance',
@@ -562,9 +556,7 @@ function LatestPostsSlider() {
   };
 
   return (
-    <section className="ip3-post-slider" aria-labelledby="ip3-post-slider-title">
-      <h2 id="ip3-post-slider-title">Latest updates</h2>
-
+    <section className="ip3-post-slider" aria-label="Latest updates">
       {/* Every page stays in the DOM and the track slides, so the panel keeps
           one height across pages and the change can be animated. */}
       <div className="ip3-post-slider-viewport">
@@ -2105,30 +2097,6 @@ export default function IntraPortalV3({ page = 'home' }) {
                 </div>
               </article>
 
-              <div className="ip3-story-rail">
-                {SIDE_NEWS.map((item) => (
-                  <article key={item.title} className="ip3-story-rail-item">
-                    <button
-                      className="ip3-story-rail-trigger"
-                      type="button"
-                      aria-label={`Play video: ${item.title}`}
-                      aria-haspopup="dialog"
-                      onClick={() => setActiveVideo(item)}
-                    >
-                      <span className="ip3-story-rail-thumbnail">
-                        <Image src={item.image} alt="" className={item.thumbnailClass} />
-                        <span className="ip3-story-rail-play" aria-hidden="true">
-                          <Play size={25} weight="fill" />
-                        </span>
-                      </span>
-                      <span className="ip3-story-rail-copy">
-                        <strong>{item.title}</strong>
-                        <span>{item.description}</span>
-                      </span>
-                    </button>
-                  </article>
-                ))}
-              </div>
             </section>
 
             <div className="ip3-primary-column">
@@ -2205,6 +2173,31 @@ export default function IntraPortalV3({ page = 'home' }) {
 
             <aside className="ip3-right-rail" aria-label="Quick information">
               <GoalZeroCounter />
+
+              <div className="ip3-story-rail">
+                {SIDE_NEWS.map((item) => (
+                  <article key={item.title} className="ip3-story-rail-item">
+                    <button
+                      className="ip3-story-rail-trigger"
+                      type="button"
+                      aria-label={`Play video: ${item.title}`}
+                      aria-haspopup="dialog"
+                      onClick={() => setActiveVideo(item)}
+                    >
+                      <span className="ip3-story-rail-thumbnail">
+                        <Image src={item.image} alt="" className={item.thumbnailClass} />
+                        <span className="ip3-story-rail-play" aria-hidden="true">
+                          <Play size={25} weight="fill" />
+                        </span>
+                      </span>
+                      <span className="ip3-story-rail-copy">
+                        <strong>{item.title}</strong>
+                        <span>{item.description}</span>
+                      </span>
+                    </button>
+                  </article>
+                ))}
+              </div>
 
               <a
                 className="ip3-rail-banner"

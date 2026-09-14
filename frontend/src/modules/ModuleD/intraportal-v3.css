@@ -138,9 +138,6 @@
   --ip3-shadow-raised: var(--shadow-md);
   --ip3-speed: var(--transition);
   --ip3-logo-column: clamp(16rem, 18vw, 23rem);
-  /* Width of the story rail beside the hero. The post slider matches the
-     hero column, so both are derived from this and --ip3-space-3. */
-  --ip3-lead-rail-min: 20rem;
   /* Width of the right-hand rail column of .ip3-content-grid. */
   --ip3-rail-column: 27rem;
 
@@ -572,7 +569,7 @@
 .ip3-content-grid { display: grid; grid-template-columns: minmax(0, 1fr) var(--ip3-rail-column); gap: var(--ip3-space-4); align-items: start; }
 .ip3-primary-column, .ip3-right-rail { display: grid; gap: var(--ip3-space-4); min-width: 0; }
 
-.ip3-lead-grid { display: grid; grid-template-columns: minmax(0, 2fr) minmax(var(--ip3-lead-rail-min), 1fr); gap: var(--ip3-space-3); }
+.ip3-lead-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--ip3-space-3); }
 .ip3-lead-story { position: relative; aspect-ratio: 1356 / 768; min-height: 0; overflow: hidden; border-radius: var(--ip3-radius-md); background: var(--gray-800); box-shadow: var(--ip3-shadow-raised); }
 .ip3-story-track { position: absolute; inset: 0; display: flex; will-change: transform; transition: transform 900ms cubic-bezier(0.22, 0.61, 0.36, 1); }
 @media (prefers-reduced-motion: reduce) { .ip3-story-track { transition: none; } }
@@ -586,7 +583,7 @@
 /* The hero sets the row height via its aspect-ratio. Zeroing the rail's own
    contribution keeps its cards from making the row taller, then min-height
    stretches it back to exactly that row. */
-.ip3-story-rail { display: grid; grid-auto-rows: minmax(0, 1fr); gap: var(--ip3-space-3); height: 0; min-height: 100%; }
+.ip3-story-rail { display: grid; gap: var(--ip3-space-3); }
 .ip3-story-rail-item { min-height: 0; overflow: hidden; border: 1px solid var(--ip3-line); border-radius: var(--ip3-radius-md); background: var(--ip3-surface); transition: border-color var(--ip3-speed); }
 .ip3-story-rail-item:hover { border-color: var(--accent-amber-line); }
 .ip3-story-rail-item:focus-within { border-color: var(--ip3-brand-red); box-shadow: 0 0 0 2px color-mix(in srgb, var(--ip3-brand-red) 18%, transparent); }
@@ -1137,7 +1134,6 @@ a.ip3-tool-card:hover h3, a.ip3-tool-card:focus-visible h3 { color: var(--ip3-to
 .ip3-people-page .ip3-announcement { max-width: 56rem; justify-self: center; width: 100%; }
 .ip3-people-page .ip3-announcement img { max-width: 20rem; max-height: 20rem; }
 .ip3-post-slider { padding: var(--ip3-space-5); border: 1px solid var(--ip3-line); border-radius: var(--ip3-radius-md); background: var(--ip3-surface); box-shadow: var(--ip3-shadow); }
-.ip3-post-slider > h2 { margin-bottom: var(--ip3-space-4); font-size: var(--ip3-type-subheading); font-weight: var(--ip3-weight-heavy); line-height: 1.25; }
 .ip3-post-slider-viewport { overflow: hidden; }
 .ip3-post-slider-track { display: flex; align-items: stretch; will-change: transform; transition: transform 520ms cubic-bezier(0.22, 0.61, 0.36, 1); }
 @media (prefers-reduced-motion: reduce) { .ip3-post-slider-track { transition: none; } }
@@ -1312,20 +1308,9 @@ a.ip3-hr-service:hover h2, a.ip3-hr-service:focus-visible h2 { color: var(--ip3-
 .intraportal-v3 button:focus-visible, .intraportal-v3 a:focus-visible { outline: 2px solid var(--ip3-brand-red); outline-offset: 3px; }
 
 @media (min-width: 68.001rem) {
-  .ip3-lead-grid { grid-column: 1 / -1; grid-row: 1; }
+  .ip3-lead-grid { grid-column: 1; grid-row: 1; }
   .ip3-primary-column { grid-column: 1; grid-row: 2; }
-  .ip3-right-rail { grid-column: 2; grid-row: 2; align-self: start; }
-
-  /* Match the hero column exactly. The slider now sits inside the primary
-     column, so the full content width is rebuilt from it and the rail column,
-     then split the way .ip3-lead-grid splits it. */
-  .ip3-post-slider {
-    --ip3-lead-width: calc(100% + var(--ip3-space-4) + var(--ip3-rail-column));
-    width: min(
-      calc((var(--ip3-lead-width) - var(--ip3-space-3)) * 2 / 3),
-      calc(var(--ip3-lead-width) - var(--ip3-space-3) - var(--ip3-lead-rail-min))
-    );
-  }
+  .ip3-right-rail { grid-column: 2; grid-row: 1 / span 2; align-self: start; }
 }
 
 @media (max-width: 87.5rem) {
@@ -1365,7 +1350,6 @@ a.ip3-hr-service:hover h2, a.ip3-hr-service:focus-visible h2 { color: var(--ip3-
   .ip3-topbar > .ip3-brand img { width: min(7.5rem, 94%); max-height: 3.9rem; }
   .ip3-menu-button { display: inline-flex; padding: 0.72rem var(--ip3-space-3); border: 1px solid var(--ip3-line); border-radius: var(--ip3-radius-sm); background: var(--ip3-surface); color: var(--ip3-brand-red); font-weight: 800; }
   .ip3-content-grid { grid-template-columns: minmax(0, 1fr); }
-  .ip3-lead-grid { grid-template-columns: minmax(0, 1fr); }
   .ip3-right-rail { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 

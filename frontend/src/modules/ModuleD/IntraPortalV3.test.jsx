@@ -11,8 +11,8 @@ test('renders the reference-based portal hierarchy', () => {
   const { container } = render(<IntraPortalV3 />);
 
   expect(screen.getByRole('navigation', { name: /portal navigation/i })).toBeInTheDocument();
-  expect(container.querySelectorAll('.ip3-nav .ip3-nav-icon')).toHaveLength(8);
-  expect(container.querySelectorAll('.ip3-nav a')).toHaveLength(7);
+  expect(container.querySelectorAll('.ip3-nav .ip3-nav-icon')).toHaveLength(7);
+  expect(container.querySelectorAll('.ip3-nav a')).toHaveLength(6);
   expect(screen.getByRole('button', { name: 'Our Shell' })).toHaveAttribute('aria-expanded', 'false');
   expect(container.querySelector('.ip3-nav .is-active')).not.toBeInTheDocument();
   expect(container.querySelector('.ip3-nav [aria-current="page"]')).not.toBeInTheDocument();
@@ -176,15 +176,12 @@ test('hero carousel auto-advances and can be paused', () => {
   }
 });
 
-test('rotates through three frontend demo breaking-news items', () => {
+test('rotates through the frontend demo breaking-news items', () => {
   vi.useFakeTimers();
 
   try {
     render(<IntraPortalV3 />);
 
-    expect(screen.getByText('Shell agrees to sell Spring Energy Group to Aditya Birla Renewables Limited.')).toBeInTheDocument();
-
-    act(() => vi.advanceTimersByTime(6000));
     expect(screen.getByText('Shell Oman celebrates the opening of Oman’s first hydrogen service station.')).toBeInTheDocument();
 
     act(() => vi.advanceTimersByTime(6000));
