@@ -2031,124 +2031,126 @@ export default function IntraPortalV3({ page = 'home' }) {
           </section>
 
           <div className="ip3-content-grid">
-            <section className="ip3-lead-grid" id="news" aria-label="Latest company news">
-              <article className="ip3-lead-story" aria-label="Shell Oman past and today carousel">
-                <div
-                  className="ip3-story-track"
-                  style={{ transform: `translate3d(-${activeStory * 100}%, 0, 0)` }}
-                >
-                  {LEAD_STORIES.map((item, index) => (
-                    <Image
-                      key={item.id}
-                      src={item.image}
-                      alt={item.alt}
-                      loading={index === 0 ? 'eager' : 'lazy'}
-                      fetchPriority={index === 0 ? 'high' : undefined}
-                      ariaHidden={activeStory !== index}
-                    />
-                  ))}
-                </div>
-                <div className="ip3-story-controls" aria-label="Lead story controls">
-                  <button
-                    type="button"
-                    className="ip3-story-control-play"
-                    onClick={() => setStoryPaused((value) => !value)}
-                    aria-label={storyPaused ? 'Play banner carousel' : 'Pause banner carousel'}
+            <div className="ip3-main-column">
+              <section className="ip3-lead-grid" id="news" aria-label="Latest company news">
+                <article className="ip3-lead-story" aria-label="Shell Oman past and today carousel">
+                  <div
+                    className="ip3-story-track"
+                    style={{ transform: `translate3d(-${activeStory * 100}%, 0, 0)` }}
                   >
-                    {storyPaused
-                      ? <Play size={15} weight="fill" aria-hidden="true" />
-                      : <Pause size={15} weight="fill" aria-hidden="true" />}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => showStory(activeStory - 1)}
-                    aria-label="Previous banner"
-                  >
-                    <CaretLeft size={15} weight="bold" aria-hidden="true" />
-                  </button>
-                  <span aria-live="polite">{activeStory + 1} of {LEAD_STORIES.length}</span>
-                  <button
-                    type="button"
-                    onClick={() => showStory(activeStory + 1)}
-                    aria-label="Next banner"
-                  >
-                    <CaretRight size={15} weight="bold" aria-hidden="true" />
-                  </button>
-                </div>
-              </article>
-
-            </section>
-
-            <div className="ip3-primary-column">
-              <LatestPostsSlider />
-
-              <section className="ip3-resource-grid" id="learning">
-                <ThinkSecureLearning />
-              </section>
-
-              <section
-                className={`ip3-performance${SHOW_UPCOMING_EVENTS ? '' : ' ip3-performance-wide'}`}
-                id="performance"
-              >
-                <div className="ip3-performance-main">
-                  <h2>Governance, Ethics &amp; Compliance</h2>
-                  <p>
-                    Find the guidance, policies, and resources you need to make informed decisions
-                    and uphold Shell&rsquo;s values.
-                  </p>
-                  <div className="ip3-metrics">
-                    {GOVERNANCE_TILES.map((tile) => {
-                      const Tile = tile.href ? 'a' : 'div';
-                      const linkProps = tile.href
-                        ? { href: tile.href, target: '_blank', rel: 'noreferrer' }
-                        : {};
-
-                      return (
-                        <Tile key={tile.id} {...linkProps}>
-                          <strong>{tile.title}</strong>
-                          <span>{tile.tagline}</span>
-                          <small>{tile.description}</small>
-                        </Tile>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                {SHOW_UPCOMING_EVENTS && (
-                  <aside className="ip3-events" aria-label="Upcoming events">
-                    <h2>Upcoming company and country events</h2>
-                    {EVENTS.map((event) => (
-                      <article key={`${event.day}-${event.title}`}>
-                        <time><strong>{event.day}</strong><span>{event.month}</span></time>
-                        <div><h3>{event.title}</h3><p>{event.detail}</p></div>
-                      </article>
+                    {LEAD_STORIES.map((item, index) => (
+                      <Image
+                        key={item.id}
+                        src={item.image}
+                        alt={item.alt}
+                        loading={index === 0 ? 'eager' : 'lazy'}
+                        fetchPriority={index === 0 ? 'high' : undefined}
+                        ariaHidden={activeStory !== index}
+                      />
                     ))}
-                  </aside>
-                )}
+                  </div>
+                  <div className="ip3-story-controls" aria-label="Lead story controls">
+                    <button
+                      type="button"
+                      className="ip3-story-control-play"
+                      onClick={() => setStoryPaused((value) => !value)}
+                      aria-label={storyPaused ? 'Play banner carousel' : 'Pause banner carousel'}
+                    >
+                      {storyPaused
+                        ? <Play size={15} weight="fill" aria-hidden="true" />
+                        : <Pause size={15} weight="fill" aria-hidden="true" />}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => showStory(activeStory - 1)}
+                      aria-label="Previous banner"
+                    >
+                      <CaretLeft size={15} weight="bold" aria-hidden="true" />
+                    </button>
+                    <span aria-live="polite">{activeStory + 1} of {LEAD_STORIES.length}</span>
+                    <button
+                      type="button"
+                      onClick={() => showStory(activeStory + 1)}
+                      aria-label="Next banner"
+                    >
+                      <CaretRight size={15} weight="bold" aria-hidden="true" />
+                    </button>
+                  </div>
+                </article>
+
               </section>
 
-              <section className="ip3-community" id="tools">
-                <div className="ip3-community-grid">
-                  <EmployeePulse />
-                  <div className="ip3-community-stories">
-                    <article className="ip3-community-baby-announcement" aria-labelledby="ip3-baby-announcement-title">
-                      <header>
-                        <h3 id="ip3-baby-announcement-title">Congratulations</h3>
-                      </header>
-                      <div className="ip3-community-baby-body">
-                        <ul>
-                          <li>Haneen Al Hatrooshi was blessed with a baby girl.</li>
-                          <li>Salah Al Mahrooqi was blessed with a baby girl.</li>
-                          <li>Omar Al Alawi was blessed with twins (boy &amp; girl).</li>
-                          <li>Mohammed Al Balushi was blessed with a baby girl.</li>
-                        </ul>
-                        <Image className="ip3-community-baby-art" src={`${MEDIA_ROOT}/baby-congratulations-art.png`} alt="" />
-                      </div>
-                    </article>
-                    <article className="ip3-community-banner"><Image src={`${MEDIA_ROOT}/long-service-awards.webp`} alt="Long Service Awards — honouring our people, celebrating their legacy" /></article>
+              <div className="ip3-primary-column">
+                <LatestPostsSlider />
+
+                <section className="ip3-resource-grid" id="learning">
+                  <ThinkSecureLearning />
+                </section>
+
+                <section
+                  className={`ip3-performance${SHOW_UPCOMING_EVENTS ? '' : ' ip3-performance-wide'}`}
+                  id="performance"
+                >
+                  <div className="ip3-performance-main">
+                    <h2>Governance, Ethics &amp; Compliance</h2>
+                    <p>
+                      Find the guidance, policies, and resources you need to make informed decisions
+                      and uphold Shell&rsquo;s values.
+                    </p>
+                    <div className="ip3-metrics">
+                      {GOVERNANCE_TILES.map((tile) => {
+                        const Tile = tile.href ? 'a' : 'div';
+                        const linkProps = tile.href
+                          ? { href: tile.href, target: '_blank', rel: 'noreferrer' }
+                          : {};
+
+                        return (
+                          <Tile key={tile.id} {...linkProps}>
+                            <strong>{tile.title}</strong>
+                            <span>{tile.tagline}</span>
+                            <small>{tile.description}</small>
+                          </Tile>
+                        );
+                      })}
+                    </div>
                   </div>
-                </div>
-              </section>
+
+                  {SHOW_UPCOMING_EVENTS && (
+                    <aside className="ip3-events" aria-label="Upcoming events">
+                      <h2>Upcoming company and country events</h2>
+                      {EVENTS.map((event) => (
+                        <article key={`${event.day}-${event.title}`}>
+                          <time><strong>{event.day}</strong><span>{event.month}</span></time>
+                          <div><h3>{event.title}</h3><p>{event.detail}</p></div>
+                        </article>
+                      ))}
+                    </aside>
+                  )}
+                </section>
+
+                <section className="ip3-community" id="tools">
+                  <div className="ip3-community-grid">
+                    <EmployeePulse />
+                    <div className="ip3-community-stories">
+                      <article className="ip3-community-baby-announcement" aria-labelledby="ip3-baby-announcement-title">
+                        <header>
+                          <h3 id="ip3-baby-announcement-title">Congratulations</h3>
+                        </header>
+                        <div className="ip3-community-baby-body">
+                          <ul>
+                            <li>Haneen Al Hatrooshi was blessed with a baby girl.</li>
+                            <li>Salah Al Mahrooqi was blessed with a baby girl.</li>
+                            <li>Omar Al Alawi was blessed with twins (boy &amp; girl).</li>
+                            <li>Mohammed Al Balushi was blessed with a baby girl.</li>
+                          </ul>
+                          <Image className="ip3-community-baby-art" src={`${MEDIA_ROOT}/baby-congratulations-art.png`} alt="" />
+                        </div>
+                      </article>
+                      <article className="ip3-community-banner"><Image src={`${MEDIA_ROOT}/long-service-awards.webp`} alt="Long Service Awards — honouring our people, celebrating their legacy" /></article>
+                    </div>
+                  </div>
+                </section>
+              </div>
             </div>
 
             <aside className="ip3-right-rail" aria-label="Quick information">

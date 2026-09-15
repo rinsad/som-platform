@@ -567,7 +567,7 @@
 }
 
 .ip3-content-grid { display: grid; grid-template-columns: minmax(0, 1fr) var(--ip3-rail-column); gap: var(--ip3-space-4); align-items: start; }
-.ip3-primary-column, .ip3-right-rail { display: grid; gap: var(--ip3-space-4); min-width: 0; }
+.ip3-main-column, .ip3-primary-column, .ip3-right-rail { display: grid; gap: var(--ip3-space-4); align-content: start; min-width: 0; }
 
 .ip3-lead-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--ip3-space-3); }
 .ip3-lead-story { position: relative; aspect-ratio: 1356 / 768; min-height: 0; overflow: hidden; border-radius: var(--ip3-radius-md); background: var(--gray-800); box-shadow: var(--ip3-shadow-raised); }
@@ -1139,7 +1139,7 @@ a.ip3-tool-card:hover h3, a.ip3-tool-card:focus-visible h3 { color: var(--ip3-to
 @media (prefers-reduced-motion: reduce) { .ip3-post-slider-track { transition: none; } }
 .ip3-post-slider-page { flex: 0 0 100%; min-width: 100%; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-content: start; gap: var(--ip3-space-4); }
 .ip3-post-card { display: grid; align-content: start; gap: var(--ip3-space-2); color: inherit; text-decoration: none; }
-.ip3-post-card-media { position: relative; display: block; overflow: hidden; border-radius: var(--ip3-radius-sm); background: var(--ip3-surface-muted); }
+.ip3-post-card-media { position: relative; display: block; overflow: hidden; border: 1px solid var(--ip3-line); border-radius: var(--ip3-radius-sm); background: var(--ip3-surface-muted); }
 .ip3-post-card-media img { display: block; width: 100%; height: auto; aspect-ratio: 16 / 10; object-fit: cover; object-position: center top; }
 .ip3-post-card-media.is-portrait img { object-fit: contain; }
 .ip3-post-card-tags { position: absolute; top: var(--ip3-space-2); left: var(--ip3-space-2); display: grid; justify-items: start; gap: var(--ip3-space-1); }
@@ -1308,9 +1308,7 @@ a.ip3-hr-service:hover h2, a.ip3-hr-service:focus-visible h2 { color: var(--ip3-
 .intraportal-v3 button:focus-visible, .intraportal-v3 a:focus-visible { outline: 2px solid var(--ip3-brand-red); outline-offset: 3px; }
 
 @media (min-width: 68.001rem) {
-  .ip3-lead-grid { grid-column: 1; grid-row: 1; }
-  .ip3-primary-column { grid-column: 1; grid-row: 2; }
-  .ip3-right-rail { grid-column: 2; grid-row: 1 / span 2; align-self: start; }
+  .ip3-right-rail { align-self: start; }
 }
 
 @media (max-width: 87.5rem) {
