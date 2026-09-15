@@ -18,6 +18,7 @@ set -Eeuo pipefail
 #   RUN_MIGRATIONS=1 ./deploy.sh
 #   SKIP_GIT_PULL=1 ./deploy.sh
 #   FRONTEND_DEPLOY_DIR=/var/www/som-platform ./deploy.sh
+#   FRONTEND_KEEP_PATHS='intraportal-v3/videos/ uploads/' ./deploy.sh
 #   BACKEND_PM2_APP=backend ./deploy.sh
 #   FRONTEND_PM2_APP=frontend ./deploy.sh
 
@@ -26,6 +27,11 @@ BACKEND_DIR="${BACKEND_DIR:-$APP_DIR/backend}"
 FRONTEND_DIR="${FRONTEND_DIR:-$APP_DIR/frontend}"
 
 FRONTEND_DEPLOY_DIR="${FRONTEND_DEPLOY_DIR:-}"
+# Paths under FRONTEND_DEPLOY_DIR that exist only on the server and must
+# survive publishing. The portal videos are gitignored (see .gitignore), so
+# they are never in frontend/dist and a bare `rsync --delete` would remove
+# them from the live site. Space-separated, relative to FRONTEND_DEPLOY_DIR.
+FRONTEND_KEEP_PATHS="${FRONTEND_KEEP_PATHS:-intraportal-v3/videos/}"
 BACKEND_SERVICE="${BACKEND_SERVICE:-som-platform-backend}"
 BACKEND_PM2_APP="${BACKEND_PM2_APP:-backend}"
 FRONTEND_PM2_APP="${FRONTEND_PM2_APP:-frontend}"
@@ -146,9 +152,17 @@ deploy_frontend() {
   run_as_root mkdir -p "$FRONTEND_DEPLOY_DIR"
 
   if command -v rsync >/dev/null 2>&1; then
-    run_as_root rsync -a --delete "$FRONTEND_DIR/dist/" "$FRONTEND_DEPLOY_DIR/"
+    rsync_args=(-a --delete)
+    for keep_path in $FRONTEND_KEEP_PATHS; do
+      log "Preserving server-only path: $keep_path"
+      rsync_args+=(--exclude "$keep_path")
+    done
+    run_as_root rsync "${rsync_args[@]}" "$FRONTEND_DIR/dist/" "$FRONTEND_DEPLOY_DIR/"
   else
-    run_as_root find "$FRONTEND_DEPLOY_DIR" -mindepth 1 -maxdepth 1 -exec rm -rf {} +
+    # Without rsync there is no way to clear stale files while keeping
+    # FRONTEND_KEEP_PATHS, so copy over the top and leave old assets behind
+    # rather than risk deleting server-only media.
+    log "rsync not found; copying without removing stale files"
     run_as_root cp -a "$FRONTEND_DIR/dist/." "$FRONTEND_DEPLOY_DIR/"
   fi
 
