@@ -2217,8 +2217,8 @@ export default function IntraPortalV3({ page = 'home' }) {
                 <span>From inception to the future</span>
                 <Image
                   className="ip3-report-cover"
-                  src={`${MEDIA_ROOT}/annual-report-2025.webp`}
-                  alt="Annual report cover featuring Oman’s mountains and energy infrastructure"
+                  src={`${MEDIA_ROOT}/annual-report-2025-covers.jpg`}
+                  alt="Annual report covers in Arabic and English — From Inception to the Future"
                 />
                 <a
                   href="https://www.shelloman.com.om/en_om/investors/results-and-reporting/annual-reports.html"

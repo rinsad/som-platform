@@ -328,7 +328,7 @@ test('uses project media instead of remote placeholder images', () => {
   expect(imageSources.filter((source) => source?.startsWith('/intraportal-v3/media/'))).toHaveLength(24);
   expect(screen.getByAltText(/annual report cover/i)).toHaveAttribute(
     'src',
-    '/intraportal-v3/media/annual-report-2025.webp',
+    '/intraportal-v3/media/annual-report-2025-covers.jpg',
   );
 });
 
