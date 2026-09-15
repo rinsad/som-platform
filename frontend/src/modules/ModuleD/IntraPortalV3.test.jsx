@@ -176,13 +176,13 @@ test('hero carousel auto-advances and can be paused', () => {
   }
 });
 
-test('rotates through the frontend demo breaking-news items', () => {
+test('keeps showing the frontend demo breaking-news item as the ticker advances', () => {
   vi.useFakeTimers();
 
   try {
     render(<IntraPortalV3 />);
 
-    expect(screen.getByText('Shell Oman celebrates the opening of Oman’s first hydrogen service station.')).toBeInTheDocument();
+    expect(screen.getByText('Shell People Survey 2026 opens on 19 August to 18 September.')).toBeInTheDocument();
 
     act(() => vi.advanceTimersByTime(6000));
     expect(screen.getByText('Shell People Survey 2026 opens on 19 August to 18 September.')).toBeInTheDocument();
@@ -325,7 +325,7 @@ test('uses project media instead of remote placeholder images', () => {
 
   const imageSources = [...container.querySelectorAll('img')].map((image) => image.getAttribute('src'));
   expect(imageSources.some((source) => source?.includes('picsum.photos'))).toBe(false);
-  expect(imageSources.filter((source) => source?.startsWith('/intraportal-v3/media/'))).toHaveLength(24);
+  expect(imageSources.filter((source) => source?.startsWith('/intraportal-v3/media/'))).toHaveLength(22);
   expect(screen.getByAltText(/annual report cover/i)).toHaveAttribute(
     'src',
     '/intraportal-v3/media/annual-report-2025-covers.jpg',
@@ -376,15 +376,15 @@ test('home page links to the people stories instead of embedding them', () => {
   const visiblePage = () => container.querySelector('.ip3-post-slider-page:not([inert])');
   const hrefsOf = (page) => [...page.querySelectorAll('a.ip3-post-card')].map((card) => card.getAttribute('href'));
 
-  expect(container.querySelectorAll('.ip3-post-slider-page')).toHaveLength(2);
+  expect(container.querySelectorAll('.ip3-post-slider-page')).toHaveLength(1);
   expect(hrefsOf(visiblePage())).toEqual([
     'https://eu001-sp.shell.com/sites/SPO000684',
-    'https://shell2.service-now.com/esc?id=irm_index',
+    '/welcome-shurooq-al-darmaki',
   ]);
 
-  fireEvent.click(screen.getByRole('button', { name: 'Next stories' }));
-  expect(hrefsOf(visiblePage())).toEqual(['/welcome-shurooq-al-darmaki', '/own-the-spotlight-salma-al-madailwi']);
-  expect(container.querySelector('.ip3-post-slider-track')).toHaveStyle({ transform: 'translate3d(-100%, 0, 0)' });
+  // a single page needs no pager
+  expect(screen.queryByRole('button', { name: 'Next stories' })).not.toBeInTheDocument();
+  expect(container.querySelector('.ip3-post-slider-track')).toHaveStyle({ transform: 'translate3d(-0%, 0, 0)' });
 });
 
 test('links to the Shell People Survey from the HR online highlights', () => {

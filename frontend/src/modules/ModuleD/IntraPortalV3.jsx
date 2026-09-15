@@ -133,10 +133,6 @@ const LEAD_STORIES = [
 // when the intraportal backend is connected.
 const BREAKING_NEWS = [
   {
-    headline: 'Shell Oman celebrates the opening of Oman’s first hydrogen service station.',
-    target: 'performance',
-  },
-  {
     headline: 'Shell People Survey 2026 opens on 19 August to 18 September.',
     target: 'learning',
   },
@@ -163,14 +159,6 @@ const LATEST_POSTS = [
     href: 'https://eu001-sp.shell.com/sites/SPO000684',
   },
   {
-    id: 'how-to-move-toward-40',
-    title: 'How to move toward 40%',
-    subtitle: 'Every valid report takes us closer to our 40% ambition.',
-    image: `${POSTS_MEDIA}/internal-screens-03.jpg`,
-    alt: 'Don’t fall into the trap — report suspicious emails',
-    href: 'https://shell2.service-now.com/esc?id=irm_index',
-  },
-  {
     id: 'welcome-shurooq-al-darmaki',
     portrait: true,
     title: 'Welcome on board, Shurooq Al Darmaki',
@@ -179,16 +167,6 @@ const LATEST_POSTS = [
     image: `${MEDIA_ROOT}/portrait-shurooq-al-darmaki.png`,
     alt: 'Shurooq Al Darmaki, Corporate Finance Accountant',
     href: '/welcome-shurooq-al-darmaki',
-  },
-  {
-    id: 'own-the-spotlight-salma-al-madailwi',
-    portrait: true,
-    title: 'OWN the Spotlight: Salma Al Madailwi',
-    subtitle: 'Ambition and Empowerment',
-    note: '“Every Challenge Creates an Opportunity to Grow”',
-    image: `${MEDIA_ROOT}/portrait-salma-al-madailwi.png`,
-    alt: 'Salma Al Madailwi',
-    href: '/own-the-spotlight-salma-al-madailwi',
   },
 ];
 

@@ -847,11 +847,11 @@
 .ip3-rail-banner { display: block; transition: border-color var(--ip3-speed), box-shadow var(--ip3-speed); }
 .ip3-rail-banner img { display: block; width: 100%; height: auto; aspect-ratio: 16 / 10; object-fit: cover; }
 .ip3-rail-banner:hover, .ip3-rail-banner:focus-visible { border-color: var(--ip3-brand-red); box-shadow: var(--ip3-shadow-raised); }
-.ip3-corporate-card { position: relative; min-height: 18rem; padding: var(--ip3-space-5); background: var(--success-bg) !important; }
+.ip3-corporate-card { position: relative; min-height: 20rem; padding: var(--ip3-space-5); background: var(--success-bg) !important; }
 .ip3-corporate-card > p { color: var(--success-text); font-size: var(--ip3-text-xs); font-weight: var(--ip3-weight-heavy); text-transform: uppercase; letter-spacing: 0.06em; }
 .ip3-corporate-card h2 { margin-top: var(--ip3-space-3); font-size: var(--ip3-text-xl); }
 .ip3-corporate-card > span { display: block; max-width: 14ch; margin-top: var(--ip3-space-1); color: var(--ip3-ink-muted); }
-.ip3-report-cover { position: absolute; right: var(--ip3-space-5); bottom: var(--ip3-space-5); width: 6rem; aspect-ratio: 0.72; object-fit: cover; border: 1px solid var(--ip3-line); background: var(--ip3-surface); box-shadow: var(--ip3-shadow); }
+.ip3-report-cover { position: absolute; right: var(--ip3-space-5); bottom: var(--ip3-space-5); width: min(12rem, 45%); aspect-ratio: 0.72; object-fit: contain; border: 1px solid var(--ip3-line); background: var(--ip3-surface); box-shadow: var(--ip3-shadow); }
 .ip3-corporate-card button, .ip3-corporate-card > a { position: absolute; left: var(--ip3-space-5); bottom: var(--ip3-space-5); text-decoration: none; }
 
 .ip3-watch-card { padding: var(--ip3-space-5); }
