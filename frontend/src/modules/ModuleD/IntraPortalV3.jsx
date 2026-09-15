@@ -647,7 +647,7 @@ const GOVERNANCE_TILES = [
     title: 'Lexi',
     tagline: 'Your Ethics & Compliance Chatbot',
     description: 'The place to go for all Ethics & Compliance guidance - making it simpler than ever to do the right thing.',
-    href: null,
+    href: 'https://eu001-sp.shell.com/sites/SPO004984',
   },
   {
     id: 'ethics-and-compliance-learning',
