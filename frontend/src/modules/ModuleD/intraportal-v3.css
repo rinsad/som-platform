@@ -1133,7 +1133,7 @@ a.ip3-tool-card:hover h3, a.ip3-tool-card:focus-visible h3 { color: var(--ip3-to
 .ip3-people-page { display: grid; gap: var(--ip3-space-4); align-content: start; }
 .ip3-people-page .ip3-announcement { max-width: 56rem; justify-self: center; width: 100%; }
 .ip3-people-page .ip3-announcement img { max-width: 20rem; max-height: 20rem; }
-.ip3-post-slider { padding: var(--ip3-space-5); border: 1px solid var(--ip3-line); border-radius: var(--ip3-radius-md); background: var(--ip3-surface); box-shadow: var(--ip3-shadow); }
+.ip3-post-slider { padding: 0; border: 0; border-radius: 0; background: transparent; box-shadow: none; }
 .ip3-post-slider-viewport { overflow: hidden; }
 .ip3-post-slider-track { display: flex; align-items: stretch; will-change: transform; transition: transform 520ms cubic-bezier(0.22, 0.61, 0.36, 1); }
 @media (prefers-reduced-motion: reduce) { .ip3-post-slider-track { transition: none; } }

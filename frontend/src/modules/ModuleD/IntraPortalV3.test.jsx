@@ -25,6 +25,9 @@ test('renders the reference-based portal hierarchy', () => {
     '/intraportal-v3/media/banners/05-Banners_Hero_Carousel_Past&Today_SOM_1356x768px-01.jpg',
   );
   expect(screen.getByRole('heading', { name: /governance, ethics & compliance/i })).toBeInTheDocument();
+  expect(screen.getByText('Lexi')).toBeInTheDocument();
+  expect(screen.getByText('Your Ethics & Compliance Chatbot')).toBeInTheDocument();
+  expect(screen.queryByText('Code of Conduct')).not.toBeInTheDocument();
   expect(screen.getByRole('heading', { name: /more to watch/i })).toBeInTheDocument();
 });
 

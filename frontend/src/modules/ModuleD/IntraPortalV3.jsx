@@ -533,6 +533,8 @@ function LatestPostsSlider() {
     setPage((index + pages.length) % pages.length);
   };
 
+  const hasFooter = pages.length > 1 || Boolean(LATEST_POSTS_VIEW_ALL_HREF);
+
   return (
     <section className="ip3-post-slider" aria-label="Latest updates">
       {/* Every page stays in the DOM and the track slides, so the panel keeps
@@ -577,23 +579,25 @@ function LatestPostsSlider() {
         </div>
       </div>
 
-      <div className="ip3-post-slider-footer">
-        {pages.length > 1 ? (
-          <div className="ip3-post-slider-pager">
-            <button type="button" onClick={() => showPage(page - 1)} aria-label="Previous stories">
-              <CaretLeft size={17} weight="bold" aria-hidden="true" />
-            </button>
-            <span aria-live="polite">{page + 1} of {pages.length}</span>
-            <button type="button" onClick={() => showPage(page + 1)} aria-label="Next stories">
-              <CaretRight size={17} weight="bold" aria-hidden="true" />
-            </button>
-          </div>
-        ) : null}
+      {hasFooter ? (
+        <div className="ip3-post-slider-footer">
+          {pages.length > 1 ? (
+            <div className="ip3-post-slider-pager">
+              <button type="button" onClick={() => showPage(page - 1)} aria-label="Previous stories">
+                <CaretLeft size={17} weight="bold" aria-hidden="true" />
+              </button>
+              <span aria-live="polite">{page + 1} of {pages.length}</span>
+              <button type="button" onClick={() => showPage(page + 1)} aria-label="Next stories">
+                <CaretRight size={17} weight="bold" aria-hidden="true" />
+              </button>
+            </div>
+          ) : null}
 
-        {LATEST_POSTS_VIEW_ALL_HREF ? (
-          <a className="ip3-post-slider-view-all" href={LATEST_POSTS_VIEW_ALL_HREF}>View All</a>
-        ) : null}
-      </div>
+          {LATEST_POSTS_VIEW_ALL_HREF ? (
+            <a className="ip3-post-slider-view-all" href={LATEST_POSTS_VIEW_ALL_HREF}>View All</a>
+          ) : null}
+        </div>
+      ) : null}
     </section>
   );
 }
@@ -685,14 +689,12 @@ function EmployeePulse() {
   );
 }
 
-// The Code of Conduct tile has no destination yet — the client is still to supply
-// the document, so it renders as a plain (unlinked) tile until then.
 const GOVERNANCE_TILES = [
   {
-    id: 'code-of-conduct',
-    title: 'Code of Conduct',
-    tagline: 'Our Values in Action',
-    description: 'Guidance and resources to support ethical behavior and responsible decision-making.',
+    id: 'lexi-chatbot',
+    title: 'Lexi',
+    tagline: 'Your Ethics & Compliance Chatbot',
+    description: 'The place to go for all Ethics & Compliance guidance - making it simpler than ever to do the right thing.',
     href: null,
   },
   {
