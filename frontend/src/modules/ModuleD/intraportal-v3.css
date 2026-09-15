@@ -636,10 +636,8 @@
 .ip3-announcements { display: grid; grid-template-columns: minmax(0, 1fr); align-items: start; gap: var(--ip3-space-3); }
 .ip3-announcement { min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: auto auto 1fr; overflow: hidden; border: 1px solid var(--ip3-line); border-radius: var(--ip3-radius-md); background: var(--ip3-surface); box-shadow: var(--ip3-shadow); }
 .ip3-announcement-banner { grid-column: 1 / -1; padding: var(--ip3-space-3) var(--ip3-space-4); font-size: var(--ip3-text-sm); font-weight: var(--ip3-weight-heavy); text-transform: uppercase; letter-spacing: 0.04em; }
-.ip3-announcement-red .ip3-announcement-banner,
 .ip3-announcement-light .ip3-announcement-banner { border-top: 5px solid var(--ip3-brand-yellow); background: var(--ip3-surface-muted); color: var(--ip3-brand-red); }
 .ip3-announcement img { width: auto; max-width: 56%; height: auto; max-height: 11.5rem; display: block; justify-self: center; margin-top: var(--ip3-space-4); object-fit: contain; background: transparent; }
-.ip3-announcement img.ip3-announcement-salma,
 .ip3-announcement img.ip3-announcement-shurooq { object-position: center; background: transparent; }
 .ip3-announcement > div:last-child { align-self: stretch; display: grid; align-content: start; gap: var(--ip3-space-2); padding: var(--ip3-space-5); }
 .ip3-announcement p { font-size: var(--ip3-text-lg); line-height: 1.35; }
@@ -1007,13 +1005,6 @@
 }
 .ip3-announcement-copy-long .ip3-announcement-lead { color: var(--ip3-ink); }
 .ip3-announcement-copy-long strong { font-size: inherit; font-weight: var(--ip3-weight-bold); }
-.ip3-announcement-copy-section { display: grid; gap: var(--ip3-space-2); }
-.ip3-announcement-copy-section h3 {
-  color: var(--ip3-ink);
-  font-size: var(--ip3-type-body);
-  font-weight: var(--ip3-weight-regular);
-  line-height: var(--ip3-leading-body);
-}
 
 .ip3-footer {
   grid-row: 4;

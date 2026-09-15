@@ -335,22 +335,6 @@ test('uses project media instead of remote placeholder images', () => {
   );
 });
 
-test('features Salma Al-Madailwi on the OWN the Spotlight page', () => {
-  const { container } = render(<IntraPortalV3 page="own-the-spotlight-salma-al-madailwi" />);
-
-  const rotationCard = container.querySelector('.ip3-announcement-red');
-  expect(rotationCard).not.toBeNull();
-  expect(within(rotationCard).getByAltText('Salma Al-Madailwi portrait')).toHaveAttribute(
-    'src',
-    '/intraportal-v3/media/portrait-salma-al-madailwi.png',
-  );
-  expect(rotationCard).toHaveTextContent(/Every Challenge Creates an Opportunity to Grow/i);
-  expect(rotationCard).toHaveTextContent(/My name is Salma Al-Madailwi, an Aviation Operations Executive/i);
-  expect(rotationCard).toHaveTextContent(/Creativity and Community - How I Show Up and Add Value/i);
-  expect(rotationCard).toHaveTextContent(/Serenity & Energy - Staying Grounded Beyond Work/i);
-  expect(screen.queryByText(/Noura Al Hashar/)).not.toBeInTheDocument();
-});
-
 test('features Shurooq Al Darmaki on the new joiner page', () => {
   const { container } = render(<IntraPortalV3 page="welcome-shurooq-al-darmaki" />);
 
@@ -371,7 +355,6 @@ test('features Shurooq Al Darmaki on the new joiner page', () => {
 test('home page links to the people stories instead of embedding them', () => {
   const { container } = render(<IntraPortalV3 />);
 
-  expect(container.querySelector('.ip3-announcement-red')).not.toBeInTheDocument();
   expect(container.querySelector('.ip3-announcement-light')).not.toBeInTheDocument();
 
   // every page stays mounted so the panel keeps one height; only the visible

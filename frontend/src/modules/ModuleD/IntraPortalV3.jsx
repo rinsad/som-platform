@@ -423,7 +423,6 @@ function ThinkSecureLearning() {
 }
 
 const PEOPLE_STORIES = {
-  'own-the-spotlight-salma-al-madailwi': 'OWN the Spotlight',
   'welcome-shurooq-al-darmaki': 'Staff announcement',
 };
 
@@ -439,82 +438,35 @@ function PeopleStoryPage({ slug }) {
         <span aria-current="page">{crumb}</span>
       </nav>
 
-      {slug === 'own-the-spotlight-salma-al-madailwi' ? (
-        <article className="ip3-announcement ip3-announcement-red">
-          <div className="ip3-announcement-banner">OWN the Spotlight</div>
-          <Image
-            className="ip3-announcement-salma"
-            src={`${MEDIA_ROOT}/portrait-salma-al-madailwi.png`}
-            alt="Salma Al-Madailwi portrait"
-          />
-          <div className="ip3-announcement-copy-long">
-            <section className="ip3-announcement-copy-section">
-              <h3><strong>Ambition and Empowerment</strong> - “Every Challenge Creates an Opportunity to Grow”</h3>
-              <p>
-                My name is <strong>Salma Al-Madailwi</strong>, an Aviation Operations Executive with over eight years of
-                aviation experience and ten years with Shell Oman Marketing. My expertise focuses on operations
-                management and HSSE, ensuring safe, efficient, and compliant operations. I hold a Bachelor&apos;s degree
-                in Applied Chemistry, an MBA from Franklin University, and a NEBOSH International General Certificate.
-                These qualifications, combined with practical experience, have strengthened my capabilities in risk
-                management, operational excellence, stakeholder engagement, and continuous improvement.
-              </p>
-              <p>
-                Over the years, I have had the opportunity to work in dynamic and fast-paced operational environments,
-                gaining valuable experience in operational coordination and safety management.
-              </p>
-            </section>
-            <section className="ip3-announcement-copy-section">
-              <h3><strong>Creativity and Community</strong> - How I Show Up and Add Value</h3>
-              <p>
-                I believe creativity in aviation comes from finding practical solutions that connect people, processes,
-                and operational needs. I add value through collaboration, problem-solving, and continuous improvement,
-                while supporting teams to achieve operational excellence and Goal Zero. Building strong relationships,
-                encouraging open communication, and fostering teamwork are central to how I contribute to a positive and
-                high-performing work environment.
-              </p>
-            </section>
-            <section className="ip3-announcement-copy-section">
-              <h3><strong>Serenity &amp; Energy</strong> - Staying Grounded Beyond Work</h3>
-              <p>
-                I am a proud mother of two wonderful daughters, who inspire me daily and remind me of the importance of
-                balance, resilience, and growth. My family is my greatest source of strength and support. Outside of work,
-                I enjoy graphic design, which allows me to express creativity and develop new skills. Spending quality
-                time with my family helps me stay focused, adaptable, and motivated both personally and professionally.
-              </p>
-            </section>
-          </div>
-        </article>
-      ) : (
-        <article className="ip3-announcement ip3-announcement-light">
-          <div className="ip3-announcement-banner">Staff announcement · new joiner</div>
-          <Image
-            className="ip3-announcement-shurooq"
-            src={`${MEDIA_ROOT}/portrait-shurooq-al-darmaki.png`}
-            alt="Shurooq Al Darmaki portrait"
-          />
-          <div className="ip3-announcement-copy-long">
-            <p className="ip3-announcement-lead">
-              We are delighted to announce that <strong>Shurooq Al Darmaki</strong> is joining Shell Oman as{' '}
-              <strong>Corporate Finance Accountant</strong>, effective <strong>9th of August 2026.</strong>
-            </p>
-            <p>
-              Shurooq brings seven years of experience across external audit and corporate finance in the professional
-              services and energy sectors. Most recently, she worked in the Financial Control function as a General
-              Ledger Specialist at OQ Refineries and Petroleum Industries (OQ RPI), where she was responsible for
-              financial reporting, month-end close activities, account reconciliations, and driving finance process
-              improvements. Prior to OQ RPI, Shurooq spent four years with EY, building a strong foundation in external
-              audit, financial reporting, risk assessment, and internal controls while working with clients across a
-              range of industries.
-            </p>
-            <p>Shurooq holds a bachelor’s degree in accounting from Modern College of Business and Science.</p>
-            <p>
-              Outside of work, she enjoys travelling, staying active, and embracing new challenges for learning and
-              personal growth.
-            </p>
-            <p>We are thrilled to welcome Shurooq to our team and wish her great success in her new role.</p>
-          </div>
-        </article>
-      )}
+      <article className="ip3-announcement ip3-announcement-light">
+        <div className="ip3-announcement-banner">Staff announcement · new joiner</div>
+        <Image
+          className="ip3-announcement-shurooq"
+          src={`${MEDIA_ROOT}/portrait-shurooq-al-darmaki.png`}
+          alt="Shurooq Al Darmaki portrait"
+        />
+        <div className="ip3-announcement-copy-long">
+          <p className="ip3-announcement-lead">
+            We are delighted to announce that <strong>Shurooq Al Darmaki</strong> is joining Shell Oman as{' '}
+            <strong>Corporate Finance Accountant</strong>, effective <strong>9th of August 2026.</strong>
+          </p>
+          <p>
+            Shurooq brings seven years of experience across external audit and corporate finance in the professional
+            services and energy sectors. Most recently, she worked in the Financial Control function as a General
+            Ledger Specialist at OQ Refineries and Petroleum Industries (OQ RPI), where she was responsible for
+            financial reporting, month-end close activities, account reconciliations, and driving finance process
+            improvements. Prior to OQ RPI, Shurooq spent four years with EY, building a strong foundation in external
+            audit, financial reporting, risk assessment, and internal controls while working with clients across a
+            range of industries.
+          </p>
+          <p>Shurooq holds a bachelor’s degree in accounting from Modern College of Business and Science.</p>
+          <p>
+            Outside of work, she enjoys travelling, staying active, and embracing new challenges for learning and
+            personal growth.
+          </p>
+          <p>We are thrilled to welcome Shurooq to our team and wish her great success in her new role.</p>
+        </div>
+      </article>
     </main>
   );
 }
