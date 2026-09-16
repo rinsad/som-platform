@@ -169,6 +169,15 @@ const LATEST_POSTS = [
     alt: 'Riyadh Ashoor, LSC Maintenance Manager',
     href: '/welcome-riyadh-ashoor',
   },
+  {
+    id: 'welcome-shurooq-al-darmaki',
+    title: 'Welcome on board, Shurooq Al Darmaki',
+    subtitle: 'Corporate Finance Accountant',
+    note: 'Welcome to new beginnings and exciting opportunities together.',
+    image: `${MEDIA_ROOT}/portrait-shurooq-al-darmaki.jpg`,
+    alt: 'Shurooq Al Darmaki, Corporate Finance Accountant',
+    href: '/welcome-shurooq-al-darmaki',
+  },
 ];
 
 // Destination for the "View All" pill. The pill is hidden while this is null.
@@ -412,44 +421,73 @@ function ThinkSecureLearning() {
 }
 
 const PEOPLE_STORIES = {
-  'welcome-riyadh-ashoor': 'Staff announcement',
+  'welcome-riyadh-ashoor': {
+    name: 'Riyadh Ashoor',
+    portrait: `${MEDIA_ROOT}/portrait-riyadh-ashoor.jpg`,
+    body: (
+      <>
+        <p className="ip3-announcement-lead">
+          We are delighted to announce that <strong>Riyadh Ashoor</strong> is joining Shell Oman as{' '}
+          <strong>LSC Maintenance Manager</strong>, effective <strong>13th September 2026.</strong>
+        </p>
+        <p>
+          Riyadh brings over 11 years of experience in operations and mechanical engineering across the Oil &amp; Gas,
+          Water Treatment, Environmental Solutions, and Drone Inspection sectors. Most recently, Riyadh served as
+          Operations Manager at Ibn Firnas Drone Center and previously as Operations and Process Manager at Veolia
+          Oman, leading asset integrity, autonomous inspection, and digital asset monitoring initiatives for major
+          clients, including PDO and OQGN.
+        </p>
+        <p>Riyadh holds a Bachelor’s degree in Mechanical Engineering and a Master’s degree in Process Engineering.</p>
+        <p>Outside of work, he enjoys fitness and travelling.</p>
+        <p>We are thrilled to welcome Riyadh to our team and wish him great success in his new role.</p>
+      </>
+    ),
+  },
+  'welcome-shurooq-al-darmaki': {
+    name: 'Shurooq Al Darmaki',
+    portrait: `${MEDIA_ROOT}/portrait-shurooq-al-darmaki.jpg`,
+    body: (
+      <>
+        <p className="ip3-announcement-lead">
+          We are delighted to announce that <strong>Shurooq Al Darmaki</strong> is joining Shell Oman as{' '}
+          <strong>Corporate Finance Accountant</strong>, effective <strong>9th of August 2026.</strong>
+        </p>
+        <p>
+          Shurooq brings seven years of experience across external audit and corporate finance in the professional
+          services and energy sectors. Most recently, she worked in the Financial Control function as a General
+          Ledger Specialist at OQ Refineries and Petroleum Industries (OQ RPI), where she was responsible for
+          financial reporting, month-end close activities, account reconciliations, and driving finance process
+          improvements. Prior to OQ RPI, Shurooq spent four years with EY, building a strong foundation in external
+          audit, financial reporting, risk assessment, and internal controls while working with clients across a
+          range of industries.
+        </p>
+        <p>Shurooq holds a bachelor’s degree in accounting from Modern College of Business and Science.</p>
+        <p>
+          Outside of work, she enjoys travelling, staying active, and embracing new challenges for learning and
+          personal growth.
+        </p>
+        <p>We are thrilled to welcome Shurooq to our team and wish her great success in her new role.</p>
+      </>
+    ),
+  },
 };
 
 function PeopleStoryPage({ slug }) {
-  const crumb = PEOPLE_STORIES[slug];
-  if (!crumb) return null;
+  const story = PEOPLE_STORIES[slug];
+  if (!story) return null;
 
   return (
     <main className="ip3-main ip3-people-page" id="ip3-main">
       <nav className="ip3-ceo-breadcrumb" aria-label="Breadcrumb">
         <a href="/">SOM Connect</a>
         <CaretRight size={15} weight="bold" aria-hidden="true" />
-        <span aria-current="page">{crumb}</span>
+        <span aria-current="page">Staff announcement</span>
       </nav>
 
       <article className="ip3-announcement ip3-announcement-light">
         <div className="ip3-announcement-banner">Staff announcement · new joiner</div>
-        <Image
-          className="ip3-announcement-portrait"
-          src={`${MEDIA_ROOT}/portrait-riyadh-ashoor.jpg`}
-          alt="Riyadh Ashoor portrait"
-        />
-        <div className="ip3-announcement-copy-long">
-          <p className="ip3-announcement-lead">
-            We are delighted to announce that <strong>Riyadh Ashoor</strong> is joining Shell Oman as{' '}
-            <strong>LSC Maintenance Manager</strong>, effective <strong>13th September 2026.</strong>
-          </p>
-          <p>
-            Riyadh brings over 11 years of experience in operations and mechanical engineering across the Oil &amp; Gas,
-            Water Treatment, Environmental Solutions, and Drone Inspection sectors. Most recently, Riyadh served as
-            Operations Manager at Ibn Firnas Drone Center and previously as Operations and Process Manager at Veolia
-            Oman, leading asset integrity, autonomous inspection, and digital asset monitoring initiatives for major
-            clients, including PDO and OQGN.
-          </p>
-          <p>Riyadh holds a Bachelor’s degree in Mechanical Engineering and a Master’s degree in Process Engineering.</p>
-          <p>Outside of work, he enjoys fitness and travelling.</p>
-          <p>We are thrilled to welcome Riyadh to our team and wish him great success in his new role.</p>
-        </div>
+        <Image className="ip3-announcement-portrait" src={story.portrait} alt={`${story.name} portrait`} />
+        <div className="ip3-announcement-copy-long">{story.body}</div>
       </article>
     </main>
   );

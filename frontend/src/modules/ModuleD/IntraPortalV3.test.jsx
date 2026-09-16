@@ -329,7 +329,7 @@ test('uses project media instead of remote placeholder images', () => {
 
   const imageSources = [...container.querySelectorAll('img')].map((image) => image.getAttribute('src'));
   expect(imageSources.some((source) => source?.includes('picsum.photos'))).toBe(false);
-  expect(imageSources.filter((source) => source?.startsWith('/intraportal-v3/media/'))).toHaveLength(22);
+  expect(imageSources.filter((source) => source?.startsWith('/intraportal-v3/media/'))).toHaveLength(23);
   expect(screen.getByAltText(/annual report cover/i)).toHaveAttribute(
     'src',
     '/intraportal-v3/media/annual-report-2025-covers.jpg',
@@ -353,6 +353,23 @@ test('features Riyadh Ashoor on the new joiner page', () => {
   expect(newJoinerCard).toHaveTextContent(/thrilled to welcome Riyadh to our team/i);
 });
 
+test('features Shurooq Al Darmaki on the new joiner page', () => {
+  const { container } = render(<IntraPortalV3 page="welcome-shurooq-al-darmaki" />);
+
+  const newJoinerCard = container.querySelector('.ip3-announcement-light');
+  expect(newJoinerCard).not.toBeNull();
+  expect(within(newJoinerCard).getByAltText('Shurooq Al Darmaki portrait')).toHaveAttribute(
+    'src',
+    '/intraportal-v3/media/portrait-shurooq-al-darmaki.jpg',
+  );
+  expect(newJoinerCard).toHaveTextContent(
+    /We are delighted to announce that Shurooq Al Darmaki is joining Shell Oman as Corporate Finance Accountant, effective 9th of August 2026\./i,
+  );
+  expect(newJoinerCard).toHaveTextContent(/Shurooq brings seven years of experience across external audit/i);
+  expect(newJoinerCard).toHaveTextContent(/thrilled to welcome Shurooq to our team/i);
+  expect(newJoinerCard).not.toHaveTextContent(/Riyadh/);
+});
+
 test('home page links to the people stories instead of embedding them', () => {
   const { container } = render(<IntraPortalV3 />);
 
@@ -363,15 +380,15 @@ test('home page links to the people stories instead of embedding them', () => {
   const visiblePage = () => container.querySelector('.ip3-post-slider-page:not([inert])');
   const hrefsOf = (page) => [...page.querySelectorAll('a.ip3-post-card')].map((card) => card.getAttribute('href'));
 
-  expect(container.querySelectorAll('.ip3-post-slider-page')).toHaveLength(1);
+  expect(container.querySelectorAll('.ip3-post-slider-page')).toHaveLength(2);
   expect(hrefsOf(visiblePage())).toEqual([
     'https://eu001-sp.shell.com/sites/SPO000684',
     '/welcome-riyadh-ashoor',
   ]);
 
-  // a single page needs no pager
-  expect(screen.queryByRole('button', { name: 'Next stories' })).not.toBeInTheDocument();
-  expect(container.querySelector('.ip3-post-slider-track')).toHaveStyle({ transform: 'translate3d(-0%, 0, 0)' });
+  fireEvent.click(screen.getByRole('button', { name: 'Next stories' }));
+  expect(hrefsOf(visiblePage())).toEqual(['/welcome-shurooq-al-darmaki']);
+  expect(container.querySelector('.ip3-post-slider-track')).toHaveStyle({ transform: 'translate3d(-100%, 0, 0)' });
 });
 
 test('links to the Shell People Survey from the HR online highlights', () => {
