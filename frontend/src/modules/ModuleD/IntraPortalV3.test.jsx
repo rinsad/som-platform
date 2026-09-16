@@ -197,15 +197,14 @@ test('keeps showing the frontend demo breaking-news item as the ticker advances'
 test('opens side-news video thumbnails in an accessible modal', () => {
   render(<IntraPortalV3 />);
 
-  const firstVideo = screen.getByRole('button', { name: 'Play video: Powering Progress in Oman: From Inception to the Future' });
+  const firstVideo = screen.getByRole('button', { name: 'Play video: BYOD Collaboration' });
   firstVideo.focus();
   fireEvent.click(firstVideo);
 
-  const dialog = screen.getByRole('dialog', { name: 'Powering Progress in Oman: From Inception to the Future' });
-  expect(within(dialog).getByText(/hosted a national media event/i)).toBeInTheDocument();
-  expect(within(dialog).getByRole('heading', { name: 'Milestones shared' })).toBeInTheDocument();
-  expect(within(dialog).getByText(/oman’s first hydrogen service station/i)).toBeInTheDocument();
-  expect(within(dialog).getByText(/with 94% omanization/i)).toBeInTheDocument();
+  const dialog = screen.getByRole('dialog', { name: 'BYOD Collaboration' });
+  expect(within(dialog).getByText(/transition to e-bike delivery fleets/i)).toBeInTheDocument();
+  expect(within(dialog).getByText(/Oman’s Net Zero Vision/i)).toBeInTheDocument();
+  expect(within(dialog).queryByRole('heading', { name: 'Milestones shared' })).not.toBeInTheDocument();
   expect(dialog.querySelector('video')).toHaveAttribute('poster', '/intraportal-v3/media/powering-progress-thumbnail.png');
   expect(dialog.querySelector('.ip3-video-modal')).toHaveClass('is-portrait');
   expect(dialog.querySelector('.ip3-video-frame')).toHaveClass('is-portrait');
@@ -335,21 +334,21 @@ test('uses project media instead of remote placeholder images', () => {
   );
 });
 
-test('features Shurooq Al Darmaki on the new joiner page', () => {
-  const { container } = render(<IntraPortalV3 page="welcome-shurooq-al-darmaki" />);
+test('features Riyadh Ashoor on the new joiner page', () => {
+  const { container } = render(<IntraPortalV3 page="welcome-riyadh-ashoor" />);
 
   const newJoinerCard = container.querySelector('.ip3-announcement-light');
   expect(newJoinerCard).not.toBeNull();
-  expect(within(newJoinerCard).getByAltText('Shurooq Al Darmaki portrait')).toHaveAttribute(
+  expect(within(newJoinerCard).getByAltText('Riyadh Ashoor portrait')).toHaveAttribute(
     'src',
-    '/intraportal-v3/media/portrait-shurooq-al-darmaki.png',
+    '/intraportal-v3/media/portrait-riyadh-ashoor.jpg',
   );
   expect(newJoinerCard).toHaveTextContent(
-    /We are delighted to announce that Shurooq Al Darmaki is joining Shell Oman as Corporate Finance Accountant, effective 9th of August 2026\./i,
+    /We are delighted to announce that Riyadh Ashoor is joining Shell Oman as LSC Maintenance Manager, effective 13th September 2026\./i,
   );
-  expect(newJoinerCard).toHaveTextContent(/Shurooq brings seven years of experience across external audit/i);
-  expect(newJoinerCard).toHaveTextContent(/bachelor’s degree in accounting from Modern College of Business and Science/i);
-  expect(newJoinerCard).toHaveTextContent(/thrilled to welcome Shurooq to our team/i);
+  expect(newJoinerCard).toHaveTextContent(/Riyadh brings over 11 years of experience in operations and mechanical engineering/i);
+  expect(newJoinerCard).toHaveTextContent(/Master’s degree in Process Engineering/i);
+  expect(newJoinerCard).toHaveTextContent(/thrilled to welcome Riyadh to our team/i);
 });
 
 test('home page links to the people stories instead of embedding them', () => {
@@ -365,7 +364,7 @@ test('home page links to the people stories instead of embedding them', () => {
   expect(container.querySelectorAll('.ip3-post-slider-page')).toHaveLength(1);
   expect(hrefsOf(visiblePage())).toEqual([
     'https://eu001-sp.shell.com/sites/SPO000684',
-    '/welcome-shurooq-al-darmaki',
+    '/welcome-riyadh-ashoor',
   ]);
 
   // a single page needs no pager

@@ -638,7 +638,7 @@
 .ip3-announcement-banner { grid-column: 1 / -1; padding: var(--ip3-space-3) var(--ip3-space-4); font-size: var(--ip3-text-sm); font-weight: var(--ip3-weight-heavy); text-transform: uppercase; letter-spacing: 0.04em; }
 .ip3-announcement-light .ip3-announcement-banner { border-top: 5px solid var(--ip3-brand-yellow); background: var(--ip3-surface-muted); color: var(--ip3-brand-red); }
 .ip3-announcement img { width: auto; max-width: 56%; height: auto; max-height: 11.5rem; display: block; justify-self: center; margin-top: var(--ip3-space-4); object-fit: contain; background: transparent; }
-.ip3-announcement img.ip3-announcement-shurooq { object-position: center; background: transparent; }
+.ip3-announcement img.ip3-announcement-portrait { object-position: center; background: transparent; }
 .ip3-announcement > div:last-child { align-self: stretch; display: grid; align-content: start; gap: var(--ip3-space-2); padding: var(--ip3-space-5); }
 .ip3-announcement p { font-size: var(--ip3-text-lg); line-height: 1.35; }
 .ip3-announcement strong { font-size: var(--ip3-text-md); }

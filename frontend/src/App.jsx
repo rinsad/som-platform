@@ -79,7 +79,7 @@ function App() {
         <Route path="/mobile-phones-business-numbers" element={<IntraPortalV3 page="mobile-phones-business-numbers" />} />
         <Route path="/learning" element={<IntraPortalV3 page="learning" />} />
         <Route path="/tools-and-resources" element={<IntraPortalV3 page="tools-and-resources" />} />
-        <Route path="/welcome-shurooq-al-darmaki" element={<IntraPortalV3 page="welcome-shurooq-al-darmaki" />} />
+        <Route path="/welcome-riyadh-ashoor" element={<IntraPortalV3 page="welcome-riyadh-ashoor" />} />
 
         {/* Standalone design preview, kept outside the authenticated app. */}
         <Route element={<PublicShell />}>
