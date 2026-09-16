@@ -277,12 +277,14 @@ test('renders the Goal Zero safety dashboard with the supplied performance data'
     .toBeInTheDocument();
   expect(within(statusCard).getByText('Process Safety')).toBeInTheDocument();
   expect(within(statusCard).getByText('Safety Audits')).toBeInTheDocument();
+  expect(within(statusCard).getByText('Contractor Safety')).toBeInTheDocument();
+  expect(within(statusCard).getByText('Security')).toBeInTheDocument();
   expect(statusCard.querySelector('.ip3-safety-dashboard-artwork')).toHaveAttribute(
     'src',
     '/intraportal-v3/media/goal-zero-refinery-artwork.png',
   );
   expect(statusCard.querySelector('.ip3-safety-dashboard-artwork')).not.toBeInstanceOf(SVGElement);
-  expect(statusCard.querySelectorAll('.ip3-safety-dashboard-focus-grid li')).toHaveLength(8);
+  expect(statusCard.querySelectorAll('.ip3-safety-dashboard-focus-grid li')).toHaveLength(10);
   expect(screen.queryByRole('button', { name: 'View safety dashboard' })).not.toBeInTheDocument();
   expect(screen.queryByText('Share price')).not.toBeInTheDocument();
 });

@@ -20,6 +20,7 @@ import {
   Fire,
   FirstAidKit,
   GraduationCap,
+  HardHat,
   Heartbeat,
   House,
   IdentificationCard,
@@ -27,6 +28,7 @@ import {
   Leaf,
   Lifebuoy,
   LinkedinLogo,
+  LockKey,
   MagnifyingGlass,
   MapPin,
   NewspaperClipping,
@@ -663,6 +665,8 @@ const SAFETY_FOCUS_AREAS = [
   { label: 'Permit to Work', icon: ClipboardText },
   { label: 'Environment Protection', icon: Leaf },
   { label: 'Safety Audits', icon: ShieldCheck },
+  { label: 'Contractor Safety', icon: HardHat },
+  { label: 'Security', icon: LockKey },
 ];
 
 function SafetySectionHeading({ icon, children }) {
