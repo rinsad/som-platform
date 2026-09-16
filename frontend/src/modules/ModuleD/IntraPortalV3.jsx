@@ -160,7 +160,6 @@ const LATEST_POSTS = [
   },
   {
     id: 'welcome-riyadh-ashoor',
-    portrait: true,
     title: 'Welcome on board, Riyadh Ashoor',
     subtitle: 'LSC Maintenance Manager',
     note: 'Welcome to new beginnings and exciting opportunities together.',
