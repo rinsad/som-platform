@@ -856,7 +856,7 @@ function GoalZeroCounter() {
   );
 }
 
-// Weekly duty manager notice, shown once per browser session on the home page.
+// Weekly duty manager notice, shown every time the home page loads.
 // Set photo to null to show a neutral placeholder avatar instead.
 const DUTY_MANAGER = {
   name: 'Ahmed Al Dughaishi',
@@ -864,16 +864,6 @@ const DUTY_MANAGER = {
   period: '20th to 24th September',
   phone: '99231647',
 };
-
-const DUTY_MANAGER_SEEN_KEY = 'ip3-duty-manager-seen';
-
-function hasSeenDutyManager() {
-  try {
-    return window.sessionStorage.getItem(DUTY_MANAGER_SEEN_KEY) === '1';
-  } catch {
-    return false;
-  }
-}
 
 function DutyManagerPopup({ onClose }) {
   const dialogRef = useRef(null);
@@ -893,14 +883,7 @@ function DutyManagerPopup({ onClose }) {
     };
   }, []);
 
-  const close = () => {
-    try {
-      window.sessionStorage.setItem(DUTY_MANAGER_SEEN_KEY, '1');
-    } catch {
-      // Storage can be unavailable (private mode); the popup still closes.
-    }
-    onClose();
-  };
+  const close = onClose;
 
   return (
     <dialog
@@ -1892,7 +1875,7 @@ export default function IntraPortalV3({ page = 'home' }) {
   const [ourShellMenuOpen, setOurShellMenuOpen] = useState(false);
   const [openSubmenu, setOpenSubmenu] = useState(null);
   const [activeVideo, setActiveVideo] = useState(null);
-  const [showDutyManager, setShowDutyManager] = useState(() => page === 'home' && !hasSeenDutyManager());
+  const [showDutyManager, setShowDutyManager] = useState(page === 'home');
   const [query, setQuery] = useState('');
 
   const toggleSubmenu = (submenuId) => {

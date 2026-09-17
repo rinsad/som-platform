@@ -4,14 +4,16 @@ import IntraPortalV3 from './IntraPortalV3';
 
 beforeEach(() => {
   localStorage.clear();
-  // The duty manager notice opens over the home page once per session; start
-  // dismissed so page tests see the page. Its own test clears this.
-  sessionStorage.setItem('ip3-duty-manager-seen', '1');
   window.history.pushState({}, '', '/');
 });
 
-test('shows the duty manager notice once per session and closes it with X', () => {
-  sessionStorage.clear();
+// The duty manager notice opens over every home page load; close it when a
+// test is about the page underneath.
+function dismissDutyManager() {
+  fireEvent.click(screen.getByRole('button', { name: 'Close duty manager notice' }));
+}
+
+test('shows the duty manager notice on every home page load and closes it with X', () => {
   const { unmount } = render(<IntraPortalV3 />);
 
   const dialog = screen.getByRole('dialog', { name: /Duty Manager/ });
@@ -31,12 +33,12 @@ test('shows the duty manager notice once per session and closes it with X', () =
   expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   unmount();
 
+  // a fresh load (remount) shows it again
   render(<IntraPortalV3 />);
-  expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  expect(screen.getByRole('dialog', { name: /Duty Manager/ })).toBeInTheDocument();
 });
 
 test('does not show the duty manager notice away from the home page', () => {
-  sessionStorage.clear();
   render(<IntraPortalV3 page="hr-online" />);
   expect(screen.queryByRole('dialog', { name: /Duty Manager/ })).not.toBeInTheDocument();
 });
@@ -230,6 +232,7 @@ test('keeps showing the frontend demo breaking-news item as the ticker advances'
 
 test('opens side-news video thumbnails in an accessible modal', () => {
   render(<IntraPortalV3 />);
+  dismissDutyManager();
 
   const firstVideo = screen.getByRole('button', { name: 'Play video: BYOD Collaboration' });
   firstVideo.focus();
@@ -360,6 +363,7 @@ test('uses the Shell People Survey banner and survey copy without tabs', () => {
 
 test('uses project media instead of remote placeholder images', () => {
   const { container } = render(<IntraPortalV3 />);
+  dismissDutyManager();
 
   const imageSources = [...container.querySelectorAll('img')].map((image) => image.getAttribute('src'));
   expect(imageSources.some((source) => source?.includes('picsum.photos'))).toBe(false);
