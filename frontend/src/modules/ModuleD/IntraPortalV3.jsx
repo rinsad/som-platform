@@ -28,11 +28,13 @@ import {
   Leaf,
   Lifebuoy,
   LinkedinLogo,
+  Lightbulb,
   LockKey,
   MagnifyingGlass,
   MapPin,
   NewspaperClipping,
   Pause,
+  Phone,
   Play,
   ReadCvLogo,
   Receipt,
@@ -851,6 +853,141 @@ function GoalZeroCounter() {
         </ul>
       </div>
     </section>
+  );
+}
+
+// Weekly duty manager notice, shown once per browser session on the home page.
+// Set photo to null to show a neutral placeholder avatar instead.
+const DUTY_MANAGER = {
+  name: 'Ahmed Al Dughaishi',
+  photo: `${MEDIA_ROOT}/duty-manager.jpg`,
+  period: '20th to 24th September',
+  phone: '99231647',
+};
+
+const DUTY_MANAGER_SEEN_KEY = 'ip3-duty-manager-seen';
+
+function hasSeenDutyManager() {
+  try {
+    return window.sessionStorage.getItem(DUTY_MANAGER_SEEN_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+
+function DutyManagerPopup({ onClose }) {
+  const dialogRef = useRef(null);
+  const closeButtonRef = useRef(null);
+
+  useEffect(() => {
+    const previouslyFocused = document.activeElement;
+    const previousOverflow = document.body.style.overflow;
+    const dialog = dialogRef.current;
+    document.body.style.overflow = 'hidden';
+    if (typeof dialog?.showModal === 'function') dialog.showModal();
+    else dialog?.setAttribute('open', '');
+    closeButtonRef.current?.focus();
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      previouslyFocused?.focus();
+    };
+  }, []);
+
+  const close = () => {
+    try {
+      window.sessionStorage.setItem(DUTY_MANAGER_SEEN_KEY, '1');
+    } catch {
+      // Storage can be unavailable (private mode); the popup still closes.
+    }
+    onClose();
+  };
+
+  return (
+    <dialog
+      ref={dialogRef}
+      className="ip3-duty-dialog"
+      aria-labelledby="ip3-duty-title"
+      onCancel={(event) => {
+        event.preventDefault();
+        close();
+      }}
+      onClick={(event) => {
+        if (event.target === dialogRef.current) close();
+      }}
+    >
+      <button
+        ref={closeButtonRef}
+        className="ip3-duty-close"
+        type="button"
+        aria-label="Close duty manager notice"
+        onClick={close}
+      >
+        <X size={20} weight="bold" aria-hidden="true" />
+      </button>
+      <section className="ip3-duty">
+
+        <header className="ip3-duty-header">
+          <div>
+            <div className="ip3-duty-brand">
+              <Image className="ip3-duty-pecten" src={`${MEDIA_ROOT}/shell-pecten.webp`} alt="Shell" loading="eager" />
+              <h2 id="ip3-duty-title">
+                Duty Manager <span>This Week</span>
+              </h2>
+            </div>
+            <p>Your designated point of contact for operational support, coordination and escalation assistance.</p>
+          </div>
+          <Image className="ip3-duty-header-art" src={`${MEDIA_ROOT}/duty-manager-header.jpg`} alt="" loading="eager" ariaHidden />
+        </header>
+
+        <div className="ip3-duty-body">
+          <div className="ip3-duty-person">
+            <div className="ip3-duty-photo">
+              {DUTY_MANAGER.photo
+                ? <Image src={DUTY_MANAGER.photo} alt={`${DUTY_MANAGER.name}, duty manager`} loading="eager" />
+                : <User size={72} weight="light" aria-hidden="true" />}
+            </div>
+            <div className="ip3-duty-details">
+              <h3>{DUTY_MANAGER.name}</h3>
+              <dl>
+                <div>
+                  <dt><span aria-hidden="true"><CalendarDots size={20} weight="bold" /></span>Duty Period</dt>
+                  <dd>{DUTY_MANAGER.period}</dd>
+                </div>
+                <div>
+                  <dt><span aria-hidden="true"><Phone size={20} weight="bold" /></span>Contact Number</dt>
+                  <dd><a href={`tel:+968${DUTY_MANAGER.phone}`}>{DUTY_MANAGER.phone}</a></dd>
+                </div>
+              </dl>
+              <p className="ip3-duty-available">
+                <CheckCircle size={22} weight="fill" aria-hidden="true" /> Available This Week
+              </p>
+            </div>
+          </div>
+
+          <aside className="ip3-duty-help">
+            <h3>
+              <span aria-hidden="true"><Lightbulb size={22} weight="bold" /></span>
+              How Can the Duty Manager Help?
+            </h3>
+            <p>
+              The Duty Manager is available throughout the week to provide support, guidance, coordination and
+              escalation assistance for operational matters when required.
+            </p>
+          </aside>
+        </div>
+
+        <footer className="ip3-duty-footer">
+          <p>
+            <strong>Supporting Safe &amp; Efficient Operations</strong>
+            <em>Committed to helping our people and business operate safely, reliably and effectively.</em>
+          </p>
+          <span className="ip3-duty-goal-zero" aria-label="Goal Zero: Safer. Cleaner. Better.">
+            <span className="ip3-duty-goal-zero-ring" aria-hidden="true" />
+            <span aria-hidden="true"><b>GOAL</b><b>ZERO</b><small>Safer. Cleaner. Better.</small></span>
+          </span>
+        </footer>
+      </section>
+    </dialog>
   );
 }
 
@@ -1755,6 +1892,7 @@ export default function IntraPortalV3({ page = 'home' }) {
   const [ourShellMenuOpen, setOurShellMenuOpen] = useState(false);
   const [openSubmenu, setOpenSubmenu] = useState(null);
   const [activeVideo, setActiveVideo] = useState(null);
+  const [showDutyManager, setShowDutyManager] = useState(() => page === 'home' && !hasSeenDutyManager());
   const [query, setQuery] = useState('');
 
   const toggleSubmenu = (submenuId) => {
@@ -2220,6 +2358,7 @@ export default function IntraPortalV3({ page = 'home' }) {
         </footer>
       </div>
       {activeVideo && <VideoModal item={activeVideo} setActiveVideo={setActiveVideo} />}
+      {showDutyManager && !activeVideo && <DutyManagerPopup onClose={() => setShowDutyManager(false)} />}
     </div>
   );
 }

@@ -601,6 +601,67 @@
 .ip3-story-rail-copy strong { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; overflow: hidden; font-size: var(--ip3-text-md); line-height: 1.25; text-wrap: balance; }
 .ip3-story-rail-copy > span { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; overflow: hidden; margin-top: var(--ip3-space-1); color: var(--ip3-ink-subtle); font-size: var(--ip3-text-xs); line-height: 1.35; }
 
+/* Duty manager notice */
+.ip3-duty-dialog { width: min(60rem, calc(100% - 2.5rem)); max-width: none; max-height: calc(100dvh - 2.5rem); margin: auto; padding: 0; overflow: visible; border: 0; background: transparent; color: var(--ip3-ink); }
+.ip3-duty-dialog::backdrop { background: rgba(28, 28, 28, 0.72); backdrop-filter: blur(5px); animation: ip3ModalFade 0.18s var(--ease) both; }
+.ip3-duty { position: relative; max-height: calc(100dvh - 2.5rem); overflow-y: auto; display: grid; gap: var(--ip3-space-4); padding: var(--ip3-space-5); border-radius: var(--ip3-radius-md); background: var(--ip3-surface); box-shadow: var(--ip3-shadow-raised); animation: ip3ModalReveal 0.22s var(--ease) both; }
+/* Hangs half outside the panel's top-right corner, clear of the header art. */
+.ip3-duty-close { width: 2.5rem; height: 2.5rem; position: absolute; top: -1rem; right: -1rem; z-index: 2; display: grid; place-items: center; border: 0; border-radius: var(--ip3-radius-pill); background: var(--ip3-surface); color: var(--ip3-ink); box-shadow: var(--ip3-shadow-raised); cursor: pointer; transition: background var(--ip3-speed), color var(--ip3-speed); }
+.ip3-duty-close:hover, .ip3-duty-close:focus-visible { background: var(--ip3-brand-red); border-color: var(--ip3-brand-red); color: var(--ip3-surface); outline: 0; }
+
+.ip3-duty-header { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr); align-items: center; gap: var(--ip3-space-4); }
+.ip3-duty-header > div { display: grid; gap: var(--ip3-space-3); }
+.ip3-duty-brand { display: flex; align-items: center; gap: var(--ip3-space-4); }
+.ip3-duty-pecten { flex: none; width: 4.5rem; height: auto; }
+.ip3-duty-brand h2 { padding-left: var(--ip3-space-4); border-left: 2px solid var(--ip3-line); }
+.ip3-duty-header h2 { display: grid; font-size: var(--ip3-text-2xl); font-weight: var(--ip3-weight-heavy); line-height: 1.1; }
+.ip3-duty-header h2 span { width: fit-content; padding-bottom: var(--ip3-space-2); border-bottom: 4px solid var(--ip3-brand-yellow); color: var(--ip3-ink-subtle); font-weight: var(--ip3-weight-regular); }
+.ip3-duty-header p { max-width: 36rem; color: var(--ip3-ink-muted); font-size: var(--ip3-text-lg); line-height: 1.4; }
+/* Artwork carries its own shield badge and swoosh; 1100x397 source. */
+.ip3-duty-header-art { width: 100%; height: auto; aspect-ratio: 1100 / 397; display: block; object-fit: cover; object-position: right center; }
+
+.ip3-duty-body { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: var(--ip3-space-5); padding: var(--ip3-space-5); border: 1px solid var(--ip3-line); border-radius: var(--ip3-radius-md); box-shadow: var(--ip3-shadow); }
+.ip3-duty-person { display: grid; grid-template-columns: 9rem minmax(0, 1fr); align-items: center; gap: var(--ip3-space-5); padding-right: var(--ip3-space-5); border-right: 1px solid var(--ip3-line); }
+.ip3-duty-photo { width: 9rem; aspect-ratio: 1; display: grid; place-items: center; overflow: hidden; border: 5px solid var(--ip3-brand-yellow); border-radius: var(--ip3-radius-pill); background: var(--ip3-surface-muted); color: var(--ip3-ink-subtle); }
+.ip3-duty-photo img { width: 100%; height: 100%; object-fit: cover; object-position: center 25%; }
+.ip3-duty-details { min-width: 0; display: grid; gap: var(--ip3-space-3); }
+.ip3-duty-details h3 { width: fit-content; padding-bottom: var(--ip3-space-2); border-bottom: 4px solid var(--ip3-brand-yellow); font-size: var(--ip3-text-xl); font-weight: var(--ip3-weight-heavy); line-height: 1.2; }
+.ip3-duty-details dl { display: grid; gap: var(--ip3-space-3); }
+.ip3-duty-details dl > div { display: grid; grid-template-columns: 2.4rem minmax(0, 1fr); column-gap: var(--ip3-space-3); }
+.ip3-duty-details dt { display: contents; color: var(--ip3-ink-muted); font-size: var(--ip3-text-md); }
+.ip3-duty-details dt > span { grid-row: span 2; width: 2.4rem; height: 2.4rem; display: grid; place-items: center; border-radius: var(--ip3-radius-pill); background: var(--ip3-brand-yellow); color: var(--ip3-ink); }
+.ip3-duty-details dd { grid-column: 2; font-weight: var(--ip3-weight-bold); }
+.ip3-duty-details dd a { color: inherit; text-decoration: none; }
+.ip3-duty-details dd a:hover, .ip3-duty-details dd a:focus-visible { color: var(--ip3-brand-red); text-decoration: underline; }
+.ip3-duty-available { width: fit-content; display: inline-flex; align-items: center; gap: var(--ip3-space-2); padding: var(--ip3-space-2) var(--ip3-space-4); border-radius: var(--ip3-radius-pill); background: var(--success-text); color: var(--ip3-surface); font-weight: var(--ip3-weight-medium); }
+
+.ip3-duty-help { align-self: start; display: grid; gap: var(--ip3-space-3); padding: var(--ip3-space-5); border-radius: var(--ip3-radius-md); background: color-mix(in srgb, var(--ip3-brand-yellow) 30%, var(--ip3-surface)); }
+.ip3-duty-help h3 { display: flex; align-items: center; gap: var(--ip3-space-3); font-size: var(--ip3-text-md); font-weight: var(--ip3-weight-heavy); }
+.ip3-duty-help h3 > span { flex: none; width: 2.4rem; height: 2.4rem; display: grid; place-items: center; border-radius: var(--ip3-radius-pill); background: var(--ip3-brand-yellow); }
+.ip3-duty-help p { color: var(--ip3-ink-muted); line-height: 1.45; }
+
+.ip3-duty-footer { display: flex; align-items: center; justify-content: space-between; gap: var(--ip3-space-4); padding: var(--ip3-space-3) var(--ip3-space-4); border-left: 4px solid var(--ip3-brand-yellow); border-radius: var(--ip3-radius-sm); background: var(--ip3-surface-muted); }
+.ip3-duty-footer p { display: grid; gap: 0.15rem; }
+.ip3-duty-footer em { color: var(--ip3-ink-muted); }
+.ip3-duty-goal-zero { flex: none; display: flex; align-items: center; gap: var(--ip3-space-2); }
+.ip3-duty-goal-zero-ring { width: 2.8rem; height: 2.8rem; border-radius: var(--ip3-radius-pill); background: conic-gradient(var(--ip3-brand-yellow), var(--warning), var(--ip3-brand-red), var(--ip3-brand-yellow)); -webkit-mask: radial-gradient(circle, transparent 52%, #000 54%); mask: radial-gradient(circle, transparent 52%, #000 54%); }
+.ip3-duty-goal-zero > span:last-child { display: grid; line-height: 1; }
+.ip3-duty-goal-zero b { font-weight: var(--ip3-weight-heavy); }
+.ip3-duty-goal-zero b:first-child { color: var(--shell-navy); }
+.ip3-duty-goal-zero b + b { color: var(--ip3-brand-red); }
+.ip3-duty-goal-zero small { margin-top: 0.15rem; color: var(--ip3-ink-muted); font-size: 0.6rem; }
+
+@media (max-width: 52rem) {
+  .ip3-duty { padding: var(--ip3-space-4); }
+  .ip3-duty-header { grid-template-columns: minmax(0, 1fr); }
+  .ip3-duty-header-art { order: -1; }
+  .ip3-duty-pecten { width: 3.25rem; }
+  .ip3-duty-close { top: -0.75rem; right: -0.75rem; }
+  .ip3-duty-body { grid-template-columns: minmax(0, 1fr); padding: var(--ip3-space-4); }
+  .ip3-duty-person { grid-template-columns: minmax(0, 1fr); justify-items: center; padding-right: 0; padding-bottom: var(--ip3-space-4); border-right: 0; border-bottom: 1px solid var(--ip3-line); text-align: left; }
+  .ip3-duty-footer { flex-direction: column; align-items: flex-start; }
+}
+
 .ip3-video-dialog { width: min(78rem, calc(100% - 2.5rem)); max-width: none; max-height: calc(100dvh - 2.5rem); margin: auto; padding: 0; overflow: hidden; border: 0; background: transparent; color: inherit; }
 .ip3-video-dialog::backdrop { background: rgba(28, 28, 28, 0.72); backdrop-filter: blur(5px); animation: ip3ModalFade 0.18s var(--ease) both; }
 .ip3-video-modal { width: 100%; height: min(44rem, calc(100dvh - 2.5rem)); position: relative; display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(20rem, 0.75fr); overflow: hidden; border: 1px solid color-mix(in srgb, var(--ip3-surface) 18%, transparent); border-radius: var(--ip3-radius-md); background: var(--ip3-surface); box-shadow: var(--ip3-shadow-raised); animation: ip3ModalReveal 0.22s var(--ease) both; }

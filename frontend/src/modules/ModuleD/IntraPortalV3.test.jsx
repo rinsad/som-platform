@@ -4,7 +4,41 @@ import IntraPortalV3 from './IntraPortalV3';
 
 beforeEach(() => {
   localStorage.clear();
+  // The duty manager notice opens over the home page once per session; start
+  // dismissed so page tests see the page. Its own test clears this.
+  sessionStorage.setItem('ip3-duty-manager-seen', '1');
   window.history.pushState({}, '', '/');
+});
+
+test('shows the duty manager notice once per session and closes it with X', () => {
+  sessionStorage.clear();
+  const { unmount } = render(<IntraPortalV3 />);
+
+  const dialog = screen.getByRole('dialog', { name: /Duty Manager/ });
+  expect(within(dialog).getByRole('heading', { name: 'Ahmed Al Dughaishi' })).toBeInTheDocument();
+  expect(within(dialog).getByAltText('Ahmed Al Dughaishi, duty manager')).toHaveAttribute(
+    'src',
+    '/intraportal-v3/media/duty-manager.jpg',
+  );
+  expect(dialog).toHaveTextContent('20th to 24th September');
+  expect(within(dialog).getByRole('link', { name: '99231647' })).toHaveAttribute('href', 'tel:+96899231647');
+  expect(dialog).toHaveTextContent('Available This Week');
+  expect(dialog).not.toHaveTextContent(/Department|Email/);
+
+  const close = within(dialog).getByRole('button', { name: 'Close duty manager notice' });
+  expect(close).toHaveFocus();
+  fireEvent.click(close);
+  expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  unmount();
+
+  render(<IntraPortalV3 />);
+  expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+});
+
+test('does not show the duty manager notice away from the home page', () => {
+  sessionStorage.clear();
+  render(<IntraPortalV3 page="hr-online" />);
+  expect(screen.queryByRole('dialog', { name: /Duty Manager/ })).not.toBeInTheDocument();
 });
 
 test('renders the reference-based portal hierarchy', () => {
