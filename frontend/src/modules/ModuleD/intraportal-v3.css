@@ -602,6 +602,12 @@
 .ip3-story-rail-copy > span { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; overflow: hidden; margin-top: var(--ip3-space-1); color: var(--ip3-ink-subtle); font-size: var(--ip3-text-xs); line-height: 1.35; }
 
 /* Duty manager notice */
+.ip3-duty-tab { position: fixed; top: 0; right: 0; bottom: 0; z-index: 40; height: fit-content; margin-block: auto; display: flex; flex-direction: column-reverse; align-items: center; gap: var(--ip3-space-2); padding: var(--ip3-space-3) var(--ip3-space-2); border: 0; border-radius: var(--ip3-radius-md) 0 0 var(--ip3-radius-md); background: var(--ip3-brand-yellow); color: var(--ip3-ink); box-shadow: var(--ip3-shadow-raised); font: inherit; font-size: var(--ip3-text-sm); font-weight: var(--ip3-weight-heavy); cursor: pointer; transition: background var(--ip3-speed), padding var(--ip3-speed); }
+/* Only the label turns to read upwards; the button itself is never transformed,
+   so the portal's shared button press effect cannot knock it out of place. */
+.ip3-duty-tab span { writing-mode: vertical-rl; transform: rotate(180deg); }
+.ip3-duty-tab:hover, .ip3-duty-tab:focus-visible { padding-left: var(--ip3-space-3); background: color-mix(in srgb, var(--ip3-brand-yellow) 82%, var(--ip3-ink)); outline: 0; }
+.intraportal-v3 .ip3-duty-tab:active { transform: none; }
 .ip3-duty-dialog { width: min(60rem, calc(100% - 2.5rem)); max-width: none; max-height: calc(100dvh - 2.5rem); margin: auto; padding: 0; overflow: visible; border: 0; background: transparent; color: var(--ip3-ink); }
 .ip3-duty-dialog::backdrop { background: rgba(28, 28, 28, 0.72); backdrop-filter: blur(5px); animation: ip3ModalFade 0.18s var(--ease) both; }
 .ip3-duty { position: relative; max-height: calc(100dvh - 2.5rem); overflow-y: auto; display: grid; gap: var(--ip3-space-4); padding: var(--ip3-space-5); border-radius: var(--ip3-radius-md); background: var(--ip3-surface); box-shadow: var(--ip3-shadow-raised); animation: ip3ModalReveal 0.22s var(--ease) both; }
@@ -845,15 +851,17 @@
 .ip3-community-stories article.ip3-community-banner img { height: 100%; min-height: 100%; aspect-ratio: 16 / 10; }
 .ip3-community-stories span { display: block; color: var(--ip3-brand-red); font-size: var(--ip3-text-xs); font-weight: 800; text-transform: uppercase; }
 .ip3-community-stories h3 { margin-top: var(--ip3-space-1); font-size: var(--ip3-text-md); line-height: 1.35; }
-.ip3-community-stories article.ip3-community-baby-announcement { border-color: #f7dfda; background: #fcedea; }
-.ip3-community-baby-announcement header { position: relative; padding: var(--ip3-space-4) var(--ip3-space-4) var(--ip3-space-3); }
-.ip3-community-baby-announcement header::after { content: ''; position: absolute; right: var(--ip3-space-4); bottom: 0; left: var(--ip3-space-4); height: 2px; background: var(--ip3-brand-red); }
-.ip3-community-baby-announcement header h3 { margin: 0; color: var(--ip3-brand-red); font-size: var(--ip3-text-xl); letter-spacing: -0.02em; }
-.ip3-community-stories article > .ip3-community-baby-body { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: end; gap: var(--ip3-space-3); padding: var(--ip3-space-3) var(--ip3-space-4) var(--ip3-space-4); }
+/* New-baby card: warm yellow-to-peach wash, white inner panel, toy line art
+   along the panel's foot (lifted from the Newborn-01 artwork). */
+.ip3-community-stories article.ip3-community-baby-announcement { display: grid; gap: var(--ip3-space-3); padding: var(--ip3-space-4); border: 0; background: linear-gradient(135deg, #fff5b8 0%, #ffe3b0 45%, #ffac9e 100%); }
+.ip3-community-baby-announcement header { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--ip3-space-3); color: var(--ip3-ink); }
+.ip3-community-baby-announcement header svg { flex: none; }
+.ip3-community-stories .ip3-community-baby-announcement header h3 { margin: 0; color: var(--ip3-ink); font-weight: var(--ip3-weight-heavy); letter-spacing: -0.01em; }
+.ip3-community-stories article > .ip3-community-baby-body { display: grid; gap: var(--ip3-space-2); padding: var(--ip3-space-3) var(--ip3-space-4) 0; overflow: hidden; border-radius: var(--ip3-radius-md); background: color-mix(in srgb, var(--ip3-surface) 72%, transparent); }
 .ip3-community-baby-body ul { min-width: 0; list-style: none; }
-.ip3-community-baby-body li { padding: 0.55rem 0; border-top: 1px solid #ad68a4; color: var(--ip3-ink-muted); font-size: var(--ip3-text-sm); line-height: 1.35; }
-.ip3-community-baby-body li:first-child { border-top: 0; }
-.ip3-community-stories img.ip3-community-baby-art { width: 5rem; height: auto; aspect-ratio: auto; object-fit: contain; background: transparent; }
+.ip3-community-baby-body li { padding: 0.55rem 0; border-top: 1px solid color-mix(in srgb, var(--ip3-ink) 22%, transparent); color: var(--ip3-ink); font-size: var(--ip3-text-sm); line-height: 1.35; }
+.ip3-community-baby-body li:first-child { border-top: 0; padding-top: 0; }
+.ip3-community-stories img.ip3-community-baby-toys { width: 100%; height: auto; aspect-ratio: 880 / 131; display: block; object-fit: contain; object-position: bottom; background: transparent; }
 
 .ip3-right-rail > section, .ip3-right-rail > article, .ip3-right-rail > a { border: 1px solid var(--ip3-line); border-radius: var(--ip3-radius-md); background: var(--ip3-surface); overflow: hidden; }
 .ip3-right-rail > .ip3-goal-zero-counter { border-color: var(--ip3-line); border-top: 5px solid var(--ip3-brand-red); background: var(--ip3-surface); }

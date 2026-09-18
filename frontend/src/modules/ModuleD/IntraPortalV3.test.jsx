@@ -13,7 +13,7 @@ function dismissDutyManager() {
   fireEvent.click(screen.getByRole('button', { name: 'Close duty manager notice' }));
 }
 
-test('shows the duty manager notice on every home page load and closes it with X', () => {
+test('shows the duty manager notice until closed, then keeps it closed for this rota', () => {
   const { unmount } = render(<IntraPortalV3 />);
 
   const dialog = screen.getByRole('dialog', { name: /Duty Manager/ });
@@ -33,14 +33,27 @@ test('shows the duty manager notice on every home page load and closes it with X
   expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   unmount();
 
-  // a fresh load (remount) shows it again
+  // reloading or coming back from another page keeps it closed
+  render(<IntraPortalV3 />);
+  expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+
+  // the edge tab reopens it on demand
+  fireEvent.click(screen.getByRole('button', { name: 'Duty Manager' }));
+  expect(screen.getByRole('dialog', { name: /Duty Manager/ })).toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: 'Duty Manager' })).not.toBeInTheDocument();
+});
+
+test('shows the duty manager notice again once the rota changes', () => {
+  localStorage.setItem('ip3-duty-manager-seen', 'Previous Manager|13th to 17th September');
   render(<IntraPortalV3 />);
   expect(screen.getByRole('dialog', { name: /Duty Manager/ })).toBeInTheDocument();
 });
 
-test('does not show the duty manager notice away from the home page', () => {
+test('does not open the duty manager notice away from the home page, but offers the tab', () => {
   render(<IntraPortalV3 page="hr-online" />);
   expect(screen.queryByRole('dialog', { name: /Duty Manager/ })).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: 'Duty Manager' }));
+  expect(screen.getByRole('dialog', { name: /Duty Manager/ })).toBeInTheDocument();
 });
 
 test('renders the reference-based portal hierarchy', () => {
@@ -288,14 +301,14 @@ test('opens side-news video thumbnails in an accessible modal', () => {
 test('shows the current new-baby congratulations announcement', () => {
   render(<IntraPortalV3 />);
 
-  const announcement = screen.getByRole('article', { name: 'Congratulations' });
+  const announcement = screen.getByRole('article', { name: 'Congratulations on the Arrival of Your Little One' });
   expect(within(announcement).getByText('Haneen Al Hatrooshi was blessed with a baby girl.')).toBeInTheDocument();
   expect(within(announcement).getByText('Salah Al Mahrooqi was blessed with a baby girl.')).toBeInTheDocument();
   expect(within(announcement).getByText('Omar Al Alawi was blessed with twins (boy & girl).')).toBeInTheDocument();
   expect(within(announcement).getByText('Mohammed Al Balushi was blessed with a baby girl.')).toBeInTheDocument();
-  expect(announcement.querySelector('.ip3-community-baby-art')).toHaveAttribute(
+  expect(announcement.querySelector('.ip3-community-baby-toys')).toHaveAttribute(
     'src',
-    '/intraportal-v3/media/baby-congratulations-art.png',
+    '/intraportal-v3/media/baby-toys-strip.png',
   );
   expect(screen.queryByText('Celebrating a new addition to the family')).not.toBeInTheDocument();
 });
@@ -452,4 +465,22 @@ test('renders an interactive anonymous employee feedback panel', () => {
   fireEvent.click(within(form).getByRole('button', { name: /send feedback/i }));
 
   expect(screen.getByText(/anonymous feedback has been captured/i)).toBeInTheDocument();
+});
+
+test('HR online service cards show icons while their pages keep the banners', () => {
+  const { container, unmount } = render(<IntraPortalV3 page="hr-online" />);
+  const cardImages = [...container.querySelectorAll('.ip3-hr-service img')].map((image) => image.getAttribute('src'));
+  expect(cardImages).toEqual([
+    '/intraportal-v3/media/hr-online/business-mileage-claim-icon.jpg',
+    '/intraportal-v3/media/hr-online/recreational-wellness-scheme-icon.jpg',
+    '/intraportal-v3/media/hr-online/healthcare-benefits-icon.jpg',
+    '/intraportal-v3/media/hr-online/mobile-phones-business-numbers-icon.jpg',
+  ]);
+  unmount();
+
+  const { container: article } = render(<IntraPortalV3 page="business-mileage-claim" />);
+  expect(article.querySelector('.ip3-hr-banner img')).toHaveAttribute(
+    'src',
+    '/intraportal-v3/media/hr-online/business-mileage.png',
+  );
 });

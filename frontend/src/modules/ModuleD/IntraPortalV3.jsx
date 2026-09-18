@@ -1,6 +1,7 @@
 import { createElement, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ArrowUpRight,
+  Baby,
   Bank,
   CalendarDots,
   CaretDown,
@@ -158,7 +159,7 @@ const LATEST_POSTS = [
     id: 'phishing-scorecard-target',
     title: 'Phishing Scorecard Target',
     subtitle: '31.08% achieved today. 40% is our next destination.',
-    image: `${POSTS_MEDIA}/internal-screens-05.jpg`,
+    image: `${POSTS_MEDIA}/phishing-golden-catch.jpg`,
     alt: 'Don’t be the golden catch — report phishing',
     href: 'https://eu001-sp.shell.com/sites/SPO000684',
   },
@@ -304,7 +305,7 @@ const HR_ONLINE_SERVICES = [
     id: 'business-mileage-claim',
     title: 'Business Mileage Claim',
     detail: null,
-    image: `${HR_ONLINE_MEDIA}/business-mileage.png`,
+    image: `${HR_ONLINE_MEDIA}/business-mileage-claim-icon.jpg`,
     alt: 'Business mileage claim',
     href: '/business-mileage-claim',
   },
@@ -312,7 +313,7 @@ const HR_ONLINE_SERVICES = [
     id: 'recreational-wellness-scheme',
     title: 'Recreational & Wellness Scheme',
     detail: null,
-    image: `${HR_ONLINE_MEDIA}/recreational-wellness-scheme.png`,
+    image: `${HR_ONLINE_MEDIA}/recreational-wellness-scheme-icon.jpg`,
     alt: 'Recreational and wellness scheme',
     href: '/recreational-wellness-scheme',
   },
@@ -320,7 +321,7 @@ const HR_ONLINE_SERVICES = [
     id: 'healthcare-benefits',
     title: 'Healthcare Benefits',
     detail: null,
-    image: `${HR_ONLINE_MEDIA}/healthcare-benefits.png`,
+    image: `${HR_ONLINE_MEDIA}/healthcare-benefits-icon.jpg`,
     alt: 'Healthcare benefits',
     href: '/healthcare-benefits',
   },
@@ -328,7 +329,7 @@ const HR_ONLINE_SERVICES = [
     id: 'mobile-phones-business-numbers',
     title: 'SOM Allocated Mobile Phones & Business Numbers',
     detail: null,
-    image: `${HR_ONLINE_MEDIA}/mobile-phones-business-numbers.png`,
+    image: `${HR_ONLINE_MEDIA}/mobile-phones-business-numbers-icon.jpg`,
     alt: 'SOM allocated mobile phones and business numbers',
     href: '/mobile-phones-business-numbers',
   },
@@ -856,7 +857,9 @@ function GoalZeroCounter() {
   );
 }
 
-// Weekly duty manager notice, shown every time the home page loads.
+// Weekly duty manager notice. It opens on the home page until a visitor closes
+// it, then stays closed until the duty manager or period changes. The tab on the
+// right edge of every portal page reopens it.
 // Set photo to null to show a neutral placeholder avatar instead.
 const DUTY_MANAGER = {
   name: 'Ahmed Al Dughaishi',
@@ -864,6 +867,35 @@ const DUTY_MANAGER = {
   period: '20th to 24th September',
   phone: '99231647',
 };
+
+// Changes whenever the rota changes, so a new duty manager shows again.
+const DUTY_MANAGER_SEEN_KEY = 'ip3-duty-manager-seen';
+const DUTY_MANAGER_ROTA = `${DUTY_MANAGER.name}|${DUTY_MANAGER.period}`;
+
+function hasSeenDutyManager() {
+  try {
+    return window.localStorage.getItem(DUTY_MANAGER_SEEN_KEY) === DUTY_MANAGER_ROTA;
+  } catch {
+    return false;
+  }
+}
+
+function markDutyManagerSeen() {
+  try {
+    window.localStorage.setItem(DUTY_MANAGER_SEEN_KEY, DUTY_MANAGER_ROTA);
+  } catch {
+    // Storage can be unavailable (private mode); the notice still closes.
+  }
+}
+
+function DutyManagerTab({ onOpen }) {
+  return (
+    <button className="ip3-duty-tab" type="button" onClick={onOpen} aria-haspopup="dialog">
+      <ShieldCheck size={20} weight="bold" aria-hidden="true" />
+      <span>Duty Manager</span>
+    </button>
+  );
+}
 
 function DutyManagerPopup({ onClose }) {
   const dialogRef = useRef(null);
@@ -883,7 +915,10 @@ function DutyManagerPopup({ onClose }) {
     };
   }, []);
 
-  const close = onClose;
+  const close = () => {
+    markDutyManagerSeen();
+    onClose();
+  };
 
   return (
     <dialog
@@ -1586,7 +1621,7 @@ function LearningPage() {
       <section className="ip3-hr-banner" aria-label="Learning and development">
         <Image
           src={`${LEARNING_MATERIALS_MEDIA}/learning-banner.webp`}
-          alt="Learn today, grow tomorrow — empowering our people to grow, innovate and deliver more for Oman. Explore a wide range of learning resources, develop your skills and capabilities, achieve your goals and strengthen performance, and succeed together to make a lasting impact."
+          alt="Learn today. Grow tomorrow."
           loading="eager"
           fetchPriority="high"
         />
@@ -1875,7 +1910,7 @@ export default function IntraPortalV3({ page = 'home' }) {
   const [ourShellMenuOpen, setOurShellMenuOpen] = useState(false);
   const [openSubmenu, setOpenSubmenu] = useState(null);
   const [activeVideo, setActiveVideo] = useState(null);
-  const [showDutyManager, setShowDutyManager] = useState(page === 'home');
+  const [showDutyManager, setShowDutyManager] = useState(() => page === 'home' && !hasSeenDutyManager());
   const [query, setQuery] = useState('');
 
   const toggleSubmenu = (submenuId) => {
@@ -2231,7 +2266,10 @@ export default function IntraPortalV3({ page = 'home' }) {
                     <div className="ip3-community-stories">
                       <article className="ip3-community-baby-announcement" aria-labelledby="ip3-baby-announcement-title">
                         <header>
-                          <h3 id="ip3-baby-announcement-title">Congratulations</h3>
+                          <h3 id="ip3-baby-announcement-title">
+                            Congratulations on the Arrival of Your Little One
+                          </h3>
+                          <Baby size={44} weight="regular" aria-hidden="true" />
                         </header>
                         <div className="ip3-community-baby-body">
                           <ul>
@@ -2240,7 +2278,7 @@ export default function IntraPortalV3({ page = 'home' }) {
                             <li>Omar Al Alawi was blessed with twins (boy &amp; girl).</li>
                             <li>Mohammed Al Balushi was blessed with a baby girl.</li>
                           </ul>
-                          <Image className="ip3-community-baby-art" src={`${MEDIA_ROOT}/baby-congratulations-art.png`} alt="" />
+                          <Image className="ip3-community-baby-toys" src={`${MEDIA_ROOT}/baby-toys-strip.png`} alt="" ariaHidden />
                         </div>
                       </article>
                       <article className="ip3-community-banner"><Image src={`${MEDIA_ROOT}/long-service-awards.webp`} alt="Long Service Awards — honouring our people, celebrating their legacy" /></article>
@@ -2342,6 +2380,7 @@ export default function IntraPortalV3({ page = 'home' }) {
       </div>
       {activeVideo && <VideoModal item={activeVideo} setActiveVideo={setActiveVideo} />}
       {showDutyManager && !activeVideo && <DutyManagerPopup onClose={() => setShowDutyManager(false)} />}
+      {!showDutyManager && !activeVideo && <DutyManagerTab onOpen={() => setShowDutyManager(true)} />}
     </div>
   );
 }
