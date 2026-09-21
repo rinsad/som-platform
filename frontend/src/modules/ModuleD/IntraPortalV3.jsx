@@ -159,7 +159,7 @@ const POSTS_MEDIA = `${MEDIA_ROOT}/posts`;
 const LATEST_POSTS = [
   {
     id: 'farewell-jamal-al-wahabi',
-    title: 'Farewell, Jamal Al-Wahabi',
+    title: 'Jamal Al-Wahabi',
     subtitle: 'Customer Operations',
     note: '44 Years. One Remarkable Journey.',
     image: `${MEDIA_ROOT}/farewell-jamal-al-wahabi.jpg`,
@@ -895,7 +895,7 @@ function GoalZeroCounter() {
 const DUTY_MANAGER = {
   name: 'Ahmed Al Dughaishi',
   photo: `${MEDIA_ROOT}/duty-manager.jpg`,
-  period: '20th to 24th September',
+  period: '20th to 26th September',
   phone: '99231647',
 };
 
@@ -1191,7 +1191,7 @@ function HrOnlinePage() {
       <section className="ip3-hr-banner" aria-label="Human Resources Hub">
         <Image
           src={`${HR_ONLINE_MEDIA}/hr-hub-banner.jpg`}
-          alt="Shell Oman colleagues talking outside a Shell Oman office"
+          alt="Supporting our people. Shaping our future."
           loading="eager"
           fetchPriority="high"
         />
@@ -1835,16 +1835,13 @@ function ToolsAndResourcesPage() {
       </nav>
 
       <section className="ip3-tools-banner" aria-labelledby="ip3-tools-banner-title">
+        <h1 id="ip3-tools-banner-title" className="ip3-visually-hidden">Tools and Resources</h1>
         <Image
           src={`${TOOLS_RESOURCES_MEDIA}/tools-and-resources-banner.jpg`}
-          alt=""
-          ariaHidden
+          alt="Quick access. Simpler workdays."
           loading="eager"
           fetchPriority="high"
         />
-        <div className="ip3-tools-banner-panel">
-          <h1 id="ip3-tools-banner-title">Tools and Resources</h1>
-        </div>
       </section>
 
       <section className="ip3-tools-catalogue" aria-labelledby="ip3-tools-catalogue-title">

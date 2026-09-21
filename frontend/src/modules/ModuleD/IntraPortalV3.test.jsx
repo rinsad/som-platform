@@ -22,7 +22,7 @@ test('shows the duty manager notice until closed, then keeps it closed for this 
     'src',
     '/intraportal-v3/media/duty-manager.jpg',
   );
-  expect(dialog).toHaveTextContent('20th to 24th September');
+  expect(dialog).toHaveTextContent('20th to 26th September');
   expect(within(dialog).getByRole('link', { name: '99231647' })).toHaveAttribute('href', 'tel:+96899231647');
   expect(dialog).toHaveTextContent('Available This Week');
   expect(dialog).not.toHaveTextContent(/Department|Email/);
