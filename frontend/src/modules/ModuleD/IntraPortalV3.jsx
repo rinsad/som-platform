@@ -21,6 +21,7 @@ import {
   Fire,
   FirstAidKit,
   GraduationCap,
+  HandHeart,
   HardHat,
   Heartbeat,
   House,
@@ -66,6 +67,7 @@ const NAV_ITEMS = [
   { label: 'HR online', icon: IdentificationCard, href: '/hr-online' },
   { label: 'Upcoming events', icon: CalendarDots, href: '#performance' },
   { label: 'Find us', icon: MapPin, href: '#footer' },
+  { label: 'OWN', icon: HandHeart, href: '/own' },
   { label: 'Learning', icon: GraduationCap, href: '/learning' },
 ];
 
@@ -180,6 +182,15 @@ const LATEST_POSTS = [
     image: `${MEDIA_ROOT}/portrait-shurooq-al-darmaki.jpg`,
     alt: 'Shurooq Al Darmaki, Corporate Finance Accountant',
     href: '/welcome-shurooq-al-darmaki',
+  },
+  {
+    id: 'farewell-jamal-al-wahabi',
+    title: 'Farewell, Jamal Al-Wahabi',
+    subtitle: 'Customer Operations',
+    note: '44 Years. One Remarkable Journey.',
+    image: `${MEDIA_ROOT}/farewell-jamal-al-wahabi.jpg`,
+    alt: 'Jamal Al-Wahabi, with photographs from his years at Shell Oman Marketing',
+    href: '/farewell-jamal-al-wahabi',
   },
 ];
 
@@ -425,6 +436,7 @@ function ThinkSecureLearning() {
 
 const PEOPLE_STORIES = {
   'welcome-riyadh-ashoor': {
+    banner: 'Staff announcement · new joiner',
     name: 'Riyadh Ashoor',
     portrait: `${MEDIA_ROOT}/portrait-riyadh-ashoor.jpg`,
     body: (
@@ -447,6 +459,7 @@ const PEOPLE_STORIES = {
     ),
   },
   'welcome-shurooq-al-darmaki': {
+    banner: 'Staff announcement · new joiner',
     name: 'Shurooq Al Darmaki',
     portrait: `${MEDIA_ROOT}/portrait-shurooq-al-darmaki.jpg`,
     body: (
@@ -473,6 +486,32 @@ const PEOPLE_STORIES = {
       </>
     ),
   },
+  'farewell-jamal-al-wahabi': {
+    banner: 'Staff announcement · farewell',
+    name: 'Jamal Al-Wahabi',
+    portrait: `${MEDIA_ROOT}/farewell-jamal-al-wahabi.jpg`,
+    body: (
+      <>
+        <p className="ip3-announcement-lead">
+          <strong>44 Years.</strong> One Remarkable Journey.
+        </p>
+        <p>
+          After an incredible 44 years of dedicated service, we come together to celebrate{' '}
+          <strong>Jamal Al-Wahabi</strong> from the Customer Operations team as he begins a new chapter.
+        </p>
+        <p>
+          Over more than four decades with Shell Oman Marketing, Jamal’s journey has been one of commitment,
+          contribution and countless shared moments. Through the years, he has witnessed change, supported
+          colleagues and played his part in shaping the organisation we know today.
+        </p>
+        <p>
+          As we mark the close of this remarkable chapter, we invite you to join us in celebrating Jamal’s
+          journey, recognising his contribution and wishing him every happiness and success for what lies ahead.
+        </p>
+        <p>Join us as we celebrate Jamal and 44 remarkable years of service.</p>
+      </>
+    ),
+  },
 };
 
 function PeopleStoryPage({ slug }) {
@@ -488,7 +527,7 @@ function PeopleStoryPage({ slug }) {
       </nav>
 
       <article className="ip3-announcement ip3-announcement-light">
-        <div className="ip3-announcement-banner">Staff announcement · new joiner</div>
+        <div className="ip3-announcement-banner">{story.banner}</div>
         <Image className="ip3-announcement-portrait" src={story.portrait} alt={`${story.name} portrait`} />
         <div className="ip3-announcement-copy-long">{story.body}</div>
       </article>
@@ -1609,6 +1648,65 @@ const LEARNING_MATERIALS = [
   },
 ];
 
+const OWN_MEDIA = `${MEDIA_ROOT}/own`;
+
+// Oman Women's Network. The two slides are the client's artwork; their full text
+// is carried in the alt text so it reaches screen readers and search.
+const OWN_SLIDES = [
+  {
+    id: 'own-mission-vision',
+    label: 'OWN mission, vision and pillars',
+    image: `${OWN_MEDIA}/own-mission-vision.webp`,
+    alt: [
+      'OWN, Oman Women’s Network.',
+      'OWN Mission: We empower women across our organization by leveraging collective strengths, fostering growth and supporting each other’s successes.',
+      'OWN Vision: To build an inclusive network, where women thrive, connected, confident, shaping the future of the Energy Industry in Oman.',
+      'Ambition & Empowerment: To cultivate an environment where every individual feels supported, included, and energised to realise their fullest potential, personally and professionally.',
+      'Creativity & Community: To cultivate a vibrant, connected community where creativity flourishes, individual strengths are celebrated, and meaningful relationships enable collective growth.',
+      'Serenity & Energy: To equip women with the skills, confidence, and supportive allies needed to navigate challenges with calm, strength, and empowerment, creating an energised environment where everyone can progress.',
+    ].join(' '),
+  },
+  {
+    id: 'own-organizing-committee',
+    label: 'OWN organizing committee',
+    image: `${OWN_MEDIA}/own-organizing-committee.webp`,
+    alt: [
+      'OWN Organizing Committee.',
+      'Chair: Majida Al Kharusi.',
+      'OWN Secretary/Treasurer: Amira Al Rawahi.',
+      'Deputy Chair and SDO Committee Member: Rahma Al Rawahi.',
+      'SOM Committee Member: Nawras Al Kindi.',
+      'OLNG Committee Member: Munira Al Mukheini.',
+      'SDO Committee Member: Salima Al Masroori.',
+    ].join(' '),
+  },
+];
+
+function OwnPage() {
+  return (
+    <main className="ip3-main ip3-own-page" id="ip3-main">
+      <nav className="ip3-ceo-breadcrumb" aria-label="Breadcrumb">
+        <a href="/">Home</a>
+        <CaretRight size={15} weight="bold" aria-hidden="true" />
+        <span aria-current="page">OWN</span>
+      </nav>
+
+      <h1 className="ip3-visually-hidden">OWN — Oman Women’s Network</h1>
+
+      {OWN_SLIDES.map((slide, index) => (
+        <section className="ip3-own-slide" key={slide.id} aria-label={slide.label}>
+          <Image
+            src={slide.image}
+            alt={slide.alt}
+            loading={index === 0 ? 'eager' : 'lazy'}
+            fetchPriority={index === 0 ? 'high' : undefined}
+          />
+        </section>
+      ))}
+    </main>
+  );
+}
+
 function LearningPage() {
   return (
     <main className="ip3-main ip3-learning-page" id="ip3-main">
@@ -2139,6 +2237,8 @@ export default function IntraPortalV3({ page = 'home' }) {
           <ToolsAndResourcesPage />
         ) : page === 'learning' ? (
           <LearningPage />
+        ) : page === 'own' ? (
+          <OwnPage />
         ) : HR_ARTICLES[page] ? (
           <HrArticlePage slug={page} />
         ) : page === 'hr-online' ? (

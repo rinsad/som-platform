@@ -60,8 +60,8 @@ test('renders the reference-based portal hierarchy', () => {
   const { container } = render(<IntraPortalV3 />);
 
   expect(screen.getByRole('navigation', { name: /portal navigation/i })).toBeInTheDocument();
-  expect(container.querySelectorAll('.ip3-nav .ip3-nav-icon')).toHaveLength(7);
-  expect(container.querySelectorAll('.ip3-nav a')).toHaveLength(6);
+  expect(container.querySelectorAll('.ip3-nav .ip3-nav-icon')).toHaveLength(8);
+  expect(container.querySelectorAll('.ip3-nav a')).toHaveLength(7);
   expect(screen.getByRole('button', { name: 'Our Shell' })).toHaveAttribute('aria-expanded', 'false');
   expect(container.querySelector('.ip3-nav .is-active')).not.toBeInTheDocument();
   expect(container.querySelector('.ip3-nav [aria-current="page"]')).not.toBeInTheDocument();
@@ -380,7 +380,7 @@ test('uses project media instead of remote placeholder images', () => {
 
   const imageSources = [...container.querySelectorAll('img')].map((image) => image.getAttribute('src'));
   expect(imageSources.some((source) => source?.includes('picsum.photos'))).toBe(false);
-  expect(imageSources.filter((source) => source?.startsWith('/intraportal-v3/media/'))).toHaveLength(23);
+  expect(imageSources.filter((source) => source?.startsWith('/intraportal-v3/media/'))).toHaveLength(24);
   expect(screen.getByAltText(/annual report cover/i)).toHaveAttribute(
     'src',
     '/intraportal-v3/media/annual-report-2025-covers.jpg',
@@ -421,6 +421,21 @@ test('features Shurooq Al Darmaki on the new joiner page', () => {
   expect(newJoinerCard).not.toHaveTextContent(/Riyadh/);
 });
 
+test('features the Jamal Al-Wahabi farewell announcement', () => {
+  const { container } = render(<IntraPortalV3 page="farewell-jamal-al-wahabi" />);
+
+  const card = container.querySelector('.ip3-announcement');
+  expect(card).toHaveTextContent('Staff announcement · farewell');
+  expect(within(card).getByAltText('Jamal Al-Wahabi portrait')).toHaveAttribute(
+    'src',
+    '/intraportal-v3/media/farewell-jamal-al-wahabi.jpg',
+  );
+  expect(card).toHaveTextContent('44 Years. One Remarkable Journey.');
+  expect(card).toHaveTextContent(/celebrate Jamal Al-Wahabi from the Customer Operations team as he begins a new chapter/);
+  expect(card).toHaveTextContent(/Join us as we celebrate Jamal and 44 remarkable years of service\./);
+  expect(card).not.toHaveTextContent(/new joiner/);
+});
+
 test('home page links to the people stories instead of embedding them', () => {
   const { container } = render(<IntraPortalV3 />);
 
@@ -438,7 +453,7 @@ test('home page links to the people stories instead of embedding them', () => {
   ]);
 
   fireEvent.click(screen.getByRole('button', { name: 'Next stories' }));
-  expect(hrefsOf(visiblePage())).toEqual(['/welcome-shurooq-al-darmaki']);
+  expect(hrefsOf(visiblePage())).toEqual(['/welcome-shurooq-al-darmaki', '/farewell-jamal-al-wahabi']);
   expect(container.querySelector('.ip3-post-slider-track')).toHaveStyle({ transform: 'translate3d(-100%, 0, 0)' });
 });
 
@@ -483,4 +498,21 @@ test('HR online service cards show icons while their pages keep the banners', ()
     'src',
     '/intraportal-v3/media/hr-online/business-mileage.png',
   );
+});
+
+test('OWN page shows both slides and sits before Learning in the nav', () => {
+  const { container } = render(<IntraPortalV3 page="own" />);
+
+  const navLabels = [...container.querySelectorAll('.ip3-nav a')].map((link) => link.textContent.trim());
+  expect(navLabels.slice(-2)).toEqual(['OWN', 'Learning']);
+  expect(screen.getByRole('link', { name: 'OWN' })).toHaveAttribute('aria-current', 'page');
+
+  expect(screen.getByRole('heading', { level: 1, name: /Oman Women’s Network/ })).toBeInTheDocument();
+  const slides = [...container.querySelectorAll('.ip3-own-slide img')];
+  expect(slides.map((image) => image.getAttribute('src'))).toEqual([
+    '/intraportal-v3/media/own/own-mission-vision.webp',
+    '/intraportal-v3/media/own/own-organizing-committee.webp',
+  ]);
+  expect(slides[0].getAttribute('alt')).toMatch(/OWN Mission: We empower women/);
+  expect(slides[1].getAttribute('alt')).toMatch(/Chair: Majida Al Kharusi/);
 });
