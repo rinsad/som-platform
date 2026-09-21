@@ -1139,7 +1139,7 @@ function CeoCornerPage() {
             <p className="ip3-ceo-lede">A relaxed conversation beyond the office, bringing colleagues together to exchange ideas and connect with Shell Oman’s leadership.</p>
 
             <p>Dear Colleagues,</p>
-            <p>Following the high demand and positive feedback from previous sessions, we’re excited to bring back <strong>Coffee with the CEO</strong> with <strong>Mohammed Al-Balushi, SMO CEO</strong>.</p>
+            <p>Following the high demand and positive feedback from previous sessions, we’re excited to bring back <strong>Coffee with the CEO</strong> with <strong>Dr. Mohammed Al-Balushi</strong>.</p>
             <p>This time, we’ll be taking the conversations beyond the office and hosting the session in one of our <strong>Shell Café outlets</strong>, providing a relaxed and welcoming environment to connect, exchange ideas, and engage in meaningful discussions.</p>
             <p>Whether you’d like to share your thoughts, gain insights into the business, or simply connect with colleagues from across SOM, this is a great opportunity to do so over a cup of coffee.</p>
 
@@ -1162,10 +1162,9 @@ function CeoCornerPage() {
             <p className="ip3-eyebrow">Session details</p>
             <h2 id="ip3-ceo-details-title">At a glance</h2>
             <dl>
-              <div><dt>Host</dt><dd>Mohammed Al-Balushi<br /><span>SMO CEO</span></dd></div>
-              <div><dt>Venue</dt><dd>Shell Café outlet<br /><span>Location to be confirmed</span></dd></div>
+              <div><dt>Host</dt><dd>Dr. Mohammed Al-Balushi</dd></div>
+              <div><dt>Venue</dt><dd>Shell Café outlet</dd></div>
               <div><dt>Date</dt><dd>Coming soon</dd></div>
-              <div><dt>Registration</dt><dd>First come, first served</dd></div>
             </dl>
             <section className="ip3-ceo-registration">
               <EnvelopeSimple size={28} weight="duotone" aria-hidden="true" />
