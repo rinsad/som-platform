@@ -370,8 +370,11 @@ test('uses the Shell People Survey banner and survey copy without tabs', () => {
   );
   const surveyPanel = surveyBanner.closest('.ip3-learning-panel');
   expect(within(surveyPanel).queryByRole('tab')).not.toBeInTheDocument();
-  expect(within(surveyPanel).getByText(/The Shell People Survey \(SPS\) 2026 will be open/i)).toBeInTheDocument();
-  expect(within(surveyPanel).getByText(/to measure our engagement, motivation, and commitment to Shell/i)).toBeInTheDocument();
+  expect(within(surveyPanel).getByRole('heading', { name: 'Thank You for Your Participation in the Shell People Survey 2026' })).toBeInTheDocument();
+  expect(within(surveyPanel).getByText(/closed on 18 September 2026/)).toBeInTheDocument();
+  expect(within(surveyPanel).getByText(/contributing to a better Shell workplace/)).toBeInTheDocument();
+  // the survey has closed, so there is no longer a link to take it
+  expect(within(surveyPanel).queryByRole('link', { name: /Take the Shell People Survey/ })).not.toBeInTheDocument();
 });
 
 test('uses project media instead of remote placeholder images', () => {
@@ -448,12 +451,12 @@ test('home page links to the people stories instead of embedding them', () => {
 
   expect(container.querySelectorAll('.ip3-post-slider-page')).toHaveLength(2);
   expect(hrefsOf(visiblePage())).toEqual([
-    'https://eu001-sp.shell.com/sites/SPO000684',
+    '/farewell-jamal-al-wahabi',
     '/welcome-riyadh-ashoor',
   ]);
 
   fireEvent.click(screen.getByRole('button', { name: 'Next stories' }));
-  expect(hrefsOf(visiblePage())).toEqual(['/welcome-shurooq-al-darmaki', '/farewell-jamal-al-wahabi']);
+  expect(hrefsOf(visiblePage())).toEqual(['/welcome-shurooq-al-darmaki', 'https://eu001-sp.shell.com/sites/SPO000684']);
   expect(container.querySelector('.ip3-post-slider-track')).toHaveStyle({ transform: 'translate3d(-100%, 0, 0)' });
 });
 

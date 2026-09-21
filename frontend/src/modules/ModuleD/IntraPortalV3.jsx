@@ -158,12 +158,13 @@ const POSTS_MEDIA = `${MEDIA_ROOT}/posts`;
 // it. Every field except id, title and image is optional.
 const LATEST_POSTS = [
   {
-    id: 'phishing-scorecard-target',
-    title: 'Phishing Scorecard Target',
-    subtitle: '31.08% achieved today. 40% is our next destination.',
-    image: `${POSTS_MEDIA}/phishing-golden-catch.jpg`,
-    alt: 'Don’t be the golden catch — report phishing',
-    href: 'https://eu001-sp.shell.com/sites/SPO000684',
+    id: 'farewell-jamal-al-wahabi',
+    title: 'Farewell, Jamal Al-Wahabi',
+    subtitle: 'Customer Operations',
+    note: '44 Years. One Remarkable Journey.',
+    image: `${MEDIA_ROOT}/farewell-jamal-al-wahabi.jpg`,
+    alt: 'Jamal Al-Wahabi, with photographs from his years at Shell Oman Marketing',
+    href: '/farewell-jamal-al-wahabi',
   },
   {
     id: 'welcome-riyadh-ashoor',
@@ -184,13 +185,12 @@ const LATEST_POSTS = [
     href: '/welcome-shurooq-al-darmaki',
   },
   {
-    id: 'farewell-jamal-al-wahabi',
-    title: 'Farewell, Jamal Al-Wahabi',
-    subtitle: 'Customer Operations',
-    note: '44 Years. One Remarkable Journey.',
-    image: `${MEDIA_ROOT}/farewell-jamal-al-wahabi.jpg`,
-    alt: 'Jamal Al-Wahabi, with photographs from his years at Shell Oman Marketing',
-    href: '/farewell-jamal-al-wahabi',
+    id: 'phishing-scorecard-target',
+    title: 'Phishing Scorecard Target',
+    subtitle: '31.08% achieved today. 40% is our next destination.',
+    image: `${POSTS_MEDIA}/phishing-golden-catch.jpg`,
+    alt: 'Don’t be the golden catch — report phishing',
+    href: 'https://eu001-sp.shell.com/sites/SPO000684',
   },
 ];
 
@@ -399,8 +399,6 @@ function SectionHeading({ eyebrow, title, action }) {
   );
 }
 
-const SHELL_PEOPLE_SURVEY_HREF = 'https://eu001-sp.shell.com/sites/SPO000430';
-
 function ThinkSecureLearning() {
   return (
     <article className="ip3-learning-panel">
@@ -411,24 +409,18 @@ function ThinkSecureLearning() {
       />
 
       <div className="ip3-learning-copy">
-        <p className="ip3-learning-copy-lead">
-          The Shell People Survey (SPS) 2026 will be open from the 19th of August until September 18th,
-          2026, and you have the opportunity to voice your opinion! SPS is an annual survey conducted
+        <h2 className="ip3-learning-copy-title">
+          Thank You for Your Participation in the Shell People Survey 2026
+        </h2>
+        <p>
+          The Shell People Survey 2026 closed on 18 September 2026, and we would like to thank everyone who
+          participated.
         </p>
         <p>
-          to measure our engagement, motivation, and commitment to Shell. It covers crucial topics like safety,
-          diversity, equity and Inclusion, ethics, collaboration, organization and team leadership.
+          Your feedback is important and helps us improve our workplace, culture, employee experience, and the way
+          we work together. Every response makes a difference and helps shape a better future for all employees.
         </p>
-        <p>
-          <a
-            className="ip3-learning-cta"
-            href={SHELL_PEOPLE_SURVEY_HREF}
-            target="_blank"
-            rel="noreferrer"
-          >
-            Take the Shell People Survey
-          </a>
-        </p>
+        <p>Thank you for sharing your voice and contributing to a better Shell workplace.</p>
       </div>
     </article>
   );
