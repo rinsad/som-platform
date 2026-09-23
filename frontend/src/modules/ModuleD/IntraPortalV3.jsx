@@ -404,8 +404,8 @@ function ThinkSecureLearning() {
     <article className="ip3-learning-panel">
       <Image
         className="ip3-learning-banner"
-        src="/intraportal-v3/shell-people-survey-2026-banner.png"
-        alt="Shell People Survey 2026, August 19 to September 18"
+        src="/intraportal-v3/shell-people-survey-2026-thank-you.jpg"
+        alt="Shell People Survey 2026: thank you for your participation. 100% completion rate achieved. Every voice counted."
       />
 
       <div className="ip3-learning-copy">
@@ -831,10 +831,6 @@ function GoalZeroCounter() {
   return (
     <section className="ip3-goal-zero-counter" aria-labelledby="ip3-goal-zero-title">
       <header className="ip3-safety-dashboard-header">
-        <div className="ip3-safety-dashboard-company">
-          <img src="/logo.png" alt="Shell" />
-          <strong>Shell Oman Marketing Company SAOG</strong>
-        </div>
         <h2 id="ip3-goal-zero-title">Goal Zero Safety Dashboard</h2>
         <p>Safety Performance 2026</p>
         <img

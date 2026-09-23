@@ -780,7 +780,7 @@
 .ip3-eyebrow { color: var(--ip3-brand-red); font-size: var(--ip3-text-xs); font-weight: var(--ip3-weight-heavy); text-transform: uppercase; letter-spacing: 0.07em; }
 
 .ip3-learning-panel { display: grid; grid-template-rows: auto 1fr; }
-.ip3-learning-banner { display: block; width: 100%; height: auto; aspect-ratio: 855 / 266; object-fit: contain; background: #f4f6f7; }
+.ip3-learning-banner { display: block; width: 100%; height: auto; aspect-ratio: 1710 / 534; object-fit: contain; background: #f4f6f7; }
 .ip3-learning-copy { align-content: start; display: grid; gap: var(--ip3-space-5); padding: clamp(1.5rem, 2.6vw, 2.5rem); }
 .ip3-learning-copy p { max-width: 74ch; margin: 0; color: var(--ip3-ink); font-size: var(--ip3-type-body); line-height: 1.6; }
 .ip3-learning-copy-title { margin: 0; color: var(--ip3-ink); font-size: var(--ip3-type-subheading); font-weight: var(--ip3-weight-heavy); line-height: 1.3; }
@@ -865,10 +865,7 @@
 .ip3-goal-zero-counter { padding: var(--ip3-space-4); color: var(--shell-navy); }
 .ip3-safety-dashboard-header { position: relative; min-height: 11.5rem; padding-bottom: var(--ip3-space-4); overflow: hidden; }
 .ip3-safety-dashboard-header > *:not(.ip3-safety-dashboard-artwork) { position: relative; z-index: 1; }
-.ip3-safety-dashboard-company { display: grid; grid-template-columns: 2.4rem minmax(0, 1fr); align-items: center; gap: var(--ip3-space-2); }
-.ip3-safety-dashboard-company img { width: 2.4rem; height: 2.4rem; object-fit: contain; }
-.ip3-safety-dashboard-company strong { max-width: 18rem; font-size: var(--ip3-text-xs); line-height: 1.25; }
-.ip3-safety-dashboard-header h2 { margin-top: var(--ip3-space-4); font-size: var(--ip3-type-section-title); line-height: 1.02; letter-spacing: 0.025em; text-transform: uppercase; }
+.ip3-safety-dashboard-header h2 { margin-top: 0; font-size: var(--ip3-type-section-title); line-height: 1.02; letter-spacing: 0.025em; text-transform: uppercase; }
 .ip3-safety-dashboard-header > p { margin-top: var(--ip3-space-1); color: var(--ip3-ink-muted); font-size: var(--ip3-text-md); }
 .ip3-safety-dashboard-header > p::after { content: ''; display: block; width: 2.5rem; height: 3px; margin-top: var(--ip3-space-3); background: var(--ip3-brand-red); }
 .ip3-safety-dashboard-artwork { position: absolute; right: -0.8rem; bottom: -0.1rem; width: min(72%, 17rem); height: auto; object-fit: contain; pointer-events: none; }
@@ -986,7 +983,6 @@
 .ip3-topic-options button,
 .ip3-community-stories span,
 .ip3-community-baby-body li,
-.ip3-safety-dashboard-company strong,
 .ip3-safety-dashboard-section-heading h3,
 .ip3-safety-dashboard-current-metric > span,
 .ip3-safety-dashboard-updated span,

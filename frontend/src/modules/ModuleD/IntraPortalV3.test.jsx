@@ -317,7 +317,7 @@ test('renders the Goal Zero safety dashboard with the supplied performance data'
   render(<IntraPortalV3 />);
 
   const statusCard = screen.getByRole('region', { name: 'Goal Zero Safety Dashboard' });
-  expect(within(statusCard).getByText('Shell Oman Marketing Company SAOG')).toBeInTheDocument();
+  expect(within(statusCard).queryByText('Shell Oman Marketing Company SAOG')).not.toBeInTheDocument();
   expect(within(statusCard).getByText('Safety Performance 2026')).toBeInTheDocument();
   expect(within(statusCard).getByLabelText('243 days no harm')).toBeInTheDocument();
   expect(within(statusCard).getByLabelText('243 days no leak')).toBeInTheDocument();
@@ -363,10 +363,10 @@ test('no longer renders the Golden Star Rate scorecard panel', () => {
 test('uses the Shell People Survey banner and survey copy without tabs', () => {
   render(<IntraPortalV3 />);
 
-  const surveyBanner = screen.getByAltText('Shell People Survey 2026, August 19 to September 18');
+  const surveyBanner = screen.getByAltText(/Shell People Survey 2026: thank you for your participation/);
   expect(surveyBanner).toHaveAttribute(
     'src',
-    '/intraportal-v3/shell-people-survey-2026-banner.png',
+    '/intraportal-v3/shell-people-survey-2026-thank-you.jpg',
   );
   const surveyPanel = surveyBanner.closest('.ip3-learning-panel');
   expect(within(surveyPanel).queryByRole('tab')).not.toBeInTheDocument();
