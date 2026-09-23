@@ -61,7 +61,7 @@ import './intraportal-v3.css';
 const MEDIA_ROOT = '/intraportal-v3/media';
 
 const NAV_ITEMS = [
-  { label: 'Our Shell', icon: House, megaMenu: true },
+  { label: 'Shell Oman', icon: House, megaMenu: true },
   { label: 'Tools & resources', icon: Toolbox, href: '/tools-and-resources' },
   { label: 'Latest company news', icon: NewspaperClipping, href: '#news' },
   { label: 'HR online', icon: IdentificationCard, href: '/hr-online' },
@@ -75,7 +75,7 @@ const OUR_SHELL_MENU = [
   {
     title: 'About Shell',
     items: [
-      { label: 'This is Shell', href: '/this-is-shell' },
+      { label: 'This is Shell Oman', href: '/this-is-shell' },
       { label: 'CEO Corner', href: '/ceo-corner' },
       { label: 'Performance and Results', href: '/#performance' },
     ],
@@ -266,7 +266,7 @@ const FEEDBACK_TOPICS = [
 const HR_ONLINE_MEDIA = '/intraportal-v3/media/hr-online';
 
 const HR_ONLINE_INTRO = [
-  'At Shell, our people are at the heart of everything we do. The Human Resources (HR) team is here to empower you, support your growth, and create an inclusive environment where everyone can thrive.',
+  'At Shell Oman, our people are at the heart of everything we do. The Human Resources (HR) team is here to empower you, support your growth, and create an inclusive environment where everyone can thrive.',
   'Our role in HR is to enable the delivery of Shell’s Powering Progress strategy by developing and deploying effective people strategies. We aim to attract, develop, and retain the best talent while fostering a winning performance culture aligned with Shell’s purpose and values.',
   'Whether it’s career development, seamless support for your queries, or guidance on policies and benefits, HR is committed to helping you succeed both personally and professionally.',
   'We operate as an integrated team — across HR in the business, in our operations, and in specialised areas like learning, talent, and reward — to drive business performance and create value for Shell.',
@@ -1116,7 +1116,7 @@ function CeoCornerPage() {
   return (
     <main className="ip3-main ip3-ceo-page" id="ip3-main">
       <nav className="ip3-ceo-breadcrumb" aria-label="Breadcrumb">
-        <a href="/">Our Shell</a>
+        <a href="/">Shell Oman</a>
         <CaretRight size={15} weight="bold" aria-hidden="true" />
         <span aria-current="page">CEO Corner</span>
       </nav>
@@ -1135,7 +1135,7 @@ function CeoCornerPage() {
             <p className="ip3-ceo-lede">A relaxed conversation beyond the office, bringing colleagues together to exchange ideas and connect with Shell Oman’s leadership.</p>
 
             <p>Dear Colleagues,</p>
-            <p>Following the high demand and positive feedback from previous sessions, we’re excited to bring back <strong>Coffee with the CEO</strong> with <strong>Dr. Mohammed Al-Balushi</strong>.</p>
+            <p>Following the high demand and positive feedback from previous sessions, we’re excited to bring back <strong>Coffee with the CEO</strong> with <strong>Dr. Mohammed Al Balushi</strong>.</p>
             <p>This time, we’ll be taking the conversations beyond the office and hosting the session in one of our <strong>Shell Café outlets</strong>, providing a relaxed and welcoming environment to connect, exchange ideas, and engage in meaningful discussions.</p>
             <p>Whether you’d like to share your thoughts, gain insights into the business, or simply connect with colleagues from across SOM, this is a great opportunity to do so over a cup of coffee.</p>
 
@@ -1158,7 +1158,7 @@ function CeoCornerPage() {
             <p className="ip3-eyebrow">Session details</p>
             <h2 id="ip3-ceo-details-title">At a glance</h2>
             <dl>
-              <div><dt>Host</dt><dd>Dr. Mohammed Al-Balushi</dd></div>
+              <div><dt>Host</dt><dd>Dr. Mohammed Al Balushi</dd></div>
               <div><dt>Venue</dt><dd>Shell Café outlet</dd></div>
               <div><dt>Date</dt><dd>Coming soon</dd></div>
             </dl>
@@ -1891,9 +1891,9 @@ function ThisIsShellPage() {
   return (
     <main className="ip3-main ip3-shell-page" id="ip3-main">
       <nav className="ip3-ceo-breadcrumb" aria-label="Breadcrumb">
-        <a href="/">Our Shell</a>
+        <a href="/">Shell Oman</a>
         <CaretRight size={15} weight="bold" aria-hidden="true" />
-        <span aria-current="page">This is Shell</span>
+        <span aria-current="page">This is Shell Oman</span>
       </nav>
 
       <article className="ip3-shell-profile">
@@ -2106,7 +2106,7 @@ export default function IntraPortalV3({ page = 'home' }) {
           <section
             className="ip3-mega-menu"
             id="ip3-our-shell-menu"
-            aria-label="Our Shell menu"
+            aria-label="Shell Oman menu"
           >
             {OUR_SHELL_MENU.map((group) => (
               <section className="ip3-mega-group" key={group.title} aria-labelledby={`ip3-mega-${group.title.toLowerCase().replaceAll(' ', '-')}`}>

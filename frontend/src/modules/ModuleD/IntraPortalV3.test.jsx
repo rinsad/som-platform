@@ -62,7 +62,7 @@ test('renders the reference-based portal hierarchy', () => {
   expect(screen.getByRole('navigation', { name: /portal navigation/i })).toBeInTheDocument();
   expect(container.querySelectorAll('.ip3-nav .ip3-nav-icon')).toHaveLength(8);
   expect(container.querySelectorAll('.ip3-nav a')).toHaveLength(7);
-  expect(screen.getByRole('button', { name: 'Our Shell' })).toHaveAttribute('aria-expanded', 'false');
+  expect(screen.getByRole('button', { name: 'Shell Oman' })).toHaveAttribute('aria-expanded', 'false');
   expect(container.querySelector('.ip3-nav .is-active')).not.toBeInTheDocument();
   expect(container.querySelector('.ip3-nav [aria-current="page"]')).not.toBeInTheDocument();
   expect(screen.getByRole('link', { name: 'LinkedIn' })).toBeInTheDocument();
@@ -80,18 +80,18 @@ test('renders the reference-based portal hierarchy', () => {
   expect(screen.getByRole('heading', { name: /more to watch/i })).toBeInTheDocument();
 });
 
-test('opens the Our Shell mega menu only on click without marking it as the current page', () => {
+test('opens the Shell Oman mega menu only on click without marking it as the current page', () => {
   render(<IntraPortalV3 />);
 
-  const trigger = screen.getByRole('button', { name: 'Our Shell' });
-  expect(screen.queryByRole('region', { name: 'Our Shell menu' })).not.toBeInTheDocument();
+  const trigger = screen.getByRole('button', { name: 'Shell Oman' });
+  expect(screen.queryByRole('region', { name: 'Shell Oman menu' })).not.toBeInTheDocument();
 
   fireEvent.mouseEnter(trigger);
-  expect(screen.queryByRole('region', { name: 'Our Shell menu' })).not.toBeInTheDocument();
+  expect(screen.queryByRole('region', { name: 'Shell Oman menu' })).not.toBeInTheDocument();
 
   fireEvent.click(trigger);
 
-  const menu = screen.getByRole('region', { name: 'Our Shell menu' });
+  const menu = screen.getByRole('region', { name: 'Shell Oman menu' });
   expect(trigger).toHaveAttribute('aria-expanded', 'true');
   expect(menu.querySelectorAll('.ip3-mega-group-mark span')).toHaveLength(0);
   expect(within(menu).getByRole('heading', { name: 'About Shell' })).toBeInTheDocument();
@@ -99,8 +99,8 @@ test('opens the Our Shell mega menu only on click without marking it as the curr
   expect(within(menu).getByRole('heading', { name: 'Functions' })).toBeInTheDocument();
   const aboutShell = within(menu).getByRole('region', { name: 'About Shell' });
   expect(within(aboutShell).getAllByRole('link')).toHaveLength(3);
-  expect(within(aboutShell).getByRole('link', { name: 'This is Shell' })).toBeInTheDocument();
-  expect(within(aboutShell).getByRole('link', { name: 'This is Shell' })).toHaveAttribute('href', '/this-is-shell');
+  expect(within(aboutShell).getByRole('link', { name: 'This is Shell Oman' })).toBeInTheDocument();
+  expect(within(aboutShell).getByRole('link', { name: 'This is Shell Oman' })).toHaveAttribute('href', '/this-is-shell');
   expect(within(aboutShell).getByRole('link', { name: 'CEO Corner' })).toBeInTheDocument();
   expect(within(aboutShell).getByRole('link', { name: 'CEO Corner' })).toHaveAttribute('href', '/ceo-corner');
   expect(within(aboutShell).getByRole('link', { name: 'Performance and Results' })).toBeInTheDocument();
@@ -143,7 +143,7 @@ test('opens the Our Shell mega menu only on click without marking it as the curr
   expect(within(menu).queryByRole('link', { name: 'Diversity, Equity & Inclusion' })).not.toBeInTheDocument();
 
   fireEvent.keyDown(screen.getByRole('complementary', { name: 'Portal sidebar' }), { key: 'Escape' });
-  expect(screen.queryByRole('region', { name: 'Our Shell menu' })).not.toBeInTheDocument();
+  expect(screen.queryByRole('region', { name: 'Shell Oman menu' })).not.toBeInTheDocument();
 });
 
 test('renders the CEO Corner Coffee with the CEO announcement', () => {
@@ -160,7 +160,7 @@ test('renders the CEO Corner Coffee with the CEO announcement', () => {
   expect(screen.queryByLabelText('Breaking news')).not.toBeInTheDocument();
 });
 
-test('renders the This is Shell company profile page', () => {
+test('renders the This is Shell Oman company profile page', () => {
   render(<IntraPortalV3 page="this-is-shell" />);
 
   expect(screen.getByRole('heading', { name: 'More than 60 years of serving Oman' })).toBeInTheDocument();
