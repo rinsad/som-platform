@@ -780,7 +780,7 @@
 .ip3-eyebrow { color: var(--ip3-brand-red); font-size: var(--ip3-text-xs); font-weight: var(--ip3-weight-heavy); text-transform: uppercase; letter-spacing: 0.07em; }
 
 .ip3-learning-panel { display: grid; grid-template-rows: auto 1fr; }
-.ip3-learning-banner { display: block; width: 100%; height: auto; aspect-ratio: 1710 / 534; object-fit: contain; background: #f4f6f7; }
+.ip3-learning-banner { display: block; width: 100%; height: auto; aspect-ratio: 3 / 1; object-fit: contain; background: #f4f6f7; }
 .ip3-learning-copy { align-content: start; display: grid; gap: var(--ip3-space-5); padding: clamp(1.5rem, 2.6vw, 2.5rem); }
 .ip3-learning-copy p { max-width: 74ch; margin: 0; color: var(--ip3-ink); font-size: var(--ip3-type-body); line-height: 1.6; }
 .ip3-learning-copy-title { margin: 0; color: var(--ip3-ink); font-size: var(--ip3-type-subheading); font-weight: var(--ip3-weight-heavy); line-height: 1.3; }

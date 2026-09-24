@@ -62,13 +62,13 @@ const MEDIA_ROOT = '/intraportal-v3/media';
 
 const NAV_ITEMS = [
   { label: 'Shell Oman', icon: House, megaMenu: true },
-  { label: 'Tools & resources', icon: Toolbox, href: '/tools-and-resources' },
   { label: 'Latest company news', icon: NewspaperClipping, href: '#news' },
   { label: 'HR online', icon: IdentificationCard, href: '/hr-online' },
+  { label: 'Tools & resources', icon: Toolbox, href: '/tools-and-resources' },
   { label: 'Upcoming events', icon: CalendarDots, href: '#performance' },
-  { label: 'Find us', icon: MapPin, href: '#footer' },
   { label: 'OWN', icon: HandHeart, href: '/own' },
   { label: 'Learning', icon: GraduationCap, href: '/learning' },
+  { label: 'Find us', icon: MapPin, href: '#footer' },
 ];
 
 const OUR_SHELL_MENU = [
@@ -404,8 +404,8 @@ function ThinkSecureLearning() {
     <article className="ip3-learning-panel">
       <Image
         className="ip3-learning-banner"
-        src="/intraportal-v3/shell-people-survey-2026-thank-you.jpg"
-        alt="Shell People Survey 2026: thank you for your participation. 100% completion rate achieved. Every voice counted."
+        src="/intraportal-v3/shell-people-survey-2026-thank-you-v2.jpg"
+        alt="Shell People Survey 2026: thank you for your participation. 100%. Every voice counted. Thank you for making the Shell People Survey 2026 a success."
       />
 
       <div className="ip3-learning-copy">

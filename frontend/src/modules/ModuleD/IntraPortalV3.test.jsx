@@ -366,7 +366,7 @@ test('uses the Shell People Survey banner and survey copy without tabs', () => {
   const surveyBanner = screen.getByAltText(/Shell People Survey 2026: thank you for your participation/);
   expect(surveyBanner).toHaveAttribute(
     'src',
-    '/intraportal-v3/shell-people-survey-2026-thank-you.jpg',
+    '/intraportal-v3/shell-people-survey-2026-thank-you-v2.jpg',
   );
   const surveyPanel = surveyBanner.closest('.ip3-learning-panel');
   expect(within(surveyPanel).queryByRole('tab')).not.toBeInTheDocument();
@@ -507,7 +507,9 @@ test('OWN page shows both slides and sits before Learning in the nav', () => {
   const { container } = render(<IntraPortalV3 page="own" />);
 
   const navLabels = [...container.querySelectorAll('.ip3-nav a')].map((link) => link.textContent.trim());
-  expect(navLabels.slice(-2)).toEqual(['OWN', 'Learning']);
+  expect(navLabels).toEqual([
+    'Latest company news', 'HR online', 'Tools & resources', 'Upcoming events', 'OWN', 'Learning', 'Find us',
+  ]);
   expect(screen.getByRole('link', { name: 'OWN' })).toHaveAttribute('aria-current', 'page');
 
   expect(screen.getByRole('heading', { level: 1, name: /Oman Women’s Network/ })).toBeInTheDocument();
