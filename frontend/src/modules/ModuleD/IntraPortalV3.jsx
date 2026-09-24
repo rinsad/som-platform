@@ -138,12 +138,8 @@ const LEAD_STORIES = [
 
 // Frontend-only demonstration data. Replace this array with the CMS response
 // when the intraportal backend is connected.
-const BREAKING_NEWS = [
-  {
-    headline: 'Shell People Survey 2026 opens on 19 August to 18 September.',
-    target: 'learning',
-  },
-];
+// The ticker hides itself while this list is empty.
+const BREAKING_NEWS = [];
 
 // Used by both the topbar icon row and the footer column.
 const SOCIAL_CHANNELS = [
@@ -2005,7 +2001,7 @@ export default function IntraPortalV3({ page = 'home' }) {
     const prefersReducedMotion = typeof window.matchMedia === 'function'
       && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-    if (tickerPaused || prefersReducedMotion) return undefined;
+    if (tickerPaused || prefersReducedMotion || BREAKING_NEWS.length < 2) return undefined;
 
     const rotationTimer = window.setInterval(() => {
       setActiveNews((current) => (current + 1) % BREAKING_NEWS.length);
@@ -2229,6 +2225,7 @@ export default function IntraPortalV3({ page = 'home' }) {
           <HrOnlinePage />
         ) : (
         <main className="ip3-main" id="ip3-main">
+          {breakingNews && (
           <section
             className="ip3-ticker"
             aria-label="Breaking news"
@@ -2245,6 +2242,7 @@ export default function IntraPortalV3({ page = 'home' }) {
             </p>
             <button type="button" onClick={() => goTo(breakingNews.target)}>Read update</button>
           </section>
+          )}
 
           <div className="ip3-content-grid">
             <div className="ip3-main-column">

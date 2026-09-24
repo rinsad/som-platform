@@ -228,19 +228,11 @@ test('hero carousel auto-advances and can be paused', () => {
   }
 });
 
-test('keeps showing the frontend demo breaking-news item as the ticker advances', () => {
-  vi.useFakeTimers();
+test('hides the breaking-news ticker when there is no news', () => {
+  render(<IntraPortalV3 />);
 
-  try {
-    render(<IntraPortalV3 />);
-
-    expect(screen.getByText('Shell People Survey 2026 opens on 19 August to 18 September.')).toBeInTheDocument();
-
-    act(() => vi.advanceTimersByTime(6000));
-    expect(screen.getByText('Shell People Survey 2026 opens on 19 August to 18 September.')).toBeInTheDocument();
-  } finally {
-    vi.useRealTimers();
-  }
+  expect(screen.queryByLabelText('Breaking news')).not.toBeInTheDocument();
+  expect(screen.queryByText(/Shell People Survey 2026 opens/)).not.toBeInTheDocument();
 });
 
 test('opens side-news video thumbnails in an accessible modal', () => {
