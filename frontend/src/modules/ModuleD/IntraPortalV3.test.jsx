@@ -463,18 +463,22 @@ test('links to the Shell People Survey from the HR online highlights', () => {
   );
 });
 
-test('renders an interactive anonymous employee feedback panel', () => {
+test('renders the employee portal survey and requires a rating', () => {
   render(<IntraPortalV3 />);
+  dismissDutyManager();
 
-  const form = screen.getByRole('form', { name: /anonymous employee feedback/i });
-  expect(screen.getByRole('heading', { name: /give feedback/i })).toBeInTheDocument();
-  expect(screen.queryByRole('tab')).not.toBeInTheDocument();
-  fireEvent.click(within(form).getByRole('radio', { name: 'Happy' }));
-  fireEvent.click(within(form).getByRole('button', { name: 'Tools & resources' }));
-  fireEvent.change(within(form).getByLabelText(/share your thoughts/i), { target: { value: 'The new tools page is easier to use.' } });
-  fireEvent.click(within(form).getByRole('button', { name: /send feedback/i }));
+  const form = screen.getByRole('form', { name: /employee portal survey/i });
+  expect(screen.getByRole('heading', { name: 'Employee Portal Survey' })).toBeInTheDocument();
+  const ratings = within(form).getAllByRole('radio');
+  expect(ratings.map((radio) => radio.value)).toEqual(['Poor', 'Fair', 'Good', 'Very Good', 'Excellent']);
 
-  expect(screen.getByText(/anonymous feedback has been captured/i)).toBeInTheDocument();
+  fireEvent.click(within(form).getByRole('button', { name: /submit/i }));
+  expect(screen.getByText(/choose a rating/i)).toBeInTheDocument();
+
+  fireEvent.click(within(form).getByRole('radio', { name: 'Very Good' }));
+  fireEvent.change(within(form).getByLabelText(/how can we improve/i), { target: { value: 'More HR self-service links.' } });
+  fireEvent.click(within(form).getByRole('button', { name: /submit/i }));
+  expect(screen.getByText(/your feedback has been captured/i)).toBeInTheDocument();
 });
 
 test('HR online service cards show icons while their pages keep the banners', () => {
@@ -500,7 +504,7 @@ test('OWN page shows both slides and sits before Learning in the nav', () => {
 
   const navLabels = [...container.querySelectorAll('.ip3-nav a')].map((link) => link.textContent.trim());
   expect(navLabels).toEqual([
-    'Latest company news', 'HR online', 'Tools & resources', 'Upcoming events', 'OWN', 'Learning', 'Find us',
+    'HR online', 'Tools & resources', 'Upcoming events', 'OWN', 'Learning', 'Find us', 'Latest company news',
   ]);
   expect(screen.getByRole('link', { name: 'OWN' })).toHaveAttribute('aria-current', 'page');
 
@@ -512,4 +516,26 @@ test('OWN page shows both slides and sits before Learning in the nav', () => {
   ]);
   expect(slides[0].getAttribute('alt')).toMatch(/OWN Mission: We empower women/);
   expect(slides[1].getAttribute('alt')).toMatch(/Chair: Majida Al Kharusi/);
+});
+
+test.each([
+  ['business-mileage-claim', 'Submit a claim', /^https:\/\/eu2\.concursolutions\.com\/nui\/signin\?dcredirect=1$/],
+  ['recreational-wellness-scheme', 'Submit a claim', /categoryId=benefits&cardId=benefitActions$/],
+  ['healthcare-benefits', 'View my benefits', /cardId=customCard1761109783432217$/],
+  ['mobile-phones-business-numbers', 'Apply now', /cardId=customCard1761109783432217$/],
+])('HR article %s links out from its call-to-action button', (slug, label, href) => {
+  render(<IntraPortalV3 page={slug} />);
+  const cta = screen.getByRole('link', { name: label });
+  expect(cta).toHaveAttribute('href', expect.stringMatching(href));
+  expect(cta).toHaveAttribute('target', '_blank');
+});
+
+test('Learning page puts the Workday card between the banner and the learning materials', () => {
+  const { container } = render(<IntraPortalV3 page="learning" />);
+
+  const headings = [...container.querySelectorAll('.ip3-learning-page h2')].map((heading) => heading.textContent);
+  expect(headings.slice(0, 2)).toEqual(['Workday', 'Learning materials']);
+  const workday = screen.getByRole('link', { name: 'Open Workday Home' });
+  expect(workday).toHaveAttribute('href', 'https://wd3.myworkday.com/shell/d/home.htmld');
+  expect(workday).toHaveAttribute('target', '_blank');
 });

@@ -1,5 +1,6 @@
 import { createElement, useEffect, useMemo, useRef, useState } from 'react';
 import {
+  ArrowRight,
   ArrowUpRight,
   Baby,
   Bank,
@@ -8,7 +9,6 @@ import {
   CaretLeft,
   CaretRight,
   ChartBar,
-  ChatCircleText,
   CheckCircle,
   ClipboardText,
   Confetti,
@@ -43,11 +43,6 @@ import {
   RoadHorizon,
   Shield,
   ShieldCheck,
-  Smiley,
-  SmileyMeh,
-  SmileyNervous,
-  SmileySad,
-  SmileyWink,
   SquaresFour,
   Star,
   Toolbox,
@@ -62,13 +57,13 @@ const MEDIA_ROOT = '/intraportal-v3/media';
 
 const NAV_ITEMS = [
   { label: 'Shell Oman', icon: House, megaMenu: true },
-  { label: 'Latest company news', icon: NewspaperClipping, href: '#news' },
   { label: 'HR online', icon: IdentificationCard, href: '/hr-online' },
   { label: 'Tools & resources', icon: Toolbox, href: '/tools-and-resources' },
   { label: 'Upcoming events', icon: CalendarDots, href: '#performance' },
   { label: 'OWN', icon: HandHeart, href: '/own' },
   { label: 'Learning', icon: GraduationCap, href: '/learning' },
   { label: 'Find us', icon: MapPin, href: '#footer' },
+  { label: 'Latest company news', icon: NewspaperClipping, href: '#news' },
 ];
 
 const OUR_SHELL_MENU = [
@@ -242,22 +237,7 @@ const WATCH_ITEMS = [
   { title: 'People behind the platform', duration: '05:03', image: `${MEDIA_ROOT}/watch-platform-people.webp` },
 ];
 
-const FEEDBACK_MOODS = [
-  { label: 'Very unhappy', icon: SmileySad },
-  { label: 'Unhappy', icon: SmileyNervous },
-  { label: 'Neutral', icon: SmileyMeh },
-  { label: 'Happy', icon: Smiley },
-  { label: 'Very happy', icon: SmileyWink },
-];
-
-const FEEDBACK_TOPICS = [
-  'Work environment',
-  'Team collaboration',
-  'Management',
-  'Tools & resources',
-  'Work-life balance',
-  'Growth opportunities',
-];
+const PORTAL_SURVEY_RATINGS = ['Poor', 'Fair', 'Good', 'Very Good', 'Excellent'];
 
 const HR_ONLINE_MEDIA = '/intraportal-v3/media/hr-online';
 
@@ -607,92 +587,73 @@ function LatestPostsSlider() {
 }
 
 function EmployeePulse() {
-  const [mood, setMood] = useState('');
-  const [topics, setTopics] = useState([]);
+  const [rating, setRating] = useState('');
   const [comment, setComment] = useState('');
   const [notice, setNotice] = useState('');
 
-  const toggleTopic = (topic) => {
-    setTopics((current) => (
-      current.includes(topic) ? current.filter((item) => item !== topic) : [...current, topic]
-    ));
-  };
-
-  const submitFeedback = (event) => {
+  const submitSurvey = (event) => {
     event.preventDefault();
-    if (!mood || !comment.trim()) {
-      setNotice('Choose a mood and add a short comment before sending.');
+    if (!rating) {
+      setNotice('Choose a rating before submitting.');
       return;
     }
 
-    setNotice('Thank you. Your anonymous feedback has been captured.');
+    setNotice('Thank you. Your feedback has been captured.');
   };
 
   return (
-    <article className="ip3-feedback-card" aria-label="Employee feedback">
-      <div className="ip3-feedback-head">
-        <ChatCircleText size={17} weight="regular" aria-hidden="true" />
-        <h3>Give feedback</h3>
-      </div>
+    <article className="ip3-survey-card" aria-labelledby="ip3-survey-title">
+      <header className="ip3-survey-head">
+        <h3 id="ip3-survey-title">Employee Portal <span>Survey</span></h3>
+        <p>Help us improve your experience.</p>
+      </header>
 
-      <form className="ip3-feedback-form" onSubmit={submitFeedback} aria-label="Anonymous employee feedback form">
-          <fieldset className="ip3-mood-fieldset">
-            <legend>How are you feeling today?</legend>
-            <div className="ip3-mood-options" role="radiogroup" aria-label="Current mood">
-              {FEEDBACK_MOODS.map((item) => {
-                const MoodIcon = item.icon;
-                return (
-                  <button
-                    key={item.label}
-                    type="button"
-                    role="radio"
-                    aria-checked={mood === item.label}
-                    onClick={() => { setMood(item.label); setNotice(''); }}
-                  >
-                    <span><MoodIcon size={27} weight={mood === item.label ? 'fill' : 'regular'} aria-hidden="true" /></span>
-                    {item.label}
-                  </button>
-                );
-              })}
-            </div>
-          </fieldset>
-
-          <fieldset className="ip3-topic-fieldset">
-            <legend>What’s this about?</legend>
-            <div className="ip3-topic-options">
-              {FEEDBACK_TOPICS.map((topic) => (
-                <button
-                  key={topic}
-                  type="button"
-                  aria-pressed={topics.includes(topic)}
-                  onClick={() => toggleTopic(topic)}
-                >
-                  {topic}
-                </button>
-              ))}
-            </div>
-          </fieldset>
-
-          <div className="ip3-feedback-comment">
-            <label htmlFor="ip3-feedback-comment">Share your thoughts</label>
-            <textarea
-              id="ip3-feedback-comment"
-              value={comment}
-              onChange={(event) => { setComment(event.target.value); setNotice(''); }}
-              placeholder="Tell us what’s on your mind. Your feedback is anonymous and helps us improve."
-              rows={3}
-            />
+      <form className="ip3-survey-form" onSubmit={submitSurvey} aria-label="Employee portal survey form">
+        <fieldset className="ip3-survey-question">
+          <legend><span aria-hidden="true">1</span>How useful is the Employee Portal?</legend>
+          <div className="ip3-survey-ratings">
+            {PORTAL_SURVEY_RATINGS.map((option) => (
+              <label key={option}>
+                <input
+                  type="radio"
+                  name="ip3-survey-rating"
+                  value={option}
+                  checked={rating === option}
+                  onChange={() => { setRating(option); setNotice(''); }}
+                />
+                {option}
+              </label>
+            ))}
           </div>
+        </fieldset>
 
-          <div className="ip3-feedback-submit">
-            <p className={notice.startsWith('Thank') ? 'is-success' : 'is-error'} aria-live="polite">{notice}</p>
-            <button type="submit">Send feedback</button>
-          </div>
+        <div className="ip3-survey-question">
+          <label className="ip3-survey-question-title" htmlFor="ip3-survey-comment">
+            <span aria-hidden="true">2</span>How can we improve?
+          </label>
+          <textarea
+            id="ip3-survey-comment"
+            value={comment}
+            onChange={(event) => { setComment(event.target.value); setNotice(''); }}
+            placeholder="Your comments..."
+            rows={3}
+          />
+        </div>
+
+        <div className="ip3-survey-footer">
+          <p className="ip3-survey-tagline">Your feedback matters.</p>
+          <button type="submit">
+            Submit
+            <ArrowRight size={16} weight="bold" aria-hidden="true" />
+          </button>
+        </div>
+        <p className={notice.startsWith('Thank') ? 'ip3-survey-notice is-success' : 'ip3-survey-notice'} aria-live="polite">
+          {notice}
+        </p>
       </form>
     </article>
   );
 }
-
 const GOVERNANCE_TILES = [
   {
     id: 'lexi-chatbot',
@@ -1299,6 +1260,10 @@ const HR_ARTICLES = {
       label: 'Note:',
       text: 'Claims that do not comply with the Business Mileage policy may be rejected.',
     },
+    cta: {
+      label: 'Submit a claim',
+      href: 'https://eu2.concursolutions.com/nui/signin?dcredirect=1',
+    },
   },
   'recreational-wellness-scheme': {
     title: 'Recreational & Wellness Scheme',
@@ -1396,6 +1361,10 @@ const HR_ARTICLES = {
         ],
       },
     ],
+    cta: {
+      label: 'Submit a claim',
+      href: 'https://performancemanager.successfactors.eu/sf/liveprofile?compnay=ShellOmanMktg&categoryId=benefits&cardId=benefitActions',
+    },
   },
   'healthcare-benefits': {
     title: 'Healthcare Benefits',
@@ -1433,6 +1402,10 @@ const HR_ARTICLES = {
     ],
     note: {
       text: 'Employees on Local Non-National or Long Term International or Short-Term International Assignment are eligible for Healthcare Benefits as per International Mobility Policy.',
+    },
+    cta: {
+      label: 'View my benefits',
+      href: 'https://performancemanager.successfactors.eu/sf/liveprofile?company=ShellOmanMktg&categoryId=customCategory1760852311168661&cardId=customCard1761109783432217',
     },
   },
   'mobile-phones-business-numbers': {
@@ -1690,6 +1663,8 @@ function OwnPage() {
   );
 }
 
+const WORKDAY_HOME_URL = 'https://wd3.myworkday.com/shell/d/home.htmld';
+
 function LearningPage() {
   return (
     <main className="ip3-main ip3-learning-page" id="ip3-main">
@@ -1701,15 +1676,24 @@ function LearningPage() {
 
       <section className="ip3-hr-banner" aria-label="Learning and development">
         <Image
-          src={`${LEARNING_MATERIALS_MEDIA}/learning-banner.webp`}
-          alt="Learn today. Grow tomorrow."
+          src={`${LEARNING_MATERIALS_MEDIA}/learning-banner.jpg`}
+          alt="Learn today. Grow tomorrow. Progress starts with you."
           loading="eager"
           fetchPriority="high"
         />
       </section>
 
+      <section className="ip3-hr-quick-links" aria-labelledby="ip3-learning-workday-title">
+        <h2 id="ip3-learning-workday-title">Workday</h2>
+        <div className="ip3-hr-quick-links-grid">
+          <a className="ip3-hr-quick-link" href={WORKDAY_HOME_URL} target="_blank" rel="noreferrer">
+            <Image src={HR_ONLINE_LINK_ICON} alt="" ariaHidden />
+            <span>Open Workday Home</span>
+          </a>
+        </div>
+      </section>
+
       <section className="ip3-hr-quick-links" aria-labelledby="ip3-learning-materials-title">
-        <p className="ip3-eyebrow">Learning</p>
         <h2 id="ip3-learning-materials-title">Learning materials</h2>
         <div className="ip3-hr-quick-links-grid">
           {LEARNING_MATERIALS.map((item) => (
@@ -1787,7 +1771,7 @@ const TOOLS_AND_RESOURCES = [
     title: 'Recreational & Wellness Scheme',
     description: 'Your place for accessing recreational and wellness benefits and claims.',
     icon: Confetti,
-    href: 'https://performancemanager.successfactors.eu/sf/liveprofile?company=ShellOmanMktg&categoryId=benefits&cardId=benefitActions',
+    href: 'https://performancemanager.successfactors.eu/sf/liveprofile?compnay=ShellOmanMktg&categoryId=benefits&cardId=benefitActions',
   },
   {
     id: 'time-management',
