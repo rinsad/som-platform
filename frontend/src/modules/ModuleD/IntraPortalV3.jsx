@@ -846,9 +846,9 @@ function GoalZeroCounter() {
 // right edge of every portal page reopens it.
 // Set photo to null to show a neutral placeholder avatar instead.
 const DUTY_MANAGER = {
-  name: 'Ahmed Al Dughaishi',
+  name: 'Khalid Al Uwaisi',
   photo: `${MEDIA_ROOT}/duty-manager.jpg`,
-  period: '20th to 26th September',
+  period: '27th September to 3rd October',
   phone: '99231647',
 };
 

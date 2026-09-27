@@ -17,12 +17,12 @@ test('shows the duty manager notice until closed, then keeps it closed for this 
   const { unmount } = render(<IntraPortalV3 />);
 
   const dialog = screen.getByRole('dialog', { name: /Duty Manager/ });
-  expect(within(dialog).getByRole('heading', { name: 'Ahmed Al Dughaishi' })).toBeInTheDocument();
-  expect(within(dialog).getByAltText('Ahmed Al Dughaishi, duty manager')).toHaveAttribute(
+  expect(within(dialog).getByRole('heading', { name: 'Khalid Al Uwaisi' })).toBeInTheDocument();
+  expect(within(dialog).getByAltText('Khalid Al Uwaisi, duty manager')).toHaveAttribute(
     'src',
     '/intraportal-v3/media/duty-manager.jpg',
   );
-  expect(dialog).toHaveTextContent('20th to 26th September');
+  expect(dialog).toHaveTextContent('27th September to 3rd October');
   expect(within(dialog).getByRole('link', { name: '99231647' })).toHaveAttribute('href', 'tel:+96899231647');
   expect(dialog).toHaveTextContent('Available This Week');
   expect(dialog).not.toHaveTextContent(/Department|Email/);
