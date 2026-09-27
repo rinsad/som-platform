@@ -848,7 +848,7 @@ function GoalZeroCounter() {
 const DUTY_MANAGER = {
   name: 'Khalid Al Uwaisi',
   photo: `${MEDIA_ROOT}/duty-manager.jpg`,
-  period: '27th September to 3rd October',
+  period: 'Sept 27th – Oct 3rd',
   phone: '99231647',
 };
 
@@ -957,7 +957,7 @@ function DutyManagerPopup({ onClose }) {
                 </div>
                 <div>
                   <dt><span aria-hidden="true"><Phone size={20} weight="bold" /></span>Contact Number</dt>
-                  <dd><a href={`tel:+968${DUTY_MANAGER.phone}`}>{DUTY_MANAGER.phone}</a></dd>
+                  <dd><a href={`tel:+968${DUTY_MANAGER.phone}`}>+968 {DUTY_MANAGER.phone}</a></dd>
                 </div>
               </dl>
               <p className="ip3-duty-available">
