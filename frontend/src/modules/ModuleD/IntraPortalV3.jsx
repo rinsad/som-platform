@@ -282,7 +282,7 @@ const HR_ONLINE_HIGHLIGHTS = [
 const HR_ONLINE_LINK_ICON = '/intraportal-v3/link-icon.png';
 
 const HR_ONLINE_QUICK_LINKS = [
-  { id: 'people1st-hr-manual', title: 'Explore our People1st HR Manual', href: null },
+  { id: 'people1st-hr-manual', title: 'Explore our People1st HR Manual', href: 'https://eu023-sp.shell.com/sites/SPOUAT000499/SitePages/human-resource-career.aspx' },
   { id: 'oman-labour-law', title: 'Oman Labour Law', href: 'https://www.mol.gov.om/Laborlaw' },
   { id: 'social-protection-fund', title: 'Social Protection Fund', href: 'https://www.spf.gov.om/en/home-2/' },
 ];
